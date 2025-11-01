@@ -1,7 +1,6 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import MainLayout from "@/components/layout/MainLayout"
 import { Dashboard } from "../components/dashboard/index"
 import type { Business } from "@/types"
 import { mockBusinesses } from "@/assets/mock.js"
@@ -23,26 +22,15 @@ export default function DashboardPage() {
   }
 
   return (
-    <MainLayout
-      projects={[]}
-      selectedProject={null}
-      setSelectedProject={() => {}}
-      companies={businesses}
-      selectedCompany={selectedCompany}
-      setSelectedCompany={setSelectedCompany}
+    <Dashboard
       activeSection={activeSection}
       setActiveSection={setActiveSection}
-    >
-      <Dashboard
-        activeSection={activeSection}
-        setActiveSection={setActiveSection}
-        selectedCompany={selectedCompany}
-        setSelectedCompany={setSelectedCompany}
-        businesses={businesses}
-        setBusinesses={setBusinesses}
-        loading={loading}
-        onRefresh={loadBusinesses}
-      />
-    </MainLayout>
+      selectedCompany={selectedCompany}
+      setSelectedCompany={setSelectedCompany}
+      businesses={businesses}
+      setBusinesses={setBusinesses}
+      loading={loading}
+      onRefresh={loadBusinesses}
+    />
   )
 }

@@ -6,10 +6,9 @@ import { toast } from 'sonner';
 import { Lock, Mail, EyeOff, Eye, X } from "lucide-react";
 import { FaInstagram, FaXTwitter } from "react-icons/fa6";
 import { PiTiktokLogoLight } from "react-icons/pi";
-import { SlSocialFacebook } from "react-icons/sl";
 import { PiYoutubeLogo } from "react-icons/pi";
 import { assets } from "../assets/assets";
-import { mockAuthUser } from "../assets/mock.js";
+import { post, saveAuthData } from "../utils/service";
 
 const ForgotPasswordModal = ({ isOpen, onClose, onComplete }) => {
   const [step, setStep] = useState(1);
@@ -29,11 +28,6 @@ const ForgotPasswordModal = ({ isOpen, onClose, onComplete }) => {
     e.preventDefault();
     if (!email || !validateEmail(email)) {
       toast.error("Please enter a valid email address");
-      return;
-    }
-
-    if (email !== mockAuthUser.email) {
-      toast.error("Email not found");
       return;
     }
 
@@ -68,7 +62,6 @@ const ForgotPasswordModal = ({ isOpen, onClose, onComplete }) => {
 
     setLoading(true);
     setTimeout(() => {
-      mockAuthUser.password = newPassword;
       toast.success("Password reset successfully!");
       onComplete();
       onClose();
@@ -271,25 +264,36 @@ const Login = () => {
     if (valid) {
       setLoading(true);
       
-      setTimeout(() => {
-        if (email === mockAuthUser.email && password === mockAuthUser.password) {
-          localStorage.setItem('name', mockAuthUser.username);
-          localStorage.setItem('email', mockAuthUser.email);
-          localStorage.setItem('role', mockAuthUser.role);
-          localStorage.setItem('isLoggedIn', 'true');
+      try {
+        const credentials = {
+          email,
+          password
+        };
+
+        const response = await post('/auth/login', credentials);
+        
+        if (response.success) {
+          saveAuthData(response.data.token, response.data.user);
           
-          toast.success('Login successful!');
+          toast.success(response.message || 'Login successful!');
           navigate('/');
           
           setEmail("");
           setPassword("");
           setSubmitted(false);
         } else {
-          toast.error('Invalid credentials. Please check your email and password.');
+          toast.error(response.message || 'Login failed. Please try again.');
         }
-        
+      } catch (error: any) {
+        console.error('Login error:', error);
+        toast.error(
+          error.response?.data?.message || 
+          error.message || 
+          'Login failed. Please check your credentials and try again.'
+        );
+      } finally {
         setLoading(false);
-      }, 1000);
+      }
     }
   };
 
@@ -305,22 +309,17 @@ const Login = () => {
         }
       `}</style>
 
-      {/* Desktop Layout - 80vh and 80vw with Shadow */}
       <div className="min-h-screen w-full hidden xl:flex items-center justify-center bg-gray-100">
         <div className="h-screen w-screen flex overflow-hidden bg-white">
           
-          {/* LEFT SIDE - Image Section */}
           <div className="w-1/2 relative overflow-hidden">
-            {/* Background Image */}
             <div 
               className="absolute inset-0 bg-cover bg-center bg-no-repeat"
               style={{ backgroundImage: `url(${assets.banner})` }}
             />
             
-            {/* Dark Overlay */}
             <div className="absolute inset-0 bg-black/40"></div>
             
-            {/* Content - CENTERED SOCIALS AT BOTTOM */}
             <div className="relative z-20 h-full flex flex-col justify-end items-center pb-12">
               <div className="text-white text-center">
                 <h2 className="text-sm font-medium mb-6">Follow us on social media</h2>
@@ -343,12 +342,9 @@ const Login = () => {
             </div>
           </div>
 
-          {/* RIGHT SIDE - Form Section - UPDATED TO BE CENTERED */}
           <div className="w-1/2 bg-white flex flex-col h-full">
-            {/* Centered Content Container */}
             <div className="flex-1 flex items-center justify-center">
               <div className="w-full max-w-sm px-8">
-                {/* Header */}
                 <div className="flex-shrink-0 mb-8">
                   <div className="flex justify-center mb-6">
                     <img
@@ -368,7 +364,6 @@ const Login = () => {
                   </div>
                 </div>
 
-                {/* Form Content */}
                 <form
                   className="flex flex-col gap-5"
                   onSubmit={handleLogin}
@@ -459,22 +454,17 @@ const Login = () => {
         </div>
       </div>
 
-      {/* Tablet Layout - Slightly Smaller but Full Coverage */}
       <div className="min-h-screen w-full lg:flex hidden xl:hidden bg-gray-50">
         <div className="w-full h-screen flex shadow-xl">
           
-          {/* LEFT SIDE - Image Section */}
           <div className="w-1/2 relative overflow-hidden">
-            {/* Background Image */}
             <div 
               className="absolute inset-0 bg-cover bg-center bg-no-repeat"
               style={{ backgroundImage: `url(${assets.banner})` }}
             />
             
-            {/* Dark Overlay */}
             <div className="absolute inset-0 bg-black/20"></div>
             
-            {/* Content - CENTERED SOCIALS AT BOTTOM */}
             <div className="relative z-20 h-full flex flex-col justify-end items-center pb-12">
               <div className="text-white text-center">
                 <h2 className="text-sm font-medium mb-6">Follow us on social media</h2>
@@ -497,12 +487,9 @@ const Login = () => {
             </div>
           </div>
 
-          {/* RIGHT SIDE - Form Section */}
           <div className="w-1/2 bg-white flex flex-col h-full">
-            {/* Header */}
             <div className="flex-shrink-0 p-6 pb-4">
               <div className="flex justify-center mb-4">
-                {/* Clean logo without background */}
                 <img
                   src={assets.LogoIcon}
                   alt="Social Gems"
@@ -520,7 +507,6 @@ const Login = () => {
               </div>
             </div>
 
-            {/* Form Content - SCROLLABLE */}
             <div className="flex-1 overflow-y-auto px-6 scrollbar-none">
               <form
                 className="flex flex-col gap-4"
@@ -593,7 +579,7 @@ const Login = () => {
                     type="button"
                     className="text-xs text-primary hover:underline font-medium"
                     onClick={() => setShowForgotPassword(true)}
-                  >
+                    >
                     Forgot password?
                   </button>
                 </div>
@@ -611,10 +597,8 @@ const Login = () => {
         </div>
       </div>
 
-      {/* Mobile Layout - Full Screen */}
       <div className="min-h-screen w-full flex flex-col lg:hidden bg-gray-50">
         <div className="w-full h-screen flex flex-col">
-          {/* Mobile Logo Section */}
           <div className="flex-shrink-0 bg-primary py-8 px-4 text-center">
             <img
               src={assets.MainLogo}
@@ -623,9 +607,7 @@ const Login = () => {
             />
           </div>
 
-          {/* Mobile Form Section */}
           <div className="flex-1 bg-white overflow-hidden flex flex-col">
-            {/* Header */}
             <div className="flex-shrink-0 p-6 pb-4">
               <div className="text-center">
                 <h2 className="text-xl font-semibold text-gray-900 mb-2">
@@ -637,7 +619,6 @@ const Login = () => {
               </div>
             </div>
 
-            {/* Content */}
             <div className="flex-1 overflow-y-auto px-6 pb-6 scrollbar-none">
               <form
                 className="flex flex-col gap-5 mb-8"
@@ -724,7 +705,6 @@ const Login = () => {
                 </button>
               </form>
 
-              {/* Mobile Social Media Links */}
               <div className="text-center">
                 <p className="text-sm opacity-80 mb-4 text-gray-600">Follow us on social media</p>
                 <div className="flex items-center justify-center gap-4">
@@ -747,7 +727,6 @@ const Login = () => {
         </div>
       </div>
 
-      {/* Forgot Password Modal */}
       <ForgotPasswordModal 
         isOpen={showForgotPassword}
         onClose={() => setShowForgotPassword(false)}

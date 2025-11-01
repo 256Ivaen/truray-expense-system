@@ -1,105 +1,472 @@
 {
-    "openapi": "3.0.3",
-    "info": {
-      "title": "Truray Expense Management API",
-      "description": "Secure expense management and project tracking API with comprehensive security features",
-      "version": "1.0.0",
-      "contact": {
-        "email": "support@truray.com"
-      }
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Truray Expense Management API",
+    "description": "Secure expense management and project tracking API with comprehensive security features",
+    "version": "1.0.0",
+    "contact": {
+      "email": "support@truray.com"
+    }
+  },
+  "servers": [
+    {
+      "url": "https://orange-ferret-922211.hostingersite.com/api",
+      "description": "Production server"
+    }
+  ],
+  "tags": [
+    {
+      "name": "Authentication",
+      "description": "User authentication endpoints"
     },
-    "servers": [
-      {
-        "url": "https://orange-ferret-922211.hostingersite.com/api",
-        "description": "Production server"
-      }
-    ],
-    "tags": [
-      {
-        "name": "Authentication",
-        "description": "User authentication endpoints"
-      },
-      {
-        "name": "Users",
-        "description": "User management"
-      },
-      {
-        "name": "Projects",
-        "description": "Project management"
-      },
-      {
-        "name": "Finance",
-        "description": "Finance deposits"
-      },
-      {
-        "name": "Allocations",
-        "description": "Money allocation to users"
-      },
-      {
-        "name": "Expenses",
-        "description": "Expense tracking"
-      },
-      {
-        "name": "Reports",
-        "description": "System reports and analytics"
-      }
-    ],
-    "paths": {
-      "/auth/login": {
-        "post": {
-          "tags": ["Authentication"],
-          "summary": "User login",
-          "description": "Authenticate user and receive JWT tokens",
-          "requestBody": {
-            "required": true,
+    {
+      "name": "Dashboard",
+      "description": "Complete dashboard data in one call"
+    },
+    {
+      "name": "Users",
+      "description": "User management"
+    },
+    {
+      "name": "Projects",
+      "description": "Project management"
+    },
+    {
+      "name": "Finance",
+      "description": "Finance deposits"
+    },
+    {
+      "name": "Allocations",
+      "description": "Money allocation to users"
+    },
+    {
+      "name": "Expenses",
+      "description": "Expense tracking"
+    },
+    {
+      "name": "Reports",
+      "description": "System reports and analytics"
+    }
+  ],
+  "paths": {
+    "/auth/login": {
+      "post": {
+        "tags": ["Authentication"],
+        "summary": "User login",
+        "description": "Authenticate user and receive JWT tokens",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["email", "password"],
+                "properties": {
+                  "email": {
+                    "type": "string",
+                    "format": "email",
+                    "example": "admin@truray.com"
+                  },
+                  "password": {
+                    "type": "string",
+                    "format": "password",
+                    "example": "Admin@123456"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Login successful",
             "content": {
               "application/json": {
                 "schema": {
                   "type": "object",
-                  "required": ["email", "password"],
                   "properties": {
-                    "email": {
-                      "type": "string",
-                      "format": "email",
-                      "example": "admin@truray.com"
+                    "success": {
+                      "type": "boolean",
+                      "example": true
                     },
-                    "password": {
+                    "message": {
                       "type": "string",
-                      "format": "password",
-                      "example": "Admin@123456"
+                      "example": "Login successful"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "token": {
+                          "type": "string"
+                        },
+                        "refresh_token": {
+                          "type": "string"
+                        },
+                        "user": {
+                          "$ref": "#/components/schemas/User"
+                        }
+                      }
                     }
                   }
                 }
               }
             }
           },
-          "responses": {
-            "200": {
-              "description": "Login successful",
-              "content": {
-                "application/json": {
-                  "schema": {
-                    "type": "object",
-                    "properties": {
-                      "success": {
-                        "type": "boolean",
-                        "example": true
-                      },
-                      "message": {
-                        "type": "string",
-                        "example": "Login successful"
-                      },
-                      "data": {
-                        "type": "object",
-                        "properties": {
-                          "token": {
-                            "type": "string"
-                          },
-                          "refresh_token": {
-                            "type": "string"
-                          },
-                          "user": {
-                            "$ref": "#/components/schemas/User"
+          "401": {
+            "description": "Invalid credentials",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/register": {
+      "post": {
+        "tags": ["Authentication"],
+        "summary": "User registration",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["email", "password", "first_name", "last_name"],
+                "properties": {
+                  "email": {
+                    "type": "string",
+                    "format": "email"
+                  },
+                  "password": {
+                    "type": "string",
+                    "minLength": 8
+                  },
+                  "first_name": {
+                    "type": "string"
+                  },
+                  "last_name": {
+                    "type": "string"
+                  },
+                  "phone": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Registration successful"
+          }
+        }
+      }
+    },
+    "/auth/logout": {
+      "post": {
+        "tags": ["Authentication"],
+        "summary": "User logout",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Logout successful"
+          }
+        }
+      }
+    },
+    "/auth/refresh": {
+      "post": {
+        "tags": ["Authentication"],
+        "summary": "Refresh access token",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Token refreshed"
+          }
+        }
+      }
+    },
+    "/auth/me": {
+      "get": {
+        "tags": ["Authentication"],
+        "summary": "Get current user",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "User information",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/User"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/forgot-password": {
+      "post": {
+        "tags": ["Authentication"],
+        "summary": "Request password reset",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["email"],
+                "properties": {
+                  "email": {
+                    "type": "string",
+                    "format": "email"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Password reset email sent"
+          }
+        }
+      }
+    },
+    "/auth/reset-password": {
+      "post": {
+        "tags": ["Authentication"],
+        "summary": "Reset password",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["token", "password"],
+                "properties": {
+                  "token": {
+                    "type": "string"
+                  },
+                  "password": {
+                    "type": "string",
+                    "minLength": 8
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Password reset successful"
+          }
+        }
+      }
+    },
+    "/dashboard": {
+      "get": {
+        "tags": ["Dashboard"],
+        "summary": "Get complete dashboard data in one call",
+        "description": "Returns all dashboard statistics, recent items (max 5 per list), and chart data. Admin users get system-wide data, regular users get personal data.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Dashboard data retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "stats": {
+                          "type": "object",
+                          "description": "Overview statistics",
+                          "properties": {
+                            "total_projects": {
+                              "type": "integer",
+                              "example": 25
+                            },
+                            "active_projects": {
+                              "type": "integer",
+                              "example": 10
+                            },
+                            "total_users": {
+                              "type": "integer",
+                              "example": 50
+                            },
+                            "total_deposits": {
+                              "type": "number",
+                              "example": 1000000
+                            },
+                            "total_allocated": {
+                              "type": "number",
+                              "example": 750000
+                            },
+                            "total_spent": {
+                              "type": "number",
+                              "example": 500000
+                            },
+                            "pending_expenses": {
+                              "type": "integer",
+                              "example": 15
+                            },
+                            "budget_utilization": {
+                              "type": "number",
+                              "example": 50.5
+                            }
+                          }
+                        },
+                        "recent_projects": {
+                          "type": "array",
+                          "description": "Last 5 recent projects",
+                          "maxItems": 5,
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "string",
+                                "format": "uuid"
+                              },
+                              "project_code": {
+                                "type": "string"
+                              },
+                              "name": {
+                                "type": "string"
+                              },
+                              "status": {
+                                "type": "string"
+                              },
+                              "created_at": {
+                                "type": "string",
+                                "format": "date-time"
+                              }
+                            }
+                          }
+                        },
+                        "pending_expenses": {
+                          "type": "array",
+                          "description": "Last 5 pending expenses",
+                          "maxItems": 5,
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "string"
+                              },
+                              "amount": {
+                                "type": "number"
+                              },
+                              "description": {
+                                "type": "string"
+                              },
+                              "status": {
+                                "type": "string"
+                              },
+                              "project_name": {
+                                "type": "string"
+                              }
+                            }
+                          }
+                        },
+                        "recent_allocations": {
+                          "type": "array",
+                          "description": "Last 5 recent allocations",
+                          "maxItems": 5,
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "string"
+                              },
+                              "amount": {
+                                "type": "number"
+                              },
+                              "description": {
+                                "type": "string"
+                              },
+                              "status": {
+                                "type": "string"
+                              }
+                            }
+                          }
+                        },
+                        "top_spending_users": {
+                          "type": "array",
+                          "description": "Top 5 users by spending (admin only)",
+                          "maxItems": 5,
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "string"
+                              },
+                              "first_name": {
+                                "type": "string"
+                              },
+                              "last_name": {
+                                "type": "string"
+                              },
+                              "total_spent": {
+                                "type": "number"
+                              }
+                            }
+                          }
+                        },
+                        "monthly_spending": {
+                          "type": "array",
+                          "description": "Last 6 months spending data for charts",
+                          "maxItems": 6,
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "month": {
+                                "type": "string",
+                                "example": "2025-01"
+                              },
+                              "month_name": {
+                                "type": "string",
+                                "example": "January 2025"
+                              },
+                              "total": {
+                                "type": "number",
+                                "example": 50000
+                              }
+                            }
                           }
                         }
                       }
@@ -107,1250 +474,1078 @@
                   }
                 }
               }
-            },
-            "401": {
-              "description": "Invalid credentials",
-              "content": {
-                "application/json": {
-                  "schema": {
-                    "$ref": "#/components/schemas/Error"
-                  }
-                }
-              }
-            }
-          }
-        }
-      },
-      "/auth/register": {
-        "post": {
-          "tags": ["Authentication"],
-          "summary": "User registration",
-          "requestBody": {
-            "required": true,
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "required": ["email", "password", "first_name", "last_name"],
-                  "properties": {
-                    "email": {
-                      "type": "string",
-                      "format": "email"
-                    },
-                    "password": {
-                      "type": "string",
-                      "minLength": 8
-                    },
-                    "first_name": {
-                      "type": "string"
-                    },
-                    "last_name": {
-                      "type": "string"
-                    },
-                    "phone": {
-                      "type": "string"
-                    }
-                  }
-                }
-              }
-            }
-          },
-          "responses": {
-            "201": {
-              "description": "Registration successful"
-            }
-          }
-        }
-      },
-      "/auth/logout": {
-        "post": {
-          "tags": ["Authentication"],
-          "summary": "User logout",
-          "security": [
-            {
-              "bearerAuth": []
-            }
-          ],
-          "responses": {
-            "200": {
-              "description": "Logout successful"
-            }
-          }
-        }
-      },
-      "/auth/refresh": {
-        "post": {
-          "tags": ["Authentication"],
-          "summary": "Refresh access token",
-          "security": [
-            {
-              "bearerAuth": []
-            }
-          ],
-          "responses": {
-            "200": {
-              "description": "Token refreshed"
-            }
-          }
-        }
-      },
-      "/auth/me": {
-        "get": {
-          "tags": ["Authentication"],
-          "summary": "Get current user",
-          "security": [
-            {
-              "bearerAuth": []
-            }
-          ],
-          "responses": {
-            "200": {
-              "description": "User information",
-              "content": {
-                "application/json": {
-                  "schema": {
-                    "type": "object",
-                    "properties": {
-                      "success": {
-                        "type": "boolean"
-                      },
-                      "data": {
-                        "$ref": "#/components/schemas/User"
-                      }
-                    }
-                  }
-                }
-              }
-            }
-          }
-        }
-      },
-      "/auth/forgot-password": {
-        "post": {
-          "tags": ["Authentication"],
-          "summary": "Request password reset",
-          "requestBody": {
-            "required": true,
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "required": ["email"],
-                  "properties": {
-                    "email": {
-                      "type": "string",
-                      "format": "email"
-                    }
-                  }
-                }
-              }
-            }
-          },
-          "responses": {
-            "200": {
-              "description": "Password reset email sent"
-            }
-          }
-        }
-      },
-      "/auth/reset-password": {
-        "post": {
-          "tags": ["Authentication"],
-          "summary": "Reset password",
-          "requestBody": {
-            "required": true,
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "required": ["token", "password"],
-                  "properties": {
-                    "token": {
-                      "type": "string"
-                    },
-                    "password": {
-                      "type": "string",
-                      "minLength": 8
-                    }
-                  }
-                }
-              }
-            }
-          },
-          "responses": {
-            "200": {
-              "description": "Password reset successful"
-            }
-          }
-        }
-      },
-      "/users": {
-        "get": {
-          "tags": ["Users"],
-          "summary": "List all users",
-          "security": [
-            {
-              "bearerAuth": []
-            }
-          ],
-          "parameters": [
-            {
-              "name": "role",
-              "in": "query",
-              "schema": {
-                "type": "string",
-                "enum": ["admin", "finance_manager", "user"]
-              }
-            },
-            {
-              "name": "status",
-              "in": "query",
-              "schema": {
-                "type": "string",
-                "enum": ["active", "inactive", "suspended"]
-              }
-            }
-          ],
-          "responses": {
-            "200": {
-              "description": "List of users"
-            },
-            "403": {
-              "description": "Admin only"
-            }
-          }
-        },
-        "post": {
-          "tags": ["Users"],
-          "summary": "Create new user",
-          "security": [
-            {
-              "bearerAuth": []
-            }
-          ],
-          "requestBody": {
-            "required": true,
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "required": ["email", "password", "first_name", "last_name", "role"],
-                  "properties": {
-                    "email": {
-                      "type": "string",
-                      "format": "email"
-                    },
-                    "password": {
-                      "type": "string",
-                      "minLength": 8
-                    },
-                    "first_name": {
-                      "type": "string"
-                    },
-                    "last_name": {
-                      "type": "string"
-                    },
-                    "phone": {
-                      "type": "string"
-                    },
-                    "role": {
-                      "type": "string",
-                      "enum": ["admin", "finance_manager", "user"]
-                    }
-                  }
-                }
-              }
-            }
-          },
-          "responses": {
-            "201": {
-              "description": "User created"
-            }
-          }
-        }
-      },
-      "/users/{id}": {
-        "get": {
-          "tags": ["Users"],
-          "summary": "Get user by ID",
-          "security": [
-            {
-              "bearerAuth": []
-            }
-          ],
-          "parameters": [
-            {
-              "name": "id",
-              "in": "path",
-              "required": true,
-              "schema": {
-                "type": "string",
-                "format": "uuid"
-              }
-            }
-          ],
-          "responses": {
-            "200": {
-              "description": "User details"
-            }
-          }
-        },
-        "put": {
-          "tags": ["Users"],
-          "summary": "Update user",
-          "security": [
-            {
-              "bearerAuth": []
-            }
-          ],
-          "parameters": [
-            {
-              "name": "id",
-              "in": "path",
-              "required": true,
-              "schema": {
-                "type": "string",
-                "format": "uuid"
-              }
-            }
-          ],
-          "requestBody": {
-            "required": true,
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "email": {
-                      "type": "string",
-                      "format": "email"
-                    },
-                    "first_name": {
-                      "type": "string"
-                    },
-                    "last_name": {
-                      "type": "string"
-                    },
-                    "phone": {
-                      "type": "string"
-                    },
-                    "role": {
-                      "type": "string",
-                      "enum": ["admin", "finance_manager", "user"]
-                    },
-                    "status": {
-                      "type": "string",
-                      "enum": ["active", "inactive", "suspended"]
-                    }
-                  }
-                }
-              }
-            }
-          },
-          "responses": {
-            "200": {
-              "description": "User updated"
-            }
-          }
-        },
-        "delete": {
-          "tags": ["Users"],
-          "summary": "Delete user",
-          "security": [
-            {
-              "bearerAuth": []
-            }
-          ],
-          "parameters": [
-            {
-              "name": "id",
-              "in": "path",
-              "required": true,
-              "schema": {
-                "type": "string",
-                "format": "uuid"
-              }
-            }
-          ],
-          "responses": {
-            "200": {
-              "description": "User deleted"
-            }
-          }
-        }
-      },
-      "/projects": {
-        "get": {
-          "tags": ["Projects"],
-          "summary": "List projects",
-          "security": [
-            {
-              "bearerAuth": []
-            }
-          ],
-          "responses": {
-            "200": {
-              "description": "List of projects"
-            }
-          }
-        },
-        "post": {
-          "tags": ["Projects"],
-          "summary": "Create project",
-          "security": [
-            {
-              "bearerAuth": []
-            }
-          ],
-          "requestBody": {
-            "required": true,
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "required": ["project_code", "name"],
-                  "properties": {
-                    "project_code": {
-                      "type": "string",
-                      "example": "PRJ001"
-                    },
-                    "name": {
-                      "type": "string",
-                      "example": "Office Renovation"
-                    },
-                    "description": {
-                      "type": "string"
-                    },
-                    "start_date": {
-                      "type": "string",
-                      "format": "date"
-                    },
-                    "end_date": {
-                      "type": "string",
-                      "format": "date"
-                    }
-                  }
-                }
-              }
-            }
-          },
-          "responses": {
-            "201": {
-              "description": "Project created"
-            }
-          }
-        }
-      },
-      "/projects/{id}": {
-        "get": {
-          "tags": ["Projects"],
-          "summary": "Get project by ID",
-          "security": [
-            {
-              "bearerAuth": []
-            }
-          ],
-          "parameters": [
-            {
-              "name": "id",
-              "in": "path",
-              "required": true,
-              "schema": {
-                "type": "string",
-                "format": "uuid"
-              }
-            }
-          ],
-          "responses": {
-            "200": {
-              "description": "Project details"
-            }
-          }
-        },
-        "put": {
-          "tags": ["Projects"],
-          "summary": "Update project",
-          "security": [
-            {
-              "bearerAuth": []
-            }
-          ],
-          "parameters": [
-            {
-              "name": "id",
-              "in": "path",
-              "required": true,
-              "schema": {
-                "type": "string",
-                "format": "uuid"
-              }
-            }
-          ],
-          "responses": {
-            "200": {
-              "description": "Project updated"
-            }
-          }
-        },
-        "delete": {
-          "tags": ["Projects"],
-          "summary": "Delete project",
-          "security": [
-            {
-              "bearerAuth": []
-            }
-          ],
-          "parameters": [
-            {
-              "name": "id",
-              "in": "path",
-              "required": true,
-              "schema": {
-                "type": "string",
-                "format": "uuid"
-              }
-            }
-          ],
-          "responses": {
-            "200": {
-              "description": "Project deleted"
-            }
-          }
-        }
-      },
-      "/projects/{id}/assign-user": {
-        "post": {
-          "tags": ["Projects"],
-          "summary": "Assign user to project",
-          "security": [
-            {
-              "bearerAuth": []
-            }
-          ],
-          "parameters": [
-            {
-              "name": "id",
-              "in": "path",
-              "required": true,
-              "schema": {
-                "type": "string",
-                "format": "uuid"
-              }
-            }
-          ],
-          "requestBody": {
-            "required": true,
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "required": ["user_id"],
-                  "properties": {
-                    "user_id": {
-                      "type": "string",
-                      "format": "uuid"
-                    }
-                  }
-                }
-              }
-            }
-          },
-          "responses": {
-            "200": {
-              "description": "User assigned"
-            }
-          }
-        }
-      },
-      "/projects/{id}/remove-user/{userId}": {
-        "delete": {
-          "tags": ["Projects"],
-          "summary": "Remove user from project",
-          "security": [
-            {
-              "bearerAuth": []
-            }
-          ],
-          "parameters": [
-            {
-              "name": "id",
-              "in": "path",
-              "required": true,
-              "schema": {
-                "type": "string",
-                "format": "uuid"
-              }
-            },
-            {
-              "name": "userId",
-              "in": "path",
-              "required": true,
-              "schema": {
-                "type": "string",
-                "format": "uuid"
-              }
-            }
-          ],
-          "responses": {
-            "200": {
-              "description": "User removed"
-            }
-          }
-        }
-      },
-      "/finances": {
-        "get": {
-          "tags": ["Finance"],
-          "summary": "List finance deposits",
-          "security": [
-            {
-              "bearerAuth": []
-            }
-          ],
-          "responses": {
-            "200": {
-              "description": "List of deposits"
-            }
-          }
-        },
-        "post": {
-          "tags": ["Finance"],
-          "summary": "Deposit money to project",
-          "security": [
-            {
-              "bearerAuth": []
-            }
-          ],
-          "requestBody": {
-            "required": true,
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "required": ["project_id", "amount"],
-                  "properties": {
-                    "project_id": {
-                      "type": "string",
-                      "format": "uuid"
-                    },
-                    "amount": {
-                      "type": "number",
-                      "format": "decimal",
-                      "example": 100000000
-                    },
-                    "description": {
-                      "type": "string"
-                    }
-                  }
-                }
-              }
-            }
-          },
-          "responses": {
-            "201": {
-              "description": "Deposit successful"
-            }
-          }
-        }
-      },
-      "/finances/{id}": {
-        "get": {
-          "tags": ["Finance"],
-          "summary": "Get finance record",
-          "security": [
-            {
-              "bearerAuth": []
-            }
-          ],
-          "parameters": [
-            {
-              "name": "id",
-              "in": "path",
-              "required": true,
-              "schema": {
-                "type": "string",
-                "format": "uuid"
-              }
-            }
-          ],
-          "responses": {
-            "200": {
-              "description": "Finance details"
-            }
-          }
-        }
-      },
-      "/projects/{id}/finances": {
-        "get": {
-          "tags": ["Finance"],
-          "summary": "Get project finances",
-          "security": [
-            {
-              "bearerAuth": []
-            }
-          ],
-          "parameters": [
-            {
-              "name": "id",
-              "in": "path",
-              "required": true,
-              "schema": {
-                "type": "string",
-                "format": "uuid"
-              }
-            }
-          ],
-          "responses": {
-            "200": {
-              "description": "Project finances"
-            }
-          }
-        }
-      },
-      "/allocations": {
-        "get": {
-          "tags": ["Allocations"],
-          "summary": "List allocations",
-          "security": [
-            {
-              "bearerAuth": []
-            }
-          ],
-          "responses": {
-            "200": {
-              "description": "List of allocations"
-            }
-          }
-        },
-        "post": {
-          "tags": ["Allocations"],
-          "summary": "Allocate money to user",
-          "security": [
-            {
-              "bearerAuth": []
-            }
-          ],
-          "requestBody": {
-            "required": true,
-            "content": {
-              "multipart/form-data": {
-                "schema": {
-                  "type": "object",
-                  "required": ["project_id", "user_id", "amount", "proof_image"],
-                  "properties": {
-                    "project_id": {
-                      "type": "string",
-                      "format": "uuid"
-                    },
-                    "user_id": {
-                      "type": "string",
-                      "format": "uuid"
-                    },
-                    "amount": {
-                      "type": "number",
-                      "format": "decimal"
-                    },
-                    "description": {
-                      "type": "string"
-                    },
-                    "proof_image": {
-                      "type": "string",
-                      "format": "binary"
-                    }
-                  }
-                }
-              }
-            }
-          },
-          "responses": {
-            "201": {
-              "description": "Allocation successful"
-            }
-          }
-        }
-      },
-      "/allocations/{id}": {
-        "get": {
-          "tags": ["Allocations"],
-          "summary": "Get allocation",
-          "security": [
-            {
-              "bearerAuth": []
-            }
-          ],
-          "parameters": [
-            {
-              "name": "id",
-              "in": "path",
-              "required": true,
-              "schema": {
-                "type": "string",
-                "format": "uuid"
-              }
-            }
-          ],
-          "responses": {
-            "200": {
-              "description": "Allocation details"
-            }
-          }
-        },
-        "put": {
-          "tags": ["Allocations"],
-          "summary": "Update allocation",
-          "security": [
-            {
-              "bearerAuth": []
-            }
-          ],
-          "parameters": [
-            {
-              "name": "id",
-              "in": "path",
-              "required": true,
-              "schema": {
-                "type": "string",
-                "format": "uuid"
-              }
-            }
-          ],
-          "responses": {
-            "200": {
-              "description": "Allocation updated"
-            }
-          }
-        }
-      },
-      "/users/{id}/allocations": {
-        "get": {
-          "tags": ["Allocations"],
-          "summary": "Get user allocations",
-          "security": [
-            {
-              "bearerAuth": []
-            }
-          ],
-          "parameters": [
-            {
-              "name": "id",
-              "in": "path",
-              "required": true,
-              "schema": {
-                "type": "string",
-                "format": "uuid"
-              }
-            }
-          ],
-          "responses": {
-            "200": {
-              "description": "User allocations"
-            }
-          }
-        }
-      },
-      "/projects/{id}/allocations": {
-        "get": {
-          "tags": ["Allocations"],
-          "summary": "Get project allocations",
-          "security": [
-            {
-              "bearerAuth": []
-            }
-          ],
-          "parameters": [
-            {
-              "name": "id",
-              "in": "path",
-              "required": true,
-              "schema": {
-                "type": "string",
-                "format": "uuid"
-              }
-            }
-          ],
-          "responses": {
-            "200": {
-              "description": "Project allocations"
-            }
-          }
-        }
-      },
-      "/expenses": {
-        "get": {
-          "tags": ["Expenses"],
-          "summary": "List expenses",
-          "security": [
-            {
-              "bearerAuth": []
-            }
-          ],
-          "responses": {
-            "200": {
-              "description": "List of expenses"
-            }
-          }
-        },
-        "post": {
-          "tags": ["Expenses"],
-          "summary": "Record expense",
-          "security": [
-            {
-              "bearerAuth": []
-            }
-          ],
-          "requestBody": {
-            "required": true,
-            "content": {
-              "multipart/form-data": {
-                "schema": {
-                  "type": "object",
-                  "required": ["project_id", "amount", "description", "receipt_image"],
-                  "properties": {
-                    "project_id": {
-                      "type": "string",
-                      "format": "uuid"
-                    },
-                    "amount": {
-                      "type": "number",
-                      "format": "decimal"
-                    },
-                    "description": {
-                      "type": "string"
-                    },
-                    "category": {
-                      "type": "string"
-                    },
-                    "receipt_image": {
-                      "type": "string",
-                      "format": "binary"
-                    }
-                  }
-                }
-              }
-            }
-          },
-          "responses": {
-            "201": {
-              "description": "Expense recorded"
-            }
-          }
-        }
-      },
-      "/expenses/{id}": {
-        "get": {
-          "tags": ["Expenses"],
-          "summary": "Get expense",
-          "security": [
-            {
-              "bearerAuth": []
-            }
-          ],
-          "parameters": [
-            {
-              "name": "id",
-              "in": "path",
-              "required": true,
-              "schema": {
-                "type": "string",
-                "format": "uuid"
-              }
-            }
-          ],
-          "responses": {
-            "200": {
-              "description": "Expense details"
-            }
-          }
-        },
-        "put": {
-          "tags": ["Expenses"],
-          "summary": "Update expense",
-          "security": [
-            {
-              "bearerAuth": []
-            }
-          ],
-          "parameters": [
-            {
-              "name": "id",
-              "in": "path",
-              "required": true,
-              "schema": {
-                "type": "string",
-                "format": "uuid"
-              }
-            }
-          ],
-          "responses": {
-            "200": {
-              "description": "Expense updated"
-            }
-          }
-        },
-        "delete": {
-          "tags": ["Expenses"],
-          "summary": "Delete expense",
-          "security": [
-            {
-              "bearerAuth": []
-            }
-          ],
-          "parameters": [
-            {
-              "name": "id",
-              "in": "path",
-              "required": true,
-              "schema": {
-                "type": "string",
-                "format": "uuid"
-              }
-            }
-          ],
-          "responses": {
-            "200": {
-              "description": "Expense deleted"
-            }
-          }
-        }
-      },
-      "/expenses/{id}/approve": {
-        "post": {
-          "tags": ["Expenses"],
-          "summary": "Approve expense",
-          "security": [
-            {
-              "bearerAuth": []
-            }
-          ],
-          "parameters": [
-            {
-              "name": "id",
-              "in": "path",
-              "required": true,
-              "schema": {
-                "type": "string",
-                "format": "uuid"
-              }
-            }
-          ],
-          "responses": {
-            "200": {
-              "description": "Expense approved"
-            }
-          }
-        }
-      },
-      "/expenses/{id}/reject": {
-        "post": {
-          "tags": ["Expenses"],
-          "summary": "Reject expense",
-          "security": [
-            {
-              "bearerAuth": []
-            }
-          ],
-          "parameters": [
-            {
-              "name": "id",
-              "in": "path",
-              "required": true,
-              "schema": {
-                "type": "string",
-                "format": "uuid"
-              }
-            }
-          ],
-          "responses": {
-            "200": {
-              "description": "Expense rejected"
-            }
-          }
-        }
-      },
-      "/projects/{id}/expenses": {
-        "get": {
-          "tags": ["Expenses"],
-          "summary": "Get project expenses",
-          "security": [
-            {
-              "bearerAuth": []
-            }
-          ],
-          "parameters": [
-            {
-              "name": "id",
-              "in": "path",
-              "required": true,
-              "schema": {
-                "type": "string",
-                "format": "uuid"
-              }
-            }
-          ],
-          "responses": {
-            "200": {
-              "description": "Project expenses"
-            }
-          }
-        }
-      },
-      "/reports/dashboard": {
-        "get": {
-          "tags": ["Reports"],
-          "summary": "Get dashboard statistics",
-          "security": [
-            {
-              "bearerAuth": []
-            }
-          ],
-          "responses": {
-            "200": {
-              "description": "Dashboard data"
-            }
-          }
-        }
-      },
-      "/reports/project-summary": {
-        "get": {
-          "tags": ["Reports"],
-          "summary": "Get project summary",
-          "security": [
-            {
-              "bearerAuth": []
-            }
-          ],
-          "responses": {
-            "200": {
-              "description": "Project summary"
-            }
-          }
-        }
-      },
-      "/reports/user-spending": {
-        "get": {
-          "tags": ["Reports"],
-          "summary": "Get user spending report",
-          "security": [
-            {
-              "bearerAuth": []
-            }
-          ],
-          "responses": {
-            "200": {
-              "description": "User spending data"
-            }
-          }
-        }
-      },
-      "/reports/financial-overview": {
-        "get": {
-          "tags": ["Reports"],
-          "summary": "Get financial overview",
-          "security": [
-            {
-              "bearerAuth": []
-            }
-          ],
-          "responses": {
-            "200": {
-              "description": "Financial overview"
             }
           }
         }
       }
     },
-    "components": {
-      "securitySchemes": {
-        "bearerAuth": {
-          "type": "http",
-          "scheme": "bearer",
-          "bearerFormat": "JWT"
-        }
-      },
-      "schemas": {
-        "User": {
-          "type": "object",
-          "properties": {
-            "id": {
-              "type": "string",
-              "format": "uuid"
-            },
-            "email": {
-              "type": "string",
-              "format": "email"
-            },
-            "first_name": {
-              "type": "string"
-            },
-            "last_name": {
-              "type": "string"
-            },
-            "phone": {
-              "type": "string"
-            },
-            "role": {
+    "/users": {
+      "get": {
+        "tags": ["Users"],
+        "summary": "List all users",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "role",
+            "in": "query",
+            "schema": {
               "type": "string",
               "enum": ["admin", "finance_manager", "user"]
-            },
-            "status": {
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "schema": {
               "type": "string",
               "enum": ["active", "inactive", "suspended"]
-            },
-            "created_at": {
-              "type": "string",
-              "format": "date-time"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of users"
+          },
+          "403": {
+            "description": "Admin only"
+          }
+        }
+      },
+      "post": {
+        "tags": ["Users"],
+        "summary": "Create new user",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["email", "password", "first_name", "last_name", "role"],
+                "properties": {
+                  "email": {
+                    "type": "string",
+                    "format": "email"
+                  },
+                  "password": {
+                    "type": "string",
+                    "minLength": 8
+                  },
+                  "first_name": {
+                    "type": "string"
+                  },
+                  "last_name": {
+                    "type": "string"
+                  },
+                  "phone": {
+                    "type": "string"
+                  },
+                  "role": {
+                    "type": "string",
+                    "enum": ["admin", "finance_manager", "user"]
+                  }
+                }
+              }
             }
           }
         },
-        "Project": {
-          "type": "object",
-          "properties": {
-            "id": {
+        "responses": {
+          "201": {
+            "description": "User created"
+          }
+        }
+      }
+    },
+    "/users/{id}": {
+      "get": {
+        "tags": ["Users"],
+        "summary": "Get user by ID",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
               "type": "string",
               "format": "uuid"
-            },
-            "project_code": {
-              "type": "string"
-            },
-            "name": {
-              "type": "string"
-            },
-            "description": {
-              "type": "string"
-            },
-            "start_date": {
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "User details"
+          }
+        }
+      },
+      "put": {
+        "tags": ["Users"],
+        "summary": "Update user",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
               "type": "string",
-              "format": "date"
-            },
-            "end_date": {
-              "type": "string",
-              "format": "date"
-            },
-            "status": {
-              "type": "string",
-              "enum": ["planning", "active", "completed", "cancelled", "closed"]
-            },
-            "created_at": {
-              "type": "string",
-              "format": "date-time"
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "email": {
+                    "type": "string",
+                    "format": "email"
+                  },
+                  "first_name": {
+                    "type": "string"
+                  },
+                  "last_name": {
+                    "type": "string"
+                  },
+                  "phone": {
+                    "type": "string"
+                  },
+                  "role": {
+                    "type": "string",
+                    "enum": ["admin", "finance_manager", "user"]
+                  },
+                  "status": {
+                    "type": "string",
+                    "enum": ["active", "inactive", "suspended"]
+                  }
+                }
+              }
             }
           }
         },
-        "Error": {
-          "type": "object",
-          "properties": {
-            "success": {
-              "type": "boolean",
-              "example": false
-            },
-            "message": {
-              "type": "string"
-            },
-            "errors": {
-              "type": "object"
+        "responses": {
+          "200": {
+            "description": "User updated"
+          }
+        }
+      },
+      "delete": {
+        "tags": ["Users"],
+        "summary": "Delete user",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
             }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "User deleted"
+          }
+        }
+      }
+    },
+    "/projects": {
+      "get": {
+        "tags": ["Projects"],
+        "summary": "List projects",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of projects"
+          }
+        }
+      },
+      "post": {
+        "tags": ["Projects"],
+        "summary": "Create project",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["project_code", "name"],
+                "properties": {
+                  "project_code": {
+                    "type": "string",
+                    "example": "PRJ001"
+                  },
+                  "name": {
+                    "type": "string",
+                    "example": "Office Renovation"
+                  },
+                  "description": {
+                    "type": "string"
+                  },
+                  "start_date": {
+                    "type": "string",
+                    "format": "date"
+                  },
+                  "end_date": {
+                    "type": "string",
+                    "format": "date"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Project created"
+          }
+        }
+      }
+    },
+    "/projects/{id}": {
+      "get": {
+        "tags": ["Projects"],
+        "summary": "Get project by ID",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Project details"
+          }
+        }
+      },
+      "put": {
+        "tags": ["Projects"],
+        "summary": "Update project",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Project updated"
+          }
+        }
+      },
+      "delete": {
+        "tags": ["Projects"],
+        "summary": "Delete project",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Project deleted"
+          }
+        }
+      }
+    },
+    "/projects/{id}/assign-user": {
+      "post": {
+        "tags": ["Projects"],
+        "summary": "Assign user to project",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["user_id"],
+                "properties": {
+                  "user_id": {
+                    "type": "string",
+                    "format": "uuid"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "User assigned"
+          }
+        }
+      }
+    },
+    "/projects/{id}/remove-user/{userId}": {
+      "delete": {
+        "tags": ["Projects"],
+        "summary": "Remove user from project",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "userId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "User removed"
+          }
+        }
+      }
+    },
+    "/finances": {
+      "get": {
+        "tags": ["Finance"],
+        "summary": "List finance deposits",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of deposits"
+          }
+        }
+      },
+      "post": {
+        "tags": ["Finance"],
+        "summary": "Deposit money to project",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["project_id", "amount"],
+                "properties": {
+                  "project_id": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  "amount": {
+                    "type": "number",
+                    "format": "decimal",
+                    "example": 100000000
+                  },
+                  "description": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Deposit successful"
+          }
+        }
+      }
+    },
+    "/finances/{id}": {
+      "get": {
+        "tags": ["Finance"],
+        "summary": "Get finance record",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Finance details"
+          }
+        }
+      }
+    },
+    "/projects/{id}/finances": {
+      "get": {
+        "tags": ["Finance"],
+        "summary": "Get project finances",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Project finances"
+          }
+        }
+      }
+    },
+    "/allocations": {
+      "get": {
+        "tags": ["Allocations"],
+        "summary": "List allocations",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of allocations"
+          }
+        }
+      },
+      "post": {
+        "tags": ["Allocations"],
+        "summary": "Allocate money to user",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "required": ["project_id", "user_id", "amount", "proof_image"],
+                "properties": {
+                  "project_id": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  "user_id": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  "amount": {
+                    "type": "number",
+                    "format": "decimal"
+                  },
+                  "description": {
+                    "type": "string"
+                  },
+                  "proof_image": {
+                    "type": "string",
+                    "format": "binary"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Allocation successful"
+          }
+        }
+      }
+    },
+    "/allocations/{id}": {
+      "get": {
+        "tags": ["Allocations"],
+        "summary": "Get allocation",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Allocation details"
+          }
+        }
+      },
+      "put": {
+        "tags": ["Allocations"],
+        "summary": "Update allocation",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Allocation updated"
+          }
+        }
+      }
+    },
+    "/users/{id}/allocations": {
+      "get": {
+        "tags": ["Allocations"],
+        "summary": "Get user allocations",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "User allocations"
+          }
+        }
+      }
+    },
+    "/projects/{id}/allocations": {
+      "get": {
+        "tags": ["Allocations"],
+        "summary": "Get project allocations",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Project allocations"
+          }
+        }
+      }
+    },
+    "/expenses": {
+      "get": {
+        "tags": ["Expenses"],
+        "summary": "List expenses",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of expenses"
+          }
+        }
+      },
+      "post": {
+        "tags": ["Expenses"],
+        "summary": "Record expense",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "required": ["project_id", "amount", "description", "receipt_image"],
+                "properties": {
+                  "project_id": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  "amount": {
+                    "type": "number",
+                    "format": "decimal"
+                  },
+                  "description": {
+                    "type": "string"
+                  },
+                  "category": {
+                    "type": "string"
+                  },
+                  "receipt_image": {
+                    "type": "string",
+                    "format": "binary"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Expense recorded"
+          }
+        }
+      }
+    },
+    "/expenses/{id}": {
+      "get": {
+        "tags": ["Expenses"],
+        "summary": "Get expense",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Expense details"
+          }
+        }
+      },
+      "put": {
+        "tags": ["Expenses"],
+        "summary": "Update expense",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Expense updated"
+          }
+        }
+      },
+      "delete": {
+        "tags": ["Expenses"],
+        "summary": "Delete expense",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Expense deleted"
+          }
+        }
+      }
+    },
+    "/expenses/{id}/approve": {
+      "post": {
+        "tags": ["Expenses"],
+        "summary": "Approve expense",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Expense approved"
+          }
+        }
+      }
+    },
+    "/expenses/{id}/reject": {
+      "post": {
+        "tags": ["Expenses"],
+        "summary": "Reject expense",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Expense rejected"
+          }
+        }
+      }
+    },
+    "/projects/{id}/expenses": {
+      "get": {
+        "tags": ["Expenses"],
+        "summary": "Get project expenses",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Project expenses"
+          }
+        }
+      }
+    },
+    "/reports/dashboard": {
+      "get": {
+        "tags": ["Reports"],
+        "summary": "Get dashboard statistics",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Dashboard data"
+          }
+        }
+      }
+    },
+    "/reports/project-summary": {
+      "get": {
+        "tags": ["Reports"],
+        "summary": "Get project summary",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Project summary"
+          }
+        }
+      }
+    },
+    "/reports/user-spending": {
+      "get": {
+        "tags": ["Reports"],
+        "summary": "Get user spending report",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "User spending data"
+          }
+        }
+      }
+    },
+    "/reports/financial-overview": {
+      "get": {
+        "tags": ["Reports"],
+        "summary": "Get financial overview",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Financial overview"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT"
+      }
+    },
+    "schemas": {
+      "User": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "email": {
+            "type": "string",
+            "format": "email"
+          },
+          "first_name": {
+            "type": "string"
+          },
+          "last_name": {
+            "type": "string"
+          },
+          "phone": {
+            "type": "string"
+          },
+          "role": {
+            "type": "string",
+            "enum": ["admin", "finance_manager", "user"]
+          },
+          "status": {
+            "type": "string",
+            "enum": ["active", "inactive", "suspended"]
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "Project": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "project_code": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "start_date": {
+            "type": "string",
+            "format": "date"
+          },
+          "end_date": {
+            "type": "string",
+            "format": "date"
+          },
+          "status": {
+            "type": "string",
+            "enum": ["planning", "active", "completed", "cancelled", "closed"]
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "Error": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "example": false
+          },
+          "message": {
+            "type": "string"
+          },
+          "errors": {
+            "type": "object"
           }
         }
       }
     }
   }
+}

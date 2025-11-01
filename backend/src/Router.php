@@ -9,6 +9,7 @@ use App\Controllers\FinanceController;
 use App\Controllers\AllocationController;
 use App\Controllers\ExpenseController;
 use App\Controllers\ReportController;
+use App\Controllers\DashboardController;
 use App\Middleware\AuthMiddleware;
 use App\Middleware\RoleMiddleware;
 use App\Middleware\RateLimitMiddleware;
@@ -33,6 +34,8 @@ class Router
         $this->routes['POST']['/api/auth/logout'] = [AuthController::class, 'logout', true];
         $this->routes['POST']['/api/auth/refresh'] = [AuthController::class, 'refresh', true];
         $this->routes['GET']['/api/auth/me'] = [AuthController::class, 'me', true];
+        
+        $this->routes['GET']['/api/dashboard'] = [DashboardController::class, 'index', true];
         
         $this->routes['GET']['/api/users'] = [UserController::class, 'index', true, ['admin']];
         $this->routes['GET']['/api/users/:id'] = [UserController::class, 'show', true];

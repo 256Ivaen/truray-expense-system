@@ -5,16 +5,13 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { 
   FiChevronRight,
-  FiPlus,
   FiUsers,
   FiSettings,
 } from 'react-icons/fi'
-import { ChevronLeft, X } from 'react-feather'
-import { Building2, BarChart3, Target, Megaphone } from "lucide-react"
-
-import { LuLayoutDashboard } from "react-icons/lu";
-import { HiOutlineSpeakerphone } from "react-icons/hi";
-
+import { ChevronLeft, X, LogOut } from 'react-feather'
+import { Building2, BarChart3, Megaphone, DollarSign, PieChart, Wallet } from "lucide-react"
+import { LuLayoutDashboard } from "react-icons/lu"
+import { logout } from '../../utils/service.js'
 
 const Sidebar = ({ 
   isOpen, 
@@ -27,8 +24,7 @@ const Sidebar = ({
   const navigate = useNavigate()
   const location = useLocation()
   const [expandedItems, setExpandedItems] = useState({ 
-    businesses: true, 
-    campaigns: true 
+    reports: true 
   })
 
   const navData = useMemo(() => {
@@ -40,42 +36,60 @@ const Sidebar = ({
         icon: <LuLayoutDashboard className="h-4 w-4" />,
       },
       {
-        title: 'Businesses',
-        icon: <Building2 className="h-4 w-4" />,
-        children: [
-          {
-            title: 'Assigned Businesses',
-            path: '/business',
-            section: 'businesses',
-          },
-          // {
-          //   title: 'Add New',
-          //   path: '/business?action=add',
-          //   section: 'businesses-add',
-          // }
-        ]
+        title: 'Users',
+        path: '/users',
+        section: 'users',
+        icon: <FiUsers className="h-4 w-4" />,
       },
       {
-        title: 'Campaigns',
-        icon: <HiOutlineSpeakerphone className="h-4 w-4" />,
+        title: 'Projects',
+        path: '/projects',
+        section: 'projects',
+        icon: <Building2 className="h-4 w-4" />,
+      },
+      {
+        title: 'Finance',
+        path: '/finance',
+        section: 'finance',
+        icon: <DollarSign className="h-4 w-4" />,
+      },
+      {
+        title: 'Allocations',
+        path: '/allocations',
+        section: 'allocations',
+        icon: <PieChart className="h-4 w-4" />,
+      },
+      {
+        title: 'Expenses',
+        path: '/expenses',
+        section: 'expenses',
+        icon: <Wallet className="h-4 w-4" />,
+      },
+      {
+        title: 'Reports',
+        icon: <BarChart3 className="h-4 w-4" />,
         children: [
           {
-            title: 'My Campaigns',
-            path: '/campaigns',
-            section: 'campaigns-list',
+            title: 'Dashboard Stats',
+            path: '/reports/dashboard',
+            section: 'reports-dashboard',
           },
           {
-            title: 'Create Campaign',
-            path: '/campaignform',
-            section: 'campaigns',
+            title: 'Project Summary',
+            path: '/reports/project-summary',
+            section: 'reports-project-summary',
+          },
+          {
+            title: 'User Spending',
+            path: '/reports/user-spending',
+            section: 'reports-user-spending',
+          },
+          {
+            title: 'Financial Overview',
+            path: '/reports/financial-overview',
+            section: 'reports-financial-overview',
           }
         ]
-      },
-      {
-        title: 'Groups',
-        path: '/groups',
-        section: 'groups',
-        icon: <FiUsers className="h-4 w-4" />,
       },
       {
         title: 'Settings',
@@ -107,14 +121,17 @@ const Sidebar = ({
     }
   }
 
+  const handleLogout = () => {
+    logout()
+  }
+
   const isActiveRoute = (path, section) => {
-    if (path === '/campaignform' && location.pathname === '/campaignform') {
+    if (!location || !location.pathname) return false
+    
+    if (path === location.pathname) {
       return true
     }
-    if (path === '/business' && location.pathname === '/business') {
-      return true
-    }
-    if (path === '/' && location.pathname === '/') {
+    if (path && path.includes && path.includes('?') && location.pathname === path.split('?')[0]) {
       return true
     }
     return false
@@ -145,7 +162,7 @@ const Sidebar = ({
               <div className="w-8 h-8 bg-yellow-400 rounded-xl flex items-center justify-center">
                 <Megaphone className="h-4 w-4 text-gray-900" />
               </div>
-              <h1 className="text-lg font-bold text-gray-900">SG Agent</h1>
+              <h1 className="text-lg font-bold text-gray-900">Truray</h1>
             </motion.div>
           ) : (
             <motion.div
@@ -206,10 +223,8 @@ const Sidebar = ({
               )}
             </div>
 
-            {/* Children with vertical line aligned to icon */}
             {item.children && isOpen && expandedItems[item.title.toLowerCase()] && (
               <div className="ml-3 relative space-y-1 pl-3">
-                {/* Vertical line positioned at icon end (left: 8px accounts for icon width ~16px / 2) */}
                 <div className="absolute left-2 top-0 bottom-0 w-px bg-gray-300"></div>
                 
                 {item.children.map((child) => (
@@ -230,6 +245,19 @@ const Sidebar = ({
           </div>
         ))}
       </nav>
+
+      {/* Logout Button in Footer */}
+      <div className="border-t border-gray-200 p-3">
+        <button
+          onClick={handleLogout}
+          className={`w-full flex items-center ${
+            isOpen ? 'px-3 justify-start' : 'justify-center px-2'
+          } py-2.5 rounded-lg text-xs text-red-600 hover:bg-red-50 transition-all`}
+        >
+          <LogOut size={16} className="flex-shrink-0" />
+          {isOpen && <span className="ml-3 font-medium">Sign Out</span>}
+        </button>
+      </div>
 
       {!isOpen && !isMobile && (
         <div className="p-3 border-t border-gray-200">

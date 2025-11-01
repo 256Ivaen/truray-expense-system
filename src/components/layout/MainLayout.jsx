@@ -6,14 +6,12 @@ import { useNavigate } from 'react-router-dom'
 import Sidebar from './Sidebar'
 import { 
   Bell, 
-  Plus, 
-  User, 
-  LogOut, 
-  ChevronRight,
+  User,
   Menu,
-  X
+  LogOut
 } from 'lucide-react'
 import { mockNotifications } from '../../assets/mock.js'
+import { getCurrentUser, logout } from '../../utils/service.js'
 
 const MainLayout = ({ 
   children,
@@ -30,23 +28,34 @@ const MainLayout = ({
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const [showUserMenu, setShowUserMenu] = useState(false)
   const [showNotifications, setShowNotifications] = useState(false)
-  const [showMobileMenu, setShowMobileMenu] = useState(false)
   const [isMobile, setIsMobile] = useState(false)
   const [notifications, setNotifications] = useState(mockNotifications)
+  const [user, setUser] = useState({
+    name: '',
+    email: '',
+    initials: 'U'
+  })
 
-  // Get user data from localStorage
-  const user = {
-    name: localStorage.getItem('name') || 'User',
-    email: localStorage.getItem('email') || 'user@example.com',
-    initials: (localStorage.getItem('name') || 'U').split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
-  }
+  // Get user data from localStorage using service function
+  useEffect(() => {
+    const currentUser = getCurrentUser()
+    if (currentUser) {
+      const userName = currentUser.first_name + ' ' + currentUser.last_name
+      const userInitials = (currentUser.first_name?.[0] || '') + (currentUser.last_name?.[0] || '') || 'U'
+      
+      setUser({
+        name: userName,
+        email: currentUser.email,
+        initials: userInitials.toUpperCase()
+      })
+    }
+  }, [])
 
   // Check for mobile screen size
   useEffect(() => {
     const checkMobile = () => {
       const mobile = window.innerWidth < 768
       setIsMobile(mobile)
-      // Auto-close sidebar on mobile
       if (mobile) {
         setSidebarOpen(false)
       } else {
@@ -72,39 +81,14 @@ const MainLayout = ({
       if (!e.target.closest('.notifications-container')) {
         setShowNotifications(false)
       }
-      if (!e.target.closest('.mobile-menu-container')) {
-        setShowMobileMenu(false)
-      }
     }
 
     document.addEventListener('mousedown', handleClickOutside)
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [])
 
-  const handleCreateCampaign = () => {
-    navigate('/campaignform')
-    setActiveSection('campaigns')
-    setShowMobileMenu(false)
-  }
-
-  const handleNewBusiness = () => {
-    navigate('/business')
-    setActiveSection('businesses')
-    setShowMobileMenu(false)
-  }
-
   const handleLogout = () => {
-    // Clear all authentication data from localStorage
-    localStorage.removeItem('name')
-    localStorage.removeItem('email')
-    localStorage.removeItem('role')
-    localStorage.removeItem('isLoggedIn')
-    
-    // Close the user menu
-    setShowUserMenu(false)
-    
-    // Redirect to login page
-    navigate('/login')
+    logout()
   }
 
   const markNotificationAsRead = (id) => {
@@ -158,77 +142,9 @@ const MainLayout = ({
                   <Menu className="h-5 w-5 text-gray-600" />
                 </button>
               )}
-
-              {/* Desktop Expand Sidebar Button */}
-              {!isMobile && !sidebarOpen && (
-                <motion.button
-                  onClick={() => toggleSidebar(true, true)}
-                  className="flex items-center gap-2 px-3 py-2 text-xs text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
-                  whileHover={{ x: 5 }}
-                >
-                  <ChevronRight className="h-4 w-4" />
-                  <span className="hidden sm:inline">Expand Sidebar</span>
-                </motion.button>
-              )}
             </div>
             
             <div className="flex items-center gap-2 md:gap-3">
-              {/* Desktop Action Buttons */}
-              <div className="hidden md:flex items-center gap-3">
-                <button 
-                  onClick={handleCreateCampaign}
-                  className="px-4 py-2 bg-primary text-secondary rounded-lg text-xs font-medium flex items-center gap-2 hover:bg-primary-scale-500 transition-colors"
-                >
-                  <Plus className="h-4 w-4" />
-                  Create Campaign
-                </button>
-                <button 
-                  onClick={handleNewBusiness}
-                  className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg text-xs font-medium flex items-center gap-2 hover:bg-gray-50 transition-colors"
-                >
-                  <Plus className="h-4 w-4" />
-                  New Business
-                </button>
-              </div>
-
-              {/* Mobile Menu Button */}
-              {isMobile && (
-                <div className="relative mobile-menu-container">
-                  <button
-                    onClick={() => setShowMobileMenu(!showMobileMenu)}
-                    className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-                  >
-                    <Plus className="h-5 w-5 text-gray-600" />
-                  </button>
-
-                  <AnimatePresence>
-                    {showMobileMenu && (
-                      <motion.div
-                        initial={{ opacity: 0, y: -10, scale: 0.95 }}
-                        animate={{ opacity: 1, y: 0, scale: 1 }}
-                        exit={{ opacity: 0, y: -10, scale: 0.95 }}
-                        className="absolute right-0 mt-2 w-48 bg-white border border-gray-200 rounded-lg shadow-xl z-50"
-                      >
-                        <button
-                          onClick={handleCreateCampaign}
-                          className="w-full flex items-center gap-2 px-4 py-3 text-xs text-left hover:bg-gray-50 transition-colors"
-                        >
-                          <Plus className="h-4 w-4" />
-                          Create Campaign
-                        </button>
-                        <button
-                          onClick={handleNewBusiness}
-                          className="w-full flex items-center gap-2 px-4 py-3 text-xs text-left hover:bg-gray-50 transition-colors border-t border-gray-100"
-                        >
-                          <Plus className="h-4 w-4" />
-                          New Business
-                        </button>
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
-                </div>
-              )}
-
               {/* Notifications */}
               <div className="relative notifications-container">
                 <button 
@@ -303,7 +219,7 @@ const MainLayout = ({
                       <div className="p-4 border-b border-gray-200">
                         <div className="flex items-center gap-3">
                           <div className="w-12 h-12 bg-primary rounded-full flex items-center justify-center">
-                            <User className="h-6 w-6 text-secondary" />
+                            <span className="text-sm font-medium text-secondary">{user.initials}</span>
                           </div>
                           <div>
                             <p className="text-xs font-medium text-gray-900">{user.name}</p>
@@ -336,50 +252,6 @@ const MainLayout = ({
           {children}
         </main>
       </div>
-
-      {/* Mobile Floating Action Button */}
-      {isMobile && (
-        <div className="fixed bottom-6 right-6 z-40">
-          <div className="relative">
-            <button
-              onClick={() => setShowMobileMenu(!showMobileMenu)}
-              className="w-14 h-14 bg-primary rounded-full shadow-lg flex items-center justify-center hover:bg-primary-scale-500 transition-colors"
-            >
-              <Plus className="h-6 w-6 text-secondary" />
-            </button>
-
-            <AnimatePresence>
-              {showMobileMenu && (
-                <motion.div
-                  initial={{ opacity: 0, scale: 0.8, y: 20 }}
-                  animate={{ opacity: 1, scale: 1, y: 0 }}
-                  exit={{ opacity: 0, scale: 0.8, y: 20 }}
-                  className="absolute bottom-16 right-0 w-48 bg-white border border-gray-200 rounded-lg shadow-xl"
-                >
-                  <button
-                    onClick={handleCreateCampaign}
-                    className="w-full flex items-center gap-3 px-4 py-3 text-xs text-left hover:bg-gray-50 transition-colors rounded-t-lg"
-                  >
-                    <div className="w-8 h-8 bg-primary-scale-100 rounded-full flex items-center justify-center">
-                      <Plus className="h-4 w-4 text-secondary" />
-                    </div>
-                    <span className="font-medium">Create Campaign</span>
-                  </button>
-                  <button
-                    onClick={handleNewBusiness}
-                    className="w-full flex items-center gap-3 px-4 py-3 text-xs text-left hover:bg-gray-50 transition-colors border-t border-gray-100 rounded-b-lg"
-                  >
-                    <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
-                      <Plus className="h-4 w-4 text-blue-600" />
-                    </div>
-                    <span className="font-medium">New Business</span>
-                  </button>
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </div>
-        </div>
-      )}
     </div>
   )
 }
