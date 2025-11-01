@@ -1,0 +1,78 @@
+name: Deploy Truray Backend to Hostinger
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy-backend:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v3
+      with:
+        fetch-depth: 2
+    
+    - name: Check for backend changes
+      id: backend-changes
+      run: |
+        if git diff --name-only HEAD^ HEAD | grep -qE '^backend/'; then
+          echo "changed=true" >> $GITHUB_OUTPUT
+          echo "Backend files changed, will deploy"
+        else
+          echo "changed=false" >> $GITHUB_OUTPUT
+          echo "No backend changes detected, skipping deployment"
+        fi
+    
+    - name: Setup PHP
+      if: steps.backend-changes.outputs.changed == 'true'
+      uses: shivammathur/setup-php@v2
+      with:
+        php-version: '8.1'
+    
+    - name: Install Composer Dependencies
+      if: steps.backend-changes.outputs.changed == 'true'
+      run: |
+        cd backend
+        composer install --no-dev --optimize-autoloader --no-interaction
+    
+    - name: Create .env file
+      if: steps.backend-changes.outputs.changed == 'true'
+      run: |
+        cd backend
+        echo "${{ secrets.BACKEND_ENV }}" > .env
+    
+    - name: Deploy Backend to Hostinger
+      if: steps.backend-changes.outputs.changed == 'true'
+      uses: appleboy/scp-action@v0.1.7
+      with:
+        host: ${{ secrets.SSH_HOST }}
+        username: ${{ secrets.SSH_USER }}
+        password: ${{ secrets.SSH_PASSWORD }}
+        port: ${{ secrets.SSH_PORT }}
+        source: "backend/*"
+        target: "/home/${{ secrets.SSH_USER }}/domains/orange-ferret-922211.hostingersite.com/public_html/"
+        strip_components: 1
+        overwrite: true
+        
+    - name: Setup Backend Permissions
+      if: steps.backend-changes.outputs.changed == 'true'
+      uses: appleboy/ssh-action@v1.0.0
+      with:
+        host: ${{ secrets.SSH_HOST }}
+        username: ${{ secrets.SSH_USER }}
+        password: ${{ secrets.SSH_PASSWORD }}
+        port: ${{ secrets.SSH_PORT }}
+        script: |
+          cd /home/${{ secrets.SSH_USER }}/domains/orange-ferret-922211.hostingersite.com/public_html
+          
+          find . -type d -exec chmod 755 {} \;
+          find . -type f -exec chmod 644 {} \;
+          
+          chmod 600 .env
+          
+          mkdir -p storage/logs storage/uploads public/uploads
+          chmod -R 775 storage public/uploads
+          
+          echo "Backend deployed successfully to orange-ferret-922211.hostingersite.com"
