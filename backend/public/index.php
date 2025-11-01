@@ -62,11 +62,6 @@ try {
     $method = $_SERVER['REQUEST_METHOD'];
     $uri = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
     
-    $scriptName = dirname($_SERVER['SCRIPT_NAME']);
-    if ($scriptName !== '/' && $scriptName !== '') {
-        $uri = substr($uri, strlen($scriptName));
-    }
-    
     $uri = '/' . trim($uri, '/');
     
     $body = file_get_contents('php://input');
@@ -79,6 +74,12 @@ try {
     if ($method === 'GET' && !empty($_GET)) {
         $data = array_merge($data, $_GET);
     }
+    
+    file_put_contents(
+        BASE_PATH . '/storage/logs/debug.log',
+        date('Y-m-d H:i:s') . " - Method: $method, URI: $uri\n",
+        FILE_APPEND
+    );
     
     $router->dispatch($method, $uri, $data);
     
@@ -100,7 +101,9 @@ try {
         $errorResponse['debug'] = [
             'file' => $e->getFile(),
             'line' => $e->getLine(),
-            'trace' => $e->getTrace()
+            'trace' => $e->getTrace(),
+            'uri' => $uri ?? 'N/A',
+            'method' => $method ?? 'N/A'
         ];
     }
     

@@ -80,7 +80,7 @@ class Router
         $route = $this->matchRoute($method, $uri);
         
         if (!$route) {
-            return Response::notFound('Route not found');
+            Response::error('Route not found: ' . $method . ' ' . $uri, 404);
         }
         
         [$controller, $action, $requiresAuth, $roles, $params] = $route;
@@ -102,7 +102,7 @@ class Router
         $data = array_merge($data, $params);
         
         $controllerInstance = new $controller();
-        return $controllerInstance->$action($data);
+        $controllerInstance->$action($data);
     }
     
     private function matchRoute($method, $uri)
