@@ -1,0 +1,74 @@
+/vendor/
+/node_modules/
+/.idea/
+/.vscode/
+/.vs/
+*.log
+*.cache
+.DS_Store
+Thumbs.db
+
+.env
+.env.local
+.env.*.local
+
+/storage/logs/*.log
+/storage/uploads/*
+!/storage/logs/.gitkeep
+!/storage/uploads/.gitkeep
+
+/public/uploads/*
+!/public/uploads/.gitkeep
+
+composer.phar
+composer.lock
+package-lock.json
+
+*.sql.gz
+*.sql.zip
+backup_*.sql
+
+/tests/coverage/
+phpunit.xml
+.phpunit.result.cache
+
+*.swp
+*.swo
+*~
+.#*
+
+/config/local.php
+/config/production.php
+
+.htaccess.backup
+error_log
+php_errors.log
+
+/temp/
+/tmp/
+/cache/
+
+*.pem
+*.key
+*.crt
+google-analytics-credentials.json
+
+.deployment
+deploy.log
+```
+
+**Also create these .gitkeep files to preserve empty directories:**
+
+## storage/logs/.gitkeep
+```
+# Keep this directory in git
+```
+
+## storage/uploads/.gitkeep
+```
+# Keep this directory in git
+```
+
+## public/uploads/.gitkeep
+```
+# Keep this directory in git

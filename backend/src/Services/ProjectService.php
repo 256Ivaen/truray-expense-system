@@ -1,0 +1,237 @@
+<?php
+
+namespace App\Services;
+
+use App\Models\Project;
+use App\Utils\Database;
+use Ramsey\Uuid\Uuid;
+
+class ProjectService
+{
+    private $projectModel;
+    private $db;
+    
+    public function __construct()
+    {
+        $this->projectModel = new Project();
+        $this->db = Database::getInstance();
+    }
+    
+    public function getAll($userId = null, $role = null)
+    {
+        if ($role === 'admin' || $role === 'finance_manager') {
+            return $this->db->query(
+                "SELECT * FROM projects WHERE deleted_at IS NULL ORDER BY created_at DESC"
+            );
+        }
+        
+        if ($userId) {
+            $sql = "SELECT p.* FROM projects p 
+                    INNER JOIN project_users pu ON p.id = pu.project_id 
+                    WHERE pu.user_id = ? AND p.deleted_at IS NULL
+                    ORDER BY p.created_at DESC";
+            return $this->db->query($sql, [$userId]);
+        }
+        
+        return [];
+    }
+    
+    public function getById($id, $userId = null, $role = null)
+    {
+        if ($role === 'admin' || $role === 'finance_manager') {
+            return $this->projectModel->find($id);
+        }
+        
+        if ($userId) {
+            $sql = "SELECT p.* FROM projects p
+                    INNER JOIN project_users pu ON p.id = pu.project_id
+                    WHERE p.id = ? AND pu.user_id = ? AND p.deleted_at IS NULL";
+            return $this->db->queryOne($sql, [$id, $userId]);
+        }
+        
+        return null;
+    }
+    
+    public function create($data)
+    {
+        $existing = $this->db->queryOne(
+            "SELECT id FROM projects WHERE project_code = ?",
+            [$data['project_code']]
+        );
+        
+        if ($existing) {
+            return ['success' => false, 'message' => 'Project code already exists'];
+        }
+        
+        $projectId = Uuid::uuid4()->toString();
+        $this->db->execute(
+            "INSERT INTO projects (id, project_code, name, description, start_date, end_date, status, created_by) 
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+            [
+                $projectId,
+                $data['project_code'],
+                $data['name'],
+                $data['description'] ?? null,
+                $data['start_date'] ?? null,
+                $data['end_date'] ?? null,
+                $data['status'] ?? 'planning',
+                $data['created_by'] ?? null
+            ]
+        );
+        
+        $project = $this->projectModel->find($projectId);
+        return ['success' => true, 'data' => $project];
+    }
+    
+    public function update($id, $data)
+    {
+        $project = $this->projectModel->find($id);
+        if (!$project) {
+            return ['success' => false, 'message' => 'Project not found'];
+        }
+        
+        if (isset($data['project_code']) && $data['project_code'] !== $project['project_code']) {
+            $existing = $this->db->queryOne(
+                "SELECT id FROM projects WHERE project_code = ? AND id != ?",
+                [$data['project_code'], $id]
+            );
+            
+            if ($existing) {
+                return ['success' => false, 'message' => 'Project code already exists'];
+            }
+        }
+        
+        $updateFields = [];
+        $params = [];
+        
+        if (isset($data['project_code'])) {
+            $updateFields[] = "project_code = ?";
+            $params[] = $data['project_code'];
+        }
+        
+        if (isset($data['name'])) {
+            $updateFields[] = "name = ?";
+            $params[] = $data['name'];
+        }
+        
+        if (isset($data['description'])) {
+            $updateFields[] = "description = ?";
+            $params[] = $data['description'];
+        }
+        
+        if (isset($data['start_date'])) {
+            $updateFields[] = "start_date = ?";
+            $params[] = $data['start_date'];
+        }
+        
+        if (isset($data['end_date'])) {
+            $updateFields[] = "end_date = ?";
+            $params[] = $data['end_date'];
+        }
+        
+        if (isset($data['status'])) {
+            $updateFields[] = "status = ?";
+            $params[] = $data['status'];
+        }
+        
+        if (empty($updateFields)) {
+            return ['success' => true, 'data' => $project];
+        }
+        
+        $updateFields[] = "updated_at = NOW()";
+        $params[] = $id;
+        
+        $sql = "UPDATE projects SET " . implode(", ", $updateFields) . " WHERE id = ?";
+        $this->db->execute($sql, $params);
+        
+        $updatedProject = $this->projectModel->find($id);
+        return ['success' => true, 'data' => $updatedProject];
+    }
+    
+    public function delete($id)
+    {
+        $project = $this->projectModel->find($id);
+        if (!$project) {
+            return ['success' => false, 'message' => 'Project not found'];
+        }
+        
+        $this->db->execute(
+            "UPDATE projects SET deleted_at = NOW() WHERE id = ?",
+            [$id]
+        );
+        
+        return ['success' => true, 'message' => 'Project deleted successfully'];
+    }
+    
+    public function assignUser($projectId, $userId, $assignedBy)
+    {
+        $project = $this->projectModel->find($projectId);
+        if (!$project) {
+            return ['success' => false, 'message' => 'Project not found'];
+        }
+        
+        $user = $this->db->queryOne(
+            "SELECT id FROM users WHERE id = ? AND deleted_at IS NULL",
+            [$userId]
+        );
+        
+        if (!$user) {
+            return ['success' => false, 'message' => 'User not found'];
+        }
+        
+        $existing = $this->db->queryOne(
+            "SELECT id FROM project_users WHERE project_id = ? AND user_id = ?",
+            [$projectId, $userId]
+        );
+        
+        if ($existing) {
+            return ['success' => false, 'message' => 'User already assigned to this project'];
+        }
+        
+        $id = Uuid::uuid4()->toString();
+        $this->db->execute(
+            "INSERT INTO project_users (id, project_id, user_id, assigned_by) VALUES (?, ?, ?, ?)",
+            [$id, $projectId, $userId, $assignedBy]
+        );
+        
+        return ['success' => true, 'message' => 'User assigned to project successfully'];
+    }
+    
+    public function removeUser($projectId, $userId)
+    {
+        $existing = $this->db->queryOne(
+            "SELECT id FROM project_users WHERE project_id = ? AND user_id = ?",
+            [$projectId, $userId]
+        );
+        
+        if (!$existing) {
+            return ['success' => false, 'message' => 'User not assigned to this project'];
+        }
+        
+        $this->db->execute(
+            "DELETE FROM project_users WHERE project_id = ? AND user_id = ?",
+            [$projectId, $userId]
+        );
+        
+        return ['success' => true, 'message' => 'User removed from project successfully'];
+    }
+    
+    public function getBalance($projectId)
+    {
+        return $this->db->queryOne(
+            "SELECT * FROM project_balances WHERE id = ?",
+            [$projectId]
+        );
+    }
+    
+    public function getProjectUsers($projectId)
+    {
+        $sql = "SELECT u.id, u.email, u.first_name, u.last_name, u.role, pu.assigned_at
+                FROM users u
+                INNER JOIN project_users pu ON u.id = pu.user_id
+                WHERE pu.project_id = ? AND u.deleted_at IS NULL
+                ORDER BY pu.assigned_at DESC";
+        
+        return $this->db->query($sql, [$projectId]);
+    }
+}
