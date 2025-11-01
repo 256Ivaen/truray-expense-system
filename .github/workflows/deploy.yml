@@ -41,7 +41,9 @@ jobs:
       if: steps.backend-changes.outputs.changed == 'true'
       run: |
         cd backend
-        echo "${{ secrets.BACKEND_ENV }}" > .env
+        cat > .env << 'EOF'
+        ${{ secrets.BACKEND_ENV }}
+        EOF
     
     - name: Deploy Backend to Hostinger
       if: steps.backend-changes.outputs.changed == 'true'
@@ -75,4 +77,4 @@ jobs:
           mkdir -p storage/logs storage/uploads public/uploads
           chmod -R 775 storage public/uploads
           
-          echo "Backend deployed successfully to orange-ferret-922211.hostingersite.com"
+          echo "Backend deployed successfully"
