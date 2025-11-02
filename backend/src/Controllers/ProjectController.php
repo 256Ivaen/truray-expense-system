@@ -84,7 +84,10 @@ class ProjectController
             return Response::validationError($errors);
         }
         
-        $oldProject = $this->projectService->getById($data['id']);
+        $currentUser = AuthMiddleware::user();
+        
+        // Use the same method with user context to check permissions
+        $oldProject = $this->projectService->getById($data['id'], $currentUser['id'], $currentUser['role']);
         
         if (!$oldProject) {
             return Response::notFound('Project not found');
@@ -106,7 +109,10 @@ class ProjectController
             return Response::error('Project ID is required', 400);
         }
         
-        $project = $this->projectService->getById($data['id']);
+        $currentUser = AuthMiddleware::user();
+        
+        // Use the same method with user context to check permissions
+        $project = $this->projectService->getById($data['id'], $currentUser['id'], $currentUser['role']);
         
         if (!$project) {
             return Response::notFound('Project not found');
@@ -130,6 +136,11 @@ class ProjectController
         
         $currentUser = AuthMiddleware::user();
         
+        $project = $this->projectService->getById($data['id'], $currentUser['id'], $currentUser['role']);
+        if (!$project) {
+            return Response::notFound('Project not found');
+        }
+        
         $result = $this->projectService->assignUser($data['id'], $data['user_id'], $currentUser['id']);
         
         if ($result['success']) {
@@ -147,6 +158,13 @@ class ProjectController
     {
         if (empty($data['id']) || empty($data['userId'])) {
             return Response::error('Project ID and User ID are required', 400);
+        }
+        
+        $currentUser = AuthMiddleware::user();
+        
+        $project = $this->projectService->getById($data['id'], $currentUser['id'], $currentUser['role']);
+        if (!$project) {
+            return Response::notFound('Project not found');
         }
         
         $result = $this->projectService->removeUser($data['id'], $data['userId']);

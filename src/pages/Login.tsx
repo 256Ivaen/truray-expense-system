@@ -319,27 +319,6 @@ const Login = () => {
             />
             
             <div className="absolute inset-0 bg-black/40"></div>
-            
-            <div className="relative z-20 h-full flex flex-col justify-end items-center pb-12">
-              <div className="text-white text-center">
-                <h2 className="text-sm font-medium mb-6">Follow us on social media</h2>
-                
-                <div className="flex items-center justify-center gap-4">
-                  <a href="https://www.instagram.com/socialgems.ug/" className="w-12 h-12 bg-transparent hover:bg-secondary rounded-full flex items-center justify-center transition-colors backdrop-blur-sm border border-primary">
-                    <FaInstagram className="w-5 h-5 text-primary" />
-                  </a>
-                  <a href="https://www.tiktok.com/@social_gems_" className="w-12 h-12 bg-transparent hover:bg-secondary rounded-full flex items-center justify-center transition-colors backdrop-blur-sm border border-primary">
-                    <PiTiktokLogoLight className="w-5 h-5 text-primary" />
-                  </a>
-                  <a href="https://x.com/socialgems_ug" className="w-12 h-12 bg-transparent hover:bg-secondary rounded-full flex items-center justify-center transition-colors backdrop-blur-sm border border-primary">
-                    <FaXTwitter className="w-5 h-5 text-primary" />
-                  </a>
-                  <a href="https://www.youtube.com/@socialgems.africa" className="w-12 h-12 bg-transparent hover:bg-secondary rounded-full flex items-center justify-center transition-colors backdrop-blur-sm border border-primary">
-                    <PiYoutubeLogo className="w-5 h-5 text-primary" />
-                  </a>
-                </div>
-              </div>
-            </div>
           </div>
 
           <div className="w-1/2 bg-white flex flex-col h-full">
@@ -464,27 +443,6 @@ const Login = () => {
             />
             
             <div className="absolute inset-0 bg-black/20"></div>
-            
-            <div className="relative z-20 h-full flex flex-col justify-end items-center pb-12">
-              <div className="text-white text-center">
-                <h2 className="text-sm font-medium mb-6">Follow us on social media</h2>
-                
-                <div className="flex items-center justify-center gap-4">
-                  <a href="https://www.instagram.com/socialgems.ug/" className="w-12 h-12 bg-transparent hover:bg-secondary rounded-full flex items-center justify-center transition-colors backdrop-blur-sm border border-primary">
-                    <FaInstagram className="w-5 h-5 text-primary" />
-                  </a>
-                  <a href="https://www.tiktok.com/@social_gems_" className="w-12 h-12 bg-transparent hover:bg-secondary rounded-full flex items-center justify-center transition-colors backdrop-blur-sm border border-primary">
-                    <PiTiktokLogoLight className="w-5 h-5 text-primary" />
-                  </a>
-                  <a href="https://x.com/socialgems_ug" className="w-12 h-12 bg-transparent hover:bg-secondary rounded-full flex items-center justify-center transition-colors backdrop-blur-sm border border-primary">
-                    <FaXTwitter className="w-5 h-5 text-primary" />
-                  </a>
-                  <a href="https://www.youtube.com/@socialgems.africa" className="w-12 h-12 bg-transparent hover:bg-white/20 rounded-full flex items-center justify-center transition-colors backdrop-blur-sm border border-primary">
-                    <PiYoutubeLogo className="w-5 h-5 text-primary" />
-                  </a>
-                </div>
-              </div>
-            </div>
           </div>
 
           <div className="w-1/2 bg-white flex flex-col h-full">
@@ -704,24 +662,6 @@ const Login = () => {
                   {loading ? 'Signing in...' : 'Sign in'}
                 </button>
               </form>
-
-              <div className="text-center">
-                <p className="text-sm opacity-80 mb-4 text-gray-600">Follow us on social media</p>
-                <div className="flex items-center justify-center gap-4">
-                  <a href="https://www.instagram.com/socialgems.ug/" className="w-12 h-12 bg-transparent hover:bg-white/20 rounded-full flex items-center justify-center transition-colors backdrop-blur-sm border border-secondary">
-                    <FaInstagram className="w-5 h-5 text-secondary" />
-                  </a>
-                  <a href="https://www.tiktok.com/@social_gems_" className="w-12 h-12 bg-transparent hover:bg-white/20 rounded-full flex items-center justify-center transition-colors backdrop-blur-sm border border-secondary">
-                    <PiTiktokLogoLight className="w-5 h-5 text-secondary" />
-                  </a>
-                  <a href="https://x.com/socialgems_ug" className="w-12 h-12 bg-transparent hover:bg-white/20 rounded-full flex items-center justify-center transition-colors backdrop-blur-sm border border-secondary">
-                    <FaXTwitter className="w-5 h-5 text-secondary" />
-                  </a>
-                  <a href="https://www.youtube.com/@socialgems.africa" className="w-12 h-12 bg-transparent hover:bg-white/20 rounded-full flex items-center justify-center transition-colors backdrop-blur-sm border border-secondary">
-                    <PiYoutubeLogo className="w-5 h-5 text-secondary" />
-                  </a>
-                </div>
-              </div>
             </div>
           </div>
         </div>

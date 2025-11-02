@@ -9,7 +9,14 @@ import {
   PieChart,
   Wallet,
   AlertTriangle,
-  RefreshCw 
+  RefreshCw,
+  User,
+  FolderOpen,
+  CreditCard,
+  Clock,
+  Filter,
+  ArrowRight,
+  Zap
 } from "lucide-react";
 import { get } from "../../utils/service.js";
 
@@ -24,144 +31,349 @@ interface DashboardProps {
   onRefresh: () => void;
 }
 
-interface DashboardStats {
-  totalProjects: number;
-  activeProjects: number;
-  totalUsers: number;
-  totalExpenses: number;
-  totalAllocations: number;
-  pendingApprovals: number;
-  budgetUtilization: number;
-}
-
-interface Project {
-  id: string;
-  project_code: string;
-  name: string;
-  description: string;
-  status: string;
-  start_date: string;
-  end_date: string;
-  created_at: string;
-}
-
-interface Expense {
-  id: string;
-  project_id: string;
-  amount: number;
-  description: string;
-  status: string;
-  created_at: string;
-  project?: {
-    name: string;
+interface AdminDashboardData {
+  stats: {
+    total_projects: number;
+    active_projects: number;
+    total_users: number;
+    total_deposits: number;
+    total_allocated: number;
+    total_spent: number;
+    pending_expenses: number;
+    budget_utilization: number;
   };
-  user?: {
+  recent_projects: Array<{
+    id: string;
+    project_code: string;
+    name: string;
+    description: string;
+    status: string;
+    start_date: string;
+    end_date: string;
+    created_at: string;
+    updated_at: string;
+  }>;
+  pending_expenses: Array<{
+    id: string;
+    amount: number;
+    description: string;
+    status: string;
+    project_name: string;
+  }>;
+  recent_allocations: Array<{
+    id: string;
+    amount: string;
+    description: string;
+    status: string;
+    allocated_at: string;
+    project_name: string;
+    project_code: string;
     first_name: string;
     last_name: string;
-  };
-}
-
-interface Allocation {
-  id: string;
-  project_id: string;
-  user_id: string;
-  amount: number;
-  description: string;
-  status: string;
-  created_at: string;
-  project?: {
-    name: string;
-  };
-  user?: {
+    email: string;
+  }>;
+  top_spending_users: Array<{
+    id: string;
     first_name: string;
     last_name: string;
-  };
+    total_spent: number;
+  }>;
+  monthly_spending: Array<{
+    month: string;
+    month_name: string;
+    total: number;
+  }>;
 }
 
+interface UserDashboardData {
+  stats: {
+    my_projects: number;
+    total_allocated: number;
+    total_spent: number;
+    remaining_balance: number;
+    pending_expenses: number;
+  };
+  my_projects: Array<{
+    id: string;
+    project_code: string;
+    name: string;
+    description: string;
+    status: string;
+    start_date: string;
+    end_date: string;
+    assigned_at: string;
+  }>;
+  recent_expenses: Array<any>;
+  recent_allocations: Array<{
+    id: string;
+    amount: string;
+    description: string;
+    status: string;
+    allocated_at: string;
+    project_name: string;
+    project_code: string;
+  }>;
+  monthly_expenses: Array<any>;
+}
+
+type DashboardData = AdminDashboardData | UserDashboardData | null;
+
+// Get current user role from localStorage
+const getCurrentUserRole = () => {
+  try {
+    const userStr = localStorage.getItem('truray_user');
+    if (userStr) {
+      const user = JSON.parse(userStr);
+      return user.role || 'user';
+    }
+  } catch (error) {
+    console.error('Error getting user role:', error);
+  }
+  return 'user';
+};
+
+// Skeleton Components
 const SkeletonBox = ({ className }: { className?: string }) => (
   <div className={`animate-pulse bg-gray-200 rounded-lg ${className}`}></div>
+);
+
+// New Card Components with Marketing Dashboard Design
+const StatCard = ({ 
+  title, 
+  value, 
+  subtitle, 
+  icon: Icon, 
+  color = "default",
+  loading = false 
+}: { 
+  title: string;
+  value: string | number;
+  subtitle: string;
+  icon: any;
+  color?: "default" | "lime";
+  loading?: boolean;
+}) => {
+  const cardClasses = color === "lime" 
+    ? "bg-lime-50 dark:bg-lime-900/30 border-lime-200 dark:border-lime-800"
+    : "bg-white border-gray-200";
+
+  const textClasses = color === "lime"
+    ? "text-lime-900 dark:text-lime-200"
+    : "text-gray-500";
+
+  const valueClasses = color === "lime"
+    ? "text-lime-950 dark:text-lime-50"
+    : "text-gray-900";
+
+  const iconClasses = color === "lime"
+    ? "text-lime-900 dark:text-lime-200"
+    : "text-gray-400";
+
+  return (
+    <div className={`rounded-xl border p-4 h-full overflow-hidden ${cardClasses}`}>
+      <div className="p-2">
+        <div className="flex items-center justify-between mb-4">
+          <p className={`font-medium text-xs ${textClasses}`}>
+            {loading ? <SkeletonBox className="h-3 w-16" /> : title}
+          </p>
+          {loading ? (
+            <SkeletonBox className="h-4 w-4 rounded-full" />
+          ) : (
+            <Icon className={`w-4 h-4 ${iconClasses}`} />
+          )}
+        </div>
+        <div className="mb-2">
+          {loading ? (
+            <SkeletonBox className="h-6 w-12 mb-1" />
+          ) : (
+            <span className={`text-xl font-bold ${valueClasses}`}>
+              {value}
+            </span>
+          )}
+        </div>
+        {loading ? (
+          <SkeletonBox className="h-3 w-20" />
+        ) : (
+          <p className={`text-xs ${textClasses}`}>
+            {subtitle}
+          </p>
+        )}
+      </div>
+    </div>
+  );
+};
+
+const ProgressCard = ({ 
+  title, 
+  total, 
+  unit, 
+  stats, 
+  icon: Icon, 
+  loading = false 
+}: { 
+  title: string;
+  total: string | number;
+  unit: string;
+  stats: Array<{ label: string; value: number; color: string }>;
+  icon: any;
+  loading?: boolean;
+}) => {
+  return (
+    <div className="rounded-xl border border-gray-200 bg-white p-4 h-full overflow-hidden">
+      <div className="p-2">
+        <div className="flex items-center justify-between mb-4">
+          <p className="font-medium text-xs text-gray-500">
+            {loading ? <SkeletonBox className="h-3 w-16" /> : title}
+          </p>
+          {loading ? (
+            <SkeletonBox className="h-4 w-4 rounded-full" />
+          ) : (
+            <Icon className="w-4 h-4 text-gray-400" />
+          )}
+        </div>
+        <div className="mb-4">
+          {loading ? (
+            <SkeletonBox className="h-6 w-12 mb-1" />
+          ) : (
+            <span className="text-xl font-bold text-gray-900">
+              {total}
+            </span>
+          )}
+          {loading ? (
+            <SkeletonBox className="h-3 w-8 ml-1" />
+          ) : (
+            <span className="ml-1 text-xs text-gray-500">{unit}</span>
+          )}
+        </div>
+        
+        {/* Progress Bar */}
+        {loading ? (
+          <SkeletonBox className="w-full h-2 mb-2 rounded-full" />
+        ) : (
+          <div className="w-full h-2 mb-2 overflow-hidden rounded-full bg-gray-100 flex">
+            {stats.map((stat, index) => (
+              <div
+                key={index}
+                className={`h-full ${stat.color}`}
+                style={{ width: `${stat.value}%` }}
+              />
+            ))}
+          </div>
+        )}
+        
+        {/* Legend */}
+        <div className="flex items-center justify-between text-xs text-gray-500">
+          {loading ? (
+            Array.from({ length: 4 }).map((_, index) => (
+              <div key={index} className="flex items-center gap-1.5">
+                <SkeletonBox className="w-2 h-2 rounded-full" />
+                <SkeletonBox className="h-3 w-8" />
+              </div>
+            ))
+          ) : (
+            stats.map((stat) => (
+              <div key={stat.label} className="flex items-center gap-1.5">
+                <span className={`w-2 h-2 rounded-full ${stat.color}`}></span>
+                <span>{stat.label}</span>
+              </div>
+            ))
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const CTABanner = ({ 
+  text, 
+  buttonText, 
+  onButtonClick, 
+  loading = false 
+}: { 
+  text: string;
+  buttonText: string;
+  onButtonClick: () => void;
+  loading?: boolean;
+}) => {
+  return (
+    <div className="flex items-center justify-between p-4 rounded-xl bg-gray-50/60 border border-gray-200">
+      <div className="flex items-center gap-3">
+        <div className="p-2 rounded-full bg-white border border-gray-200">
+          <Zap className="w-4 h-4 text-gray-700" />
+        </div>
+        {loading ? (
+          <SkeletonBox className="h-4 w-48" />
+        ) : (
+          <p className="text-xs font-medium text-gray-600">{text}</p>
+        )}
+      </div>
+      {loading ? (
+        <SkeletonBox className="h-8 w-20 rounded-md" />
+      ) : (
+        <button 
+          onClick={onButtonClick}
+          className="shrink-0 flex items-center gap-2 px-3 py-2 bg-primary text-black text-xs font-medium rounded-lg hover:bg-primary/90 transition-colors"
+        >
+          {buttonText}
+          <ArrowRight className="w-3 h-3" />
+        </button>
+      )}
+    </div>
+  );
+};
+
+// Skeleton components for different sections
+const ListItemSkeleton = () => (
+  <div className="bg-white rounded-lg border border-gray-200 p-3">
+    <div className="flex justify-between items-start">
+      <div className="flex-1">
+        <SkeletonBox className="h-4 w-3/4 mb-2" />
+        <SkeletonBox className="h-3 w-1/2 mb-1" />
+        <SkeletonBox className="h-3 w-2/3" />
+      </div>
+      <SkeletonBox className="h-6 w-16 rounded-lg" />
+    </div>
+  </div>
+);
+
+const BudgetUtilizationSkeleton = () => (
+  <div className="bg-white rounded-xl border border-gray-200 p-4">
+    <div className="border-b border-gray-100 pb-3 mb-4">
+      <SkeletonBox className="h-4 w-32 mb-1" />
+      <SkeletonBox className="h-3 w-24" />
+    </div>
+    <div className="p-2">
+      <div className="flex items-center justify-center">
+        <SkeletonBox className="h-16 w-16 rounded-full" />
+      </div>
+      <div className="mt-4 text-center">
+        <SkeletonBox className="h-3 w-40 mx-auto" />
+      </div>
+    </div>
+  </div>
 );
 
 function EnhancedDashboardContent({
   loading,
   onRefresh,
 }: any) {
-  const [dashboardStats, setDashboardStats] = useState<DashboardStats>({
-    totalProjects: 0,
-    activeProjects: 0,
-    totalUsers: 0,
-    totalExpenses: 0,
-    totalAllocations: 0,
-    pendingApprovals: 0,
-    budgetUtilization: 0
-  });
-  const [recentProjects, setRecentProjects] = useState<Project[]>([]);
-  const [pendingExpenses, setPendingExpenses] = useState<Expense[]>([]);
-  const [recentAllocations, setRecentAllocations] = useState<Allocation[]>([]);
+  const [dashboardData, setDashboardData] = useState<DashboardData>(null);
   const [dataLoading, setDataLoading] = useState(true);
+  const [userRole, setUserRole] = useState<'admin' | 'finance_manager' | 'user'>('user');
 
   useEffect(() => {
+    const role = getCurrentUserRole();
+    setUserRole(role);
     fetchDashboardData();
   }, []);
 
   const fetchDashboardData = async () => {
     setDataLoading(true);
     try {
-      // Fetch dashboard stats from reports endpoint
-      const statsResponse = await get('/reports/dashboard');
-      if (statsResponse.success) {
-        setDashboardStats(statsResponse.data);
+      const response = await get('/dashboard');
+      if (response.success) {
+        setDashboardData(response.data);
       }
-
-      // Fetch recent projects
-      const projectsResponse = await get('/projects');
-      if (projectsResponse.success) {
-        const projects = projectsResponse.data.slice(0, 3); // Get latest 3 projects
-        setRecentProjects(projects);
-        setDashboardStats(prev => ({
-          ...prev,
-          totalProjects: projectsResponse.data.length,
-          activeProjects: projectsResponse.data.filter((p: Project) => p.status === 'active').length
-        }));
-      }
-
-      // Fetch users count
-      const usersResponse = await get('/users');
-      if (usersResponse.success) {
-        setDashboardStats(prev => ({
-          ...prev,
-          totalUsers: usersResponse.data.length
-        }));
-      }
-
-      // Fetch expenses
-      const expensesResponse = await get('/expenses');
-      if (expensesResponse.success) {
-        const expenses = expensesResponse.data;
-        const pending = expenses.filter((e: Expense) => e.status === 'pending');
-        const totalExpenses = expenses.reduce((sum: number, e: Expense) => sum + e.amount, 0);
-        
-        setPendingExpenses(pending.slice(0, 2)); // Get latest 2 pending expenses
-        setDashboardStats(prev => ({
-          ...prev,
-          totalExpenses,
-          pendingApprovals: pending.length
-        }));
-      }
-
-      // Fetch allocations
-      const allocationsResponse = await get('/allocations');
-      if (allocationsResponse.success) {
-        const allocations = allocationsResponse.data;
-        const totalAllocations = allocations.reduce((sum: number, a: Allocation) => sum + a.amount, 0);
-        
-        setRecentAllocations(allocations.slice(0, 2)); // Get latest 2 allocations
-        setDashboardStats(prev => ({
-          ...prev,
-          totalAllocations
-        }));
-      }
-
     } catch (error) {
       console.error('Error fetching dashboard data:', error);
     } finally {
@@ -174,16 +386,26 @@ function EnhancedDashboardContent({
     onRefresh?.();
   };
 
+  const handleCTAClick = () => {
+    // Navigate to appropriate page based on user role
+    if (userRole === 'user') {
+      window.location.href = '/projects';
+    } else {
+      window.location.href = '/reports';
+    }
+  };
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case "active":
-        return "bg-green-100 text-green-800";
-      case "completed":
-        return "bg-blue-100 text-blue-800";
-      case "pending":
-        return "bg-yellow-100 text-yellow-800";
       case "approved":
         return "bg-green-100 text-green-800";
+      case "completed":
+        return "bg-primary/20 text-primary";
+      case "pending":
+        return "bg-yellow-100 text-yellow-800";
+      case "planning":
+        return "bg-gray-100 text-gray-800";
       default:
         return "bg-gray-100 text-gray-800";
     }
@@ -207,328 +429,547 @@ function EnhancedDashboardContent({
   };
 
   const isLoading = loading || dataLoading;
+  const isAdmin = userRole === 'admin' || userRole === 'finance_manager';
+
+  // Admin Stats Grid
+  const renderAdminStats = () => {
+    const data = dashboardData as AdminDashboardData;
+    
+    if (isLoading) {
+      return (
+        <>
+          <StatCard
+            title="Total Projects"
+            value="0"
+            subtitle="0 active"
+            icon={Building2}
+            loading={true}
+          />
+          <StatCard
+            title="Total Users"
+            value="0"
+            subtitle="System users"
+            icon={Users}
+            loading={true}
+          />
+          <StatCard
+            title="Total Deposits"
+            value="$0"
+            subtitle="Money deposited"
+            icon={DollarSign}
+            loading={true}
+          />
+          <StatCard
+            title="Total Allocated"
+            value="$0"
+            subtitle="Money allocated"
+            icon={TrendingUp}
+            loading={true}
+          />
+          <StatCard
+            title="Total Spent"
+            value="$0"
+            subtitle="Expenses paid"
+            icon={Wallet}
+            loading={true}
+          />
+          <StatCard
+            title="Pending Approvals"
+            value="0"
+            subtitle="Awaiting review"
+            icon={AlertTriangle}
+            loading={true}
+          />
+        </>
+      );
+    }
+
+    return (
+      <>
+        <StatCard
+          title="Total Projects"
+          value={data?.stats.total_projects || 0}
+          subtitle={`${data?.stats.active_projects || 0} active`}
+          icon={Building2}
+        />
+        <StatCard
+          title="Total Users"
+          value={data?.stats.total_users || 0}
+          subtitle="System users"
+          icon={Users}
+        />
+        <StatCard
+          title="Total Deposits"
+          value={formatCurrency(data?.stats.total_deposits || 0)}
+          subtitle="Money deposited"
+          icon={DollarSign}
+        />
+        <StatCard
+          title="Total Allocated"
+          value={formatCurrency(data?.stats.total_allocated || 0)}
+          subtitle="Money allocated"
+          icon={TrendingUp}
+        />
+        <StatCard
+          title="Total Spent"
+          value={formatCurrency(data?.stats.total_spent || 0)}
+          subtitle="Expenses paid"
+          icon={Wallet}
+        />
+        <StatCard
+          title="Pending Approvals"
+          value={data?.stats.pending_expenses || 0}
+          subtitle="Awaiting review"
+          icon={AlertTriangle}
+        />
+      </>
+    );
+  };
+
+  // User Stats Grid
+  const renderUserStats = () => {
+    const data = dashboardData as UserDashboardData;
+    
+    if (isLoading) {
+      return (
+        <>
+          <StatCard
+            title="My Projects"
+            value="0"
+            subtitle="Assigned to me"
+            icon={FolderOpen}
+            loading={true}
+          />
+          <StatCard
+            title="Total Allocated"
+            value="$0"
+            subtitle="My budget"
+            icon={CreditCard}
+            loading={true}
+          />
+          <StatCard
+            title="Total Spent"
+            value="$0"
+            subtitle="My expenses"
+            icon={Wallet}
+            loading={true}
+          />
+          <StatCard
+            title="Remaining Balance"
+            value="$0"
+            subtitle="Available to spend"
+            icon={DollarSign}
+            loading={true}
+          />
+          <StatCard
+            title="Pending Expenses"
+            value="0"
+            subtitle="Awaiting approval"
+            icon={AlertTriangle}
+            loading={true}
+          />
+          <ProgressCard
+            title="Budget Used"
+            total="0%"
+            unit=""
+            stats={[
+              { label: "Used", value: 0, color: "bg-secondary" },
+              { label: "Available", value: 100, color: "bg-gray-200" }
+            ]}
+            icon={PieChart}
+            loading={true}
+          />
+        </>
+      );
+    }
+
+    const budgetUsed = data?.stats.total_allocated ? 
+      Math.round((data.stats.total_spent / data.stats.total_allocated) * 100) : 0;
+    const budgetAvailable = 100 - budgetUsed;
+
+    return (
+      <>
+        <StatCard
+          title="My Projects"
+          value={data?.stats.my_projects || 0}
+          subtitle="Assigned to me"
+          icon={FolderOpen}
+        />
+        <StatCard
+          title="Total Allocated"
+          value={formatCurrency(data?.stats.total_allocated || 0)}
+          subtitle="My budget"
+          icon={CreditCard}
+        />
+        <StatCard
+          title="Total Spent"
+          value={formatCurrency(data?.stats.total_spent || 0)}
+          subtitle="My expenses"
+          icon={Wallet}
+        />
+        <StatCard
+          title="Remaining Balance"
+          value={formatCurrency(data?.stats.remaining_balance || 0)}
+          subtitle="Available to spend"
+          icon={DollarSign}
+        />
+        <StatCard
+          title="Pending Expenses"
+          value={data?.stats.pending_expenses || 0}
+          subtitle="Awaiting approval"
+          icon={AlertTriangle}
+        />
+        <ProgressCard
+          title="Budget Used"
+          total={`${budgetUsed}%`}
+          unit=""
+          stats={[
+            { label: "Used", value: budgetUsed, color: "bg-secondary" },
+            { label: "Available", value: budgetAvailable, color: "bg-gray-200" }
+          ]}
+          icon={PieChart}
+        />
+      </>
+    );
+  };
 
   return (
     <div className="bg-gray-50 min-h-screen">
-      <div className="p-2 sm:p-4 lg:p-6">
-        <div className="max-w-7xl mx-auto space-y-3 sm:space-y-4 lg:space-y-6">
+      <div className="p-4 sm:p-6 lg:p-8">
+        <div className="max-w-7xl mx-auto space-y-6">
           {/* Header with Refresh */}
           <div className="flex justify-between items-center">
             <div>
-              <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Dashboard</h1>
-              <p className="text-xs sm:text-sm text-gray-600 mt-1">
-                Expense Management Overview
-              </p>
+              {isLoading ? (
+                <>
+                  <SkeletonBox className="h-7 w-40 mb-2" />
+                  <SkeletonBox className="h-4 w-32" />
+                </>
+              ) : (
+                <>
+                  <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">
+                    {isAdmin ? 'Admin Dashboard' : 'My Dashboard'}
+                  </h1>
+                  <p className="text-sm text-gray-600 mt-1">
+                    {isAdmin ? 'System Overview & Analytics' : 'Personal Expense Overview'}
+                  </p>
+                </>
+              )}
             </div>
-            <button
-              onClick={handleRefresh}
-              disabled={isLoading}
-              className="flex items-center gap-2 px-3 py-2 text-xs bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50"
-            >
-              <RefreshCw className={`h-3 w-3 ${isLoading ? 'animate-spin' : ''}`} />
-              Refresh
-            </button>
+            {isLoading ? (
+              <SkeletonBox className="h-9 w-24 rounded-lg" />
+            ) : (
+              <button
+                onClick={handleRefresh}
+                disabled={isLoading}
+                className="flex items-center gap-2 px-4 py-2 text-sm bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50"
+              >
+                <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
+                Refresh
+              </button>
+            )}
           </div>
 
           {/* Top Stats - Responsive Grid */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3 sm:gap-4">
-            {/* Total Projects */}
-            <div className="bg-white rounded-lg p-3 sm:p-4 border border-gray-200">
-              <div className="flex items-start justify-between">
-                <div className="flex-1">
-                  <div className="flex items-center mb-2">
-                    <Building2 className="h-3 w-3 sm:h-4 sm:w-4 text-blue-500 mr-1" />
-                    <p className="text-xs text-gray-500 font-medium">
-                      Total Projects
-                    </p>
-                  </div>
-                  <p className="text-xl sm:text-2xl font-bold text-gray-900 mb-1">
-                    {isLoading ? (
-                      <SkeletonBox className="h-5 sm:h-6 w-10 sm:w-12" />
-                    ) : (
-                      dashboardStats.totalProjects
-                    )}
-                  </p>
-                  <p className="text-xs text-gray-500">
-                    {dashboardStats.activeProjects} active
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            {/* Total Users */}
-            <div className="bg-white rounded-lg p-3 sm:p-4 border border-gray-200">
-              <div className="flex items-start justify-between">
-                <div className="flex-1">
-                  <div className="flex items-center mb-2">
-                    <Users className="h-3 w-3 sm:h-4 sm:w-4 text-green-500 mr-1" />
-                    <p className="text-xs text-gray-500 font-medium">
-                      Total Users
-                    </p>
-                  </div>
-                  <p className="text-xl sm:text-2xl font-bold text-gray-900 mb-1">
-                    {isLoading ? (
-                      <SkeletonBox className="h-5 sm:h-6 w-10 sm:w-12" />
-                    ) : (
-                      dashboardStats.totalUsers
-                    )}
-                  </p>
-                  <p className="text-xs text-gray-500">
-                    System users
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            {/* Total Expenses */}
-            <div className="bg-white rounded-lg p-3 sm:p-4 border border-gray-200">
-              <div className="flex items-start justify-between">
-                <div className="flex-1">
-                  <div className="flex items-center mb-2">
-                    <Wallet className="h-3 w-3 sm:h-4 sm:w-4 text-red-500 mr-1" />
-                    <p className="text-xs text-gray-500 font-medium">
-                      Total Expenses
-                    </p>
-                  </div>
-                  <p className="text-xl sm:text-2xl font-bold text-gray-900 mb-1">
-                    {isLoading ? (
-                      <SkeletonBox className="h-5 sm:h-6 w-12 sm:w-16" />
-                    ) : (
-                      formatCurrency(dashboardStats.totalExpenses)
-                    )}
-                  </p>
-                  <p className="text-xs text-gray-500">
-                    All time expenses
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            {/* Total Allocations */}
-            <div className="bg-white rounded-lg p-3 sm:p-4 border border-gray-200">
-              <div className="flex items-start justify-between">
-                <div className="flex-1">
-                  <div className="flex items-center mb-2">
-                    <DollarSign className="h-3 w-3 sm:h-4 sm:w-4 text-green-500 mr-1" />
-                    <p className="text-xs text-gray-500 font-medium">
-                      Total Allocations
-                    </p>
-                  </div>
-                  <p className="text-xl sm:text-2xl font-bold text-gray-900 mb-1">
-                    {isLoading ? (
-                      <SkeletonBox className="h-5 sm:h-6 w-12 sm:w-16" />
-                    ) : (
-                      formatCurrency(dashboardStats.totalAllocations)
-                    )}
-                  </p>
-                  <p className="text-xs text-gray-500">
-                    Money allocated
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            {/* Pending Approvals */}
-            <div className="bg-white rounded-lg p-3 sm:p-4 border border-gray-200">
-              <div className="flex items-start justify-between">
-                <div className="flex-1">
-                  <div className="flex items-center mb-2">
-                    <AlertTriangle className="h-3 w-3 sm:h-4 sm:w-4 text-yellow-500 mr-1" />
-                    <p className="text-xs text-gray-500 font-medium">
-                      Pending Approvals
-                    </p>
-                  </div>
-                  <p className="text-xl sm:text-2xl font-bold text-gray-900 mb-1">
-                    {isLoading ? (
-                      <SkeletonBox className="h-5 sm:h-6 w-8 sm:w-10" />
-                    ) : (
-                      dashboardStats.pendingApprovals
-                    )}
-                  </p>
-                  <p className="text-xs text-gray-500">
-                    Awaiting review
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            {/* Budget Utilization */}
-            <div className="bg-white rounded-lg p-3 sm:p-4 border border-gray-200">
-              <div className="flex items-start justify-between">
-                <div className="flex-1">
-                  <div className="flex items-center mb-2">
-                    <PieChart className="h-3 w-3 sm:h-4 sm:w-4 text-purple-500 mr-1" />
-                    <p className="text-xs text-gray-500 font-medium">
-                      Budget Used
-                    </p>
-                  </div>
-                  <p className="text-xl sm:text-2xl font-bold text-gray-900 mb-1">
-                    {isLoading ? (
-                      <SkeletonBox className="h-5 sm:h-6 w-10 sm:w-12" />
-                    ) : (
-                      `${dashboardStats.budgetUtilization || 0}%`
-                    )}
-                  </p>
-                  <p className="text-xs text-gray-500">
-                    Of total budget
-                  </p>
-                </div>
-              </div>
-            </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {isAdmin ? renderAdminStats() : renderUserStats()}
           </div>
+
+          {/* CTA Banner */}
+          <CTABanner
+            text={isAdmin ? "Manage your system and view detailed reports" : "Manage your activities and project expenses"}
+            buttonText="See All"
+            onButtonClick={handleCTAClick}
+            loading={isLoading}
+          />
 
           {/* Main Content Grid */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-3 sm:gap-4 lg:gap-6">
-            {/* Recent Projects */}
-            <div className="bg-white rounded-lg border border-gray-200 lg:col-span-2 xl:col-span-1">
-              <div className="p-3 sm:p-4 border-b border-gray-100">
-                <h2 className="text-sm sm:text-base font-bold text-gray-900">
-                  Recent Projects
-                </h2>
-                <p className="text-xs text-gray-500 mt-0.5">
-                  Latest project activities
-                </p>
+          <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
+            {/* Projects Section */}
+            <div className="bg-white rounded-xl border border-gray-200 lg:col-span-2 xl:col-span-1">
+              <div className="p-4 border-b border-gray-100">
+                {isLoading ? (
+                  <>
+                    <SkeletonBox className="h-5 w-32 mb-1" />
+                    <SkeletonBox className="h-3 w-24" />
+                  </>
+                ) : (
+                  <>
+                    <h2 className="text-lg font-bold text-gray-900">
+                      {isAdmin ? 'Recent Projects' : 'My Projects'}
+                    </h2>
+                    <p className="text-sm text-gray-500 mt-0.5">
+                      {isAdmin ? 'Latest project activities' : 'Projects assigned to me'}
+                    </p>
+                  </>
+                )}
               </div>
-              <div className="p-3 sm:p-4 space-y-2 sm:space-y-3">
+              <div className="p-4 space-y-3">
                 {isLoading ? (
                   Array.from({ length: 3 }).map((_, index) => (
-                    <div key={index} className="bg-white rounded-lg border border-gray-200 p-3">
-                      <SkeletonBox className="h-4 w-3/4 mb-2" />
-                      <SkeletonBox className="h-3 w-1/2" />
-                    </div>
+                    <ListItemSkeleton key={index} />
                   ))
-                ) : recentProjects.length > 0 ? (
-                  recentProjects.map((project) => (
-                    <div
-                      key={project.id}
-                      className="bg-white rounded-lg border border-gray-200 p-2 sm:p-3"
-                    >
-                      <div className="flex justify-between items-start mb-2">
-                        <div className="flex-1">
-                          <h3 className="text-xs sm:text-sm font-semibold text-gray-900 mb-1">
-                            {project.name}
-                          </h3>
-                          <p className="text-xs text-gray-500 mb-1">
-                            Code: {project.project_code}
-                          </p>
-                          <p className="text-xs text-gray-400">
-                            Created: {formatDate(project.created_at)}
-                          </p>
+                ) : isAdmin ? (
+                  (dashboardData as AdminDashboardData)?.recent_projects && 
+                  (dashboardData as AdminDashboardData).recent_projects.length > 0 ? (
+                    (dashboardData as AdminDashboardData).recent_projects.map((project) => (
+                      <div key={project.id} className="bg-white rounded-lg border border-gray-200 p-3">
+                        <div className="flex justify-between items-start">
+                          <div className="flex-1">
+                            <h3 className="text-sm font-semibold text-gray-900 mb-1">
+                              {project.name}
+                            </h3>
+                            <p className="text-xs text-gray-500 mb-1">
+                              Code: {project.project_code}
+                            </p>
+                            <p className="text-xs text-gray-400">
+                              Created: {formatDate(project.created_at)}
+                            </p>
+                          </div>
+                          <span className={`px-2 py-1 text-xs font-medium rounded-lg ${getStatusColor(project.status)}`}>
+                            {project.status}
+                          </span>
                         </div>
-                        <span
-                          className={`px-2 py-1 text-xs font-medium rounded-lg ${getStatusColor(project.status)}`}
-                        >
-                          {project.status}
-                        </span>
                       </div>
-                    </div>
-                  ))
+                    ))
+                  ) : (
+                    <p className="text-sm text-gray-500 text-center py-6">No projects found</p>
+                  )
                 ) : (
-                  <p className="text-xs text-gray-500 text-center py-4">No projects found</p>
+                  (dashboardData as UserDashboardData)?.my_projects && 
+                  (dashboardData as UserDashboardData).my_projects.length > 0 ? (
+                    (dashboardData as UserDashboardData).my_projects.map((project) => (
+                      <div key={project.id} className="bg-white rounded-lg border border-gray-200 p-3">
+                        <div className="flex justify-between items-start">
+                          <div className="flex-1">
+                            <h3 className="text-sm font-semibold text-gray-900 mb-1">
+                              {project.name}
+                            </h3>
+                            <p className="text-xs text-gray-500 mb-1">
+                              Code: {project.project_code}
+                            </p>
+                            <p className="text-xs text-gray-400">
+                              Assigned: {formatDate(project.assigned_at)}
+                            </p>
+                          </div>
+                          <span className={`px-2 py-1 text-xs font-medium rounded-lg ${getStatusColor(project.status)}`}>
+                            {project.status}
+                          </span>
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <p className="text-sm text-gray-500 text-center py-6">No projects assigned</p>
+                  )
                 )}
               </div>
             </div>
 
-            {/* Pending Expenses */}
-            <div className="bg-white rounded-lg border border-gray-200">
-              <div className="p-3 sm:p-4 border-b border-gray-100">
-                <h2 className="text-sm sm:text-base font-bold text-gray-900">
-                  Pending Expenses
-                </h2>
-                <p className="text-xs text-gray-500 mt-0.5">
-                  Awaiting approval
-                </p>
+            {/* Expenses Section */}
+            <div className="bg-white rounded-xl border border-gray-200">
+              <div className="p-4 border-b border-gray-100">
+                {isLoading ? (
+                  <>
+                    <SkeletonBox className="h-5 w-32 mb-1" />
+                    <SkeletonBox className="h-3 w-20" />
+                  </>
+                ) : (
+                  <>
+                    <h2 className="text-lg font-bold text-gray-900">
+                      {isAdmin ? 'Pending Expenses' : 'Recent Expenses'}
+                    </h2>
+                    <p className="text-sm text-gray-500 mt-0.5">
+                      {isAdmin ? 'Awaiting approval' : 'My recent expenses'}
+                    </p>
+                  </>
+                )}
               </div>
-              <div className="p-3 sm:p-4 space-y-2 sm:space-y-3">
+              <div className="p-4 space-y-3">
                 {isLoading ? (
                   Array.from({ length: 2 }).map((_, index) => (
-                    <div key={index} className="bg-white rounded-lg border border-gray-200 p-3">
-                      <SkeletonBox className="h-4 w-3/4 mb-2" />
-                      <SkeletonBox className="h-3 w-1/2" />
-                    </div>
+                    <ListItemSkeleton key={index} />
                   ))
-                ) : pendingExpenses.length > 0 ? (
-                  pendingExpenses.map((expense) => (
-                    <div
-                      key={expense.id}
-                      className="bg-white rounded-lg border border-gray-200 p-2 sm:p-3"
-                    >
-                      <div className="flex justify-between items-start mb-2">
-                        <div className="flex-1">
-                          <h3 className="text-xs sm:text-sm font-semibold text-gray-900 mb-1">
-                            {expense.description}
-                          </h3>
-                          <p className="text-xs text-gray-500 mb-1">
-                            Amount: {formatCurrency(expense.amount)}
-                          </p>
-                          <p className="text-xs text-gray-400">
-                            Submitted: {formatDate(expense.created_at)}
-                          </p>
+                ) : isAdmin ? (
+                  (dashboardData as AdminDashboardData)?.pending_expenses && 
+                  (dashboardData as AdminDashboardData).pending_expenses.length > 0 ? (
+                    (dashboardData as AdminDashboardData).pending_expenses.map((expense) => (
+                      <div key={expense.id} className="bg-white rounded-lg border border-gray-200 p-3">
+                        <div className="flex justify-between items-start">
+                          <div className="flex-1">
+                            <h3 className="text-sm font-semibold text-gray-900 mb-1">
+                              {expense.description}
+                            </h3>
+                            <p className="text-xs text-gray-500 mb-1">
+                              Amount: {formatCurrency(expense.amount)}
+                            </p>
+                            <p className="text-xs text-gray-500">
+                              Project: {expense.project_name}
+                            </p>
+                          </div>
+                          <span className={`px-2 py-1 text-xs font-medium rounded-lg ${getStatusColor(expense.status)}`}>
+                            {expense.status}
+                          </span>
                         </div>
-                        <span
-                          className={`px-2 py-1 text-xs font-medium rounded-lg ${getStatusColor(expense.status)}`}
-                        >
-                          {expense.status}
-                        </span>
                       </div>
-                    </div>
-                  ))
+                    ))
+                  ) : (
+                    <p className="text-sm text-gray-500 text-center py-6">No pending expenses</p>
+                  )
                 ) : (
-                  <p className="text-xs text-gray-500 text-center py-4">No pending expenses</p>
+                  (dashboardData as UserDashboardData)?.recent_expenses && 
+                  (dashboardData as UserDashboardData).recent_expenses.length > 0 ? (
+                    (dashboardData as UserDashboardData).recent_expenses.map((expense: any) => (
+                      <div key={expense.id} className="bg-white rounded-lg border border-gray-200 p-3">
+                        <div className="flex justify-between items-start">
+                          <div className="flex-1">
+                            <h3 className="text-sm font-semibold text-gray-900 mb-1">
+                              {expense.description}
+                            </h3>
+                            <p className="text-xs text-gray-500 mb-1">
+                              Amount: {formatCurrency(expense.amount)}
+                            </p>
+                            <p className="text-xs text-gray-500">
+                              Project: {expense.project_name}
+                            </p>
+                          </div>
+                          <span className={`px-2 py-1 text-xs font-medium rounded-lg ${getStatusColor(expense.status)}`}>
+                            {expense.status}
+                          </span>
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <p className="text-sm text-gray-500 text-center py-6">No recent expenses</p>
+                  )
                 )}
               </div>
             </div>
 
-            {/* Recent Allocations */}
-            <div className="bg-white rounded-lg border border-gray-200">
-              <div className="p-3 sm:p-4 border-b border-gray-100">
-                <h2 className="text-sm sm:text-base font-bold text-gray-900">
-                  Recent Allocations
-                </h2>
-                <p className="text-xs text-gray-500 mt-0.5">
-                  Latest money allocations
-                </p>
+            {/* Allocations Section */}
+            <div className="bg-white rounded-xl border border-gray-200">
+              <div className="p-4 border-b border-gray-100">
+                {isLoading ? (
+                  <>
+                    <SkeletonBox className="h-5 w-32 mb-1" />
+                    <SkeletonBox className="h-3 w-24" />
+                  </>
+                ) : (
+                  <>
+                    <h2 className="text-lg font-bold text-gray-900">
+                      Recent Allocations
+                    </h2>
+                    <p className="text-sm text-gray-500 mt-0.5">
+                      {isAdmin ? 'Latest money allocations' : 'My recent allocations'}
+                    </p>
+                  </>
+                )}
               </div>
-              <div className="p-3 sm:p-4 space-y-2 sm:space-y-3">
+              <div className="p-4 space-y-3">
                 {isLoading ? (
                   Array.from({ length: 2 }).map((_, index) => (
-                    <div key={index} className="bg-white rounded-lg border border-gray-200 p-3">
-                      <SkeletonBox className="h-4 w-3/4 mb-2" />
-                      <SkeletonBox className="h-3 w-1/2" />
-                    </div>
-                  ))
-                ) : recentAllocations.length > 0 ? (
-                  recentAllocations.map((allocation) => (
-                    <div
-                      key={allocation.id}
-                      className="bg-white rounded-lg border border-gray-200 p-2 sm:p-3"
-                    >
-                      <div className="flex justify-between items-start mb-2">
-                        <div className="flex-1">
-                          <h3 className="text-xs sm:text-sm font-semibold text-gray-900 mb-1">
-                            {allocation.description}
-                          </h3>
-                          <p className="text-xs text-gray-500 mb-1">
-                            Amount: {formatCurrency(allocation.amount)}
-                          </p>
-                          <p className="text-xs text-gray-400">
-                            Allocated: {formatDate(allocation.created_at)}
-                          </p>
-                        </div>
-                        <span
-                          className={`px-2 py-1 text-xs font-medium rounded-lg ${getStatusColor(allocation.status)}`}
-                        >
-                          {allocation.status}
-                        </span>
-                      </div>
-                    </div>
+                    <ListItemSkeleton key={index} />
                   ))
                 ) : (
-                  <p className="text-xs text-gray-500 text-center py-4">No allocations found</p>
+                  dashboardData && 'recent_allocations' in dashboardData && 
+                  dashboardData.recent_allocations.length > 0 ? (
+                    dashboardData.recent_allocations.map((allocation: any) => (
+                      <div key={allocation.id} className="bg-white rounded-lg border border-gray-200 p-3">
+                        <div className="flex justify-between items-start">
+                          <div className="flex-1">
+                            <h3 className="text-sm font-semibold text-gray-900 mb-1">
+                              {allocation.description}
+                            </h3>
+                            <p className="text-xs text-gray-500 mb-1">
+                              Amount: {formatCurrency(parseFloat(allocation.amount))}
+                            </p>
+                            <p className="text-xs text-gray-500">
+                              Project: {allocation.project_name}
+                            </p>
+                            {isAdmin && allocation.first_name && (
+                              <p className="text-xs text-gray-400">
+                                User: {allocation.first_name} {allocation.last_name}
+                              </p>
+                            )}
+                          </div>
+                          <span className={`px-2 py-1 text-xs font-medium rounded-lg ${getStatusColor(allocation.status)}`}>
+                            {allocation.status}
+                          </span>
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <p className="text-sm text-gray-500 text-center py-6">No allocations found</p>
+                  )
                 )}
               </div>
             </div>
           </div>
+
+          {/* Additional Sections for Admin */}
+          {isAdmin && !isLoading && (dashboardData as AdminDashboardData)?.top_spending_users && 
+           (dashboardData as AdminDashboardData).top_spending_users.length > 0 && (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* Top Spending Users */}
+              <div className="bg-white rounded-xl border border-gray-200">
+                <div className="p-4 border-b border-gray-100">
+                  <h2 className="text-lg font-bold text-gray-900">
+                    Top Spending Users
+                  </h2>
+                  <p className="text-sm text-gray-500 mt-0.5">
+                    Highest expenses by user
+                  </p>
+                </div>
+                <div className="p-4 space-y-3">
+                  {(dashboardData as AdminDashboardData).top_spending_users.map((user) => (
+                    <div key={user.id} className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
+                      <div>
+                        <p className="text-sm font-medium text-gray-900">
+                          {user.first_name} {user.last_name}
+                        </p>
+                      </div>
+                      <p className="text-sm font-semibold text-red-600">
+                        {formatCurrency(user.total_spent)}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Budget Utilization */}
+              {isLoading ? (
+                <BudgetUtilizationSkeleton />
+              ) : (
+                <div className="bg-white rounded-xl border border-gray-200 p-4">
+                  <div className="border-b border-gray-100 pb-4 mb-4">
+                    <h2 className="text-lg font-bold text-gray-900">
+                      Budget Utilization
+                    </h2>
+                    <p className="text-sm text-gray-500 mt-0.5">
+                      Overall budget usage
+                    </p>
+                  </div>
+                  <div className="p-2">
+                    <div className="flex items-center justify-center">
+                      <div className="relative">
+                        <PieChart className="h-16 w-16 text-purple-500" />
+                        <div className="absolute inset-0 flex items-center justify-center">
+                          <span className="text-lg font-bold text-gray-900">
+                            {`${(dashboardData as AdminDashboardData)?.stats.budget_utilization || 0}%`}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="mt-4 text-center">
+                      <p className="text-sm text-gray-600">
+                        {formatCurrency((dashboardData as AdminDashboardData)?.stats.total_spent || 0)} spent of{' '}
+                        {formatCurrency((dashboardData as AdminDashboardData)?.stats.total_deposits || 0)} deposited
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
     </div>

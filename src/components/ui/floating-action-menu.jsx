@@ -53,7 +53,7 @@ const FloatingActionMenu = ({ options, className, activeSection, setActiveSectio
     <div className={cn("fixed bottom-5 right-5 z-50", className)}>
       <Button
         onClick={toggleMenu}
-        className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 shadow-[0_0_20px_rgba(59,130,246,0.4)] text-white"
+        className="w-12 h-12 rounded-full bg-gradient-to-br from-primary to-primary hover:from-primary hover:to-primary shadow-[0_0_20px_rgba(59,130,246,0.4)] text-white"
       >
         <motion.div
           animate={{ rotate: isOpen ? 45 : 0 }}

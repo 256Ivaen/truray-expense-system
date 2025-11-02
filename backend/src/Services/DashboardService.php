@@ -130,7 +130,7 @@ class DashboardService
     
     private function getRecentProjects()
     {
-        $sql = "SELECT id, project_code, name, description, status, start_date, end_date, created_at
+        $sql = "SELECT id, project_code, name, description, status, start_date, end_date, created_at, updated_at
                 FROM projects 
                 WHERE deleted_at IS NULL 
                 ORDER BY created_at DESC 
@@ -141,14 +141,14 @@ class DashboardService
     
     private function getPendingExpenses()
     {
-        $sql = "SELECT e.id, e.amount, e.description, e.status, e.created_at,
+        $sql = "SELECT e.id, e.amount, e.description, e.status, e.spent_at,
                 p.name as project_name, p.project_code,
                 u.first_name, u.last_name, u.email
                 FROM expenses e
                 INNER JOIN projects p ON e.project_id = p.id
                 INNER JOIN users u ON e.user_id = u.id
                 WHERE e.status = 'pending'
-                ORDER BY e.created_at DESC
+                ORDER BY e.spent_at DESC
                 LIMIT 5";
         
         return $this->db->query($sql);
@@ -193,6 +193,7 @@ class DashboardService
                 FROM expenses
                 WHERE status = 'approved' 
                 AND spent_at >= DATE_SUB(NOW(), INTERVAL 6 MONTH)
+                AND spent_at IS NOT NULL
                 GROUP BY DATE_FORMAT(spent_at, '%Y-%m'), DATE_FORMAT(spent_at, '%M %Y')
                 ORDER BY month DESC
                 LIMIT 6";
@@ -301,6 +302,7 @@ class DashboardService
                 WHERE user_id = ? 
                 AND status = 'approved'
                 AND spent_at >= DATE_SUB(NOW(), INTERVAL 6 MONTH)
+                AND spent_at IS NOT NULL
                 GROUP BY DATE_FORMAT(spent_at, '%Y-%m'), DATE_FORMAT(spent_at, '%M %Y')
                 ORDER BY month DESC
                 LIMIT 6";

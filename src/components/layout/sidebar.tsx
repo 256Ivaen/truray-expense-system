@@ -27,78 +27,128 @@ const Sidebar = ({
     reports: true 
   })
 
+  // Get user role from localStorage
+  const getUserRole = () => {
+    try {
+      const userStr = localStorage.getItem('truray_user')
+      if (userStr) {
+        const user = JSON.parse(userStr)
+        return user.role || 'user'
+      }
+    } catch (error) {
+      console.error('Error getting user role from localStorage:', error)
+    }
+    return 'user'
+  }
+
+  const currentUserRole = getUserRole()
+
   const navData = useMemo(() => {
-    return [
+    const baseNav = [
       {
         title: 'Dashboard',
         path: '/',
         section: 'dashboard',
         icon: <LuLayoutDashboard className="h-4 w-4" />,
-      },
-      {
+        roles: ['admin', 'finance_manager', 'user'] // All roles can access dashboard
+      }
+    ]
+
+    // Users section - Admin and Finance Manager only
+    if (currentUserRole === 'admin' || currentUserRole === 'finance_manager') {
+      baseNav.push({
         title: 'Users',
         path: '/users',
         section: 'users',
         icon: <FiUsers className="h-4 w-4" />,
-      },
-      {
-        title: 'Projects',
-        path: '/projects',
-        section: 'projects',
-        icon: <Building2 className="h-4 w-4" />,
-      },
-      {
+        roles: ['admin', 'finance_manager']
+      })
+    }
+
+    // Projects section - All roles can access
+    baseNav.push({
+      title: 'Projects',
+      path: '/projects',
+      section: 'projects',
+      icon: <Building2 className="h-4 w-4" />,
+      roles: ['admin', 'finance_manager', 'user']
+    })
+
+    // Finance section - Admin and Finance Manager only
+    if (currentUserRole === 'admin' || currentUserRole === 'finance_manager') {
+      baseNav.push({
         title: 'Finance',
         path: '/finance',
         section: 'finance',
         icon: <DollarSign className="h-4 w-4" />,
-      },
-      {
-        title: 'Allocations',
-        path: '/allocations',
-        section: 'allocations',
-        icon: <PieChart className="h-4 w-4" />,
-      },
-      {
-        title: 'Expenses',
-        path: '/expenses',
-        section: 'expenses',
-        icon: <Wallet className="h-4 w-4" />,
-      },
-      {
+        roles: ['admin', 'finance_manager']
+      })
+    }
+
+    // Allocations section - All roles can access (but with different permissions)
+    baseNav.push({
+      title: 'Allocations',
+      path: '/allocations',
+      section: 'allocations',
+      icon: <PieChart className="h-4 w-4" />,
+      roles: ['admin', 'finance_manager', 'user']
+    })
+
+    // Expenses section - All roles can access
+    baseNav.push({
+      title: 'Expenses',
+      path: '/expenses',
+      section: 'expenses',
+      icon: <Wallet className="h-4 w-4" />,
+      roles: ['admin', 'finance_manager', 'user']
+    })
+
+    // Reports section - Admin and Finance Manager only
+    if (currentUserRole === 'admin' || currentUserRole === 'finance_manager') {
+      baseNav.push({
         title: 'Reports',
         icon: <BarChart3 className="h-4 w-4" />,
+        roles: ['admin', 'finance_manager'],
         children: [
           {
             title: 'Dashboard Stats',
             path: '/reports/dashboard',
             section: 'reports-dashboard',
+            roles: ['admin', 'finance_manager']
           },
           {
             title: 'Project Summary',
             path: '/reports/project-summary',
             section: 'reports-project-summary',
+            roles: ['admin', 'finance_manager']
           },
           {
             title: 'User Spending',
             path: '/reports/user-spending',
             section: 'reports-user-spending',
+            roles: ['admin', 'finance_manager']
           },
           {
             title: 'Financial Overview',
             path: '/reports/financial-overview',
             section: 'reports-financial-overview',
+            roles: ['admin', 'finance_manager']
           }
         ]
-      },
-      {
-        title: 'Settings',
-        path: '/settings',
-        section: 'settings',
-        icon: <FiSettings className="h-4 w-4" />,
-      }
-    ]
-  }, [])
+      })
+    }
+
+    // Settings section - All roles can access (personal settings)
+    baseNav.push({
+      title: 'Settings',
+      path: '/settings',
+      section: 'settings',
+      icon: <FiSettings className="h-4 w-4" />,
+      roles: ['admin', 'finance_manager', 'user']
+    })
+
+    return baseNav
+  }, [currentUserRole]) // Recompute when user role changes
 
   const toggleExpanded = (title) => {
     setExpandedItems(prev => ({
@@ -142,6 +192,22 @@ const Sidebar = ({
     return item.children.some(child => isActiveRoute(child.path, child.section))
   }
 
+  // Filter navigation items based on user role
+  const filteredNavData = navData.filter(item => {
+    // Check if user has permission for this item
+    const hasPermission = item.roles && item.roles.includes(currentUserRole)
+    
+    // For items with children, also check if any child is accessible
+    if (item.children) {
+      const hasAccessibleChildren = item.children.some(child => 
+        child.roles && child.roles.includes(currentUserRole)
+      )
+      return hasPermission && hasAccessibleChildren
+    }
+    
+    return hasPermission
+  })
+
   return (
     <aside className={`
       bg-white text-gray-700 fixed left-0 top-0 bottom-0 
@@ -163,6 +229,9 @@ const Sidebar = ({
                 <Megaphone className="h-4 w-4 text-gray-900" />
               </div>
               <h1 className="text-lg font-bold text-gray-900">Truray</h1>
+              <span className="text-xs bg-gray-100 px-2 py-1 rounded text-gray-600 capitalize">
+                {currentUserRole}
+              </span>
             </motion.div>
           ) : (
             <motion.div
@@ -188,7 +257,7 @@ const Sidebar = ({
       </div>
 
       <nav className="flex-1 py-4 px-3 space-y-1 overflow-y-auto">
-        {navData.map((item, index) => (
+        {filteredNavData.map((item, index) => (
           <div key={item.title} className="space-y-1">
             <div className="relative group">
               <button
@@ -227,19 +296,21 @@ const Sidebar = ({
               <div className="ml-3 relative space-y-1 pl-3">
                 <div className="absolute left-2 top-0 bottom-0 w-px bg-gray-300"></div>
                 
-                {item.children.map((child) => (
-                  <button
-                    key={child.title}
-                    onClick={() => handleNavClick(child)}
-                    className={`w-full flex items-center pl-4 pr-3 py-2 rounded-lg transition-all text-xs relative ${
-                      isActiveRoute(child.path, child.section)
-                        ? 'bg-yellow-400 text-gray-900 font-medium'
-                        : 'text-gray-600 hover:bg-gray-50'
-                    }`}
-                  >
-                    <span className="font-medium text-xs">{child.title}</span>
-                  </button>
-                ))}
+                {item.children
+                  .filter(child => child.roles && child.roles.includes(currentUserRole))
+                  .map((child) => (
+                    <button
+                      key={child.title}
+                      onClick={() => handleNavClick(child)}
+                      className={`w-full flex items-center pl-4 pr-3 py-2 rounded-lg transition-all text-xs relative ${
+                        isActiveRoute(child.path, child.section)
+                          ? 'bg-yellow-400 text-gray-900 font-medium'
+                          : 'text-gray-600 hover:bg-gray-50'
+                      }`}
+                    >
+                      <span className="font-medium text-xs">{child.title}</span>
+                    </button>
+                  ))}
               </div>
             )}
           </div>

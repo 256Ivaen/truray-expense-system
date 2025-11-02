@@ -5,6 +5,11 @@ import Login from '@/pages/Login'
 import MainLayout from '@/components/layout/MainLayout'
 import { isLoggedIn } from './utils/service.js'
 import { useEffect, useState } from 'react'
+import UsersPage from './pages/Users.js'
+import ProjectsPage from './pages/Projects.js'
+import FinancesPage from './pages/Finance.js'
+import AllocationsPage from './pages/Allocations.js'
+import ExpensesPage from './pages/Expenses.js'
 
 // Protected Route Component
 const ProtectedRoute = ({ children }) => {
@@ -51,12 +56,12 @@ const UnderConstructionPage = ({ title }) => {
         </div>
         <h1 className="text-2xl font-bold text-gray-900 mb-2">{title}</h1>
         <p className="text-gray-600 mb-4">This page is under development</p>
-        <p className="text-sm text-gray-500 mb-6">
+        <p className="text-xs text-gray-500 mb-6">
           Redirecting back in {countdown} seconds...
         </p>
         <button 
           onClick={() => navigate(-1)} 
-          className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
+          className="px-6 py-2 bg-primary text-white rounded-lg hover:bg-primary transition-colors font-medium"
         >
           Go Back Now
         </button>
@@ -75,11 +80,6 @@ const LayoutWrapper = ({ children, title = 'Truray' }) => {
 }
 
 // Placeholder components for each page
-const UsersPage = () => <UnderConstructionPage title="Users Management" />
-const ProjectsPage = () => <UnderConstructionPage title="Projects Management" />
-const FinancePage = () => <UnderConstructionPage title="Finance Deposits" />
-const AllocationsPage = () => <UnderConstructionPage title="Money Allocations" />
-const ExpensesPage = () => <UnderConstructionPage title="Expense Tracking" />
 const ReportsDashboardPage = () => <UnderConstructionPage title="Dashboard Statistics" />
 const ReportsProjectSummaryPage = () => <UnderConstructionPage title="Project Summary Report" />
 const ReportsUserSpendingPage = () => <UnderConstructionPage title="User Spending Report" />
@@ -143,7 +143,7 @@ function AppContent() {
             element={
               <ProtectedRoute>
                 <LayoutWrapper>
-                  <FinancePage />
+                  <FinancesPage />
                 </LayoutWrapper>
               </ProtectedRoute>
             } 

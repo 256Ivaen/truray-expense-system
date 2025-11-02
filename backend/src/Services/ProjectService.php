@@ -38,10 +38,18 @@ class ProjectService
     
     public function getById($id, $userId = null, $role = null)
     {
-        if ($role === 'admin' || $role === 'finance_manager') {
-            return $this->projectModel->find($id);
+        // Always check if project exists first
+        $project = $this->projectModel->find($id);
+        if (!$project) {
+            return null;
         }
         
+        // If user is admin or finance manager, return project
+        if ($role === 'admin' || $role === 'finance_manager') {
+            return $project;
+        }
+        
+        // For regular users, check if they're assigned to the project
         if ($userId) {
             $sql = "SELECT p.* FROM projects p
                     INNER JOIN project_users pu ON p.id = pu.project_id
@@ -171,12 +179,17 @@ class ProjectService
         }
         
         $user = $this->db->queryOne(
-            "SELECT id FROM users WHERE id = ? AND deleted_at IS NULL",
+            "SELECT id, role FROM users WHERE id = ? AND deleted_at IS NULL",
             [$userId]
         );
         
         if (!$user) {
             return ['success' => false, 'message' => 'User not found'];
+        }
+        
+        // Prevent assigning admin users to projects
+        if ($user['role'] === 'admin') {
+            return ['success' => false, 'message' => 'Cannot assign admin users to projects'];
         }
         
         $existing = $this->db->queryOne(
@@ -219,7 +232,7 @@ class ProjectService
     public function getBalance($projectId)
     {
         return $this->db->queryOne(
-            "SELECT * FROM project_balances WHERE id = ?",
+            "SELECT * FROM project_balances WHERE project_id = ?",
             [$projectId]
         );
     }
@@ -233,5 +246,11 @@ class ProjectService
                 ORDER BY pu.assigned_at DESC";
         
         return $this->db->query($sql, [$projectId]);
+    }
+    
+    // Helper method to check if project exists (without user restrictions)
+    public function projectExists($id)
+    {
+        return $this->projectModel->find($id) !== null;
     }
 }

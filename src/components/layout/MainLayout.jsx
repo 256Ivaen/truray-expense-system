@@ -176,7 +176,7 @@ const MainLayout = ({
                             key={notification.id}
                             onClick={() => markNotificationAsRead(notification.id)}
                             className={`p-4 border-b border-gray-100 hover:bg-gray-50 cursor-pointer transition-colors ${
-                              notification.unread ? 'bg-blue-50' : ''
+                              notification.unread ? 'bg-primary/50' : ''
                             }`}
                           >
                             <div className="flex justify-between items-start">
@@ -186,7 +186,7 @@ const MainLayout = ({
                                 <p className="text-xs text-gray-400 mt-1">{notification.time}</p>
                               </div>
                               {notification.unread && (
-                                <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                                <div className="w-2 h-2 bg-primary rounded-full"></div>
                               )}
                             </div>
                           </div>
