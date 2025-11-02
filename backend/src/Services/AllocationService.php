@@ -151,19 +151,12 @@ class AllocationService
                 ]
             );
             
-            // Update or create user allocation balance
-            $userBalance = $this->db->queryOne(
-                "SELECT id FROM user_allocation_balances 
-                 WHERE user_id = ? AND project_id = ?",
+            // Check if user has existing allocations for this project (using the actual allocations table)
+            $existingAllocation = $this->db->queryOne(
+                "SELECT id FROM allocations 
+                 WHERE user_id = ? AND project_id = ? AND status = 'approved'",
                 [$data['user_id'], $data['project_id']]
             );
-            
-            if ($userBalance) {
-                // Since user_allocation_balances is also a view, we need to handle this differently
-                // The view will automatically update when we insert allocations
-            } else {
-                // The view will automatically create the record when we insert allocations
-            }
             
             // If project was completed but now has new allocations, reopen it
             if ($project['status'] === 'completed') {

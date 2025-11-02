@@ -90,6 +90,7 @@ class ExpenseService
             return ['success' => false, 'message' => 'Invalid amount'];
         }
         
+        // Check user balance using the view
         $userBalance = $this->db->queryOne(
             "SELECT * FROM user_allocation_balances 
              WHERE user_id = ? AND project_id = ?",
@@ -223,7 +224,7 @@ class ExpenseService
                 return ['success' => false, 'message' => 'Expense already approved'];
             }
             
-            // Check user balance WITHOUT FOR UPDATE
+            // Check user balance using the view
             $userBalance = $this->db->queryOne(
                 "SELECT * FROM user_allocation_balances 
                  WHERE user_id = ? AND project_id = ?",
@@ -235,51 +236,26 @@ class ExpenseService
                 return ['success' => false, 'message' => 'Insufficient allocation balance'];
             }
             
-            // Update expense status
+            // Update expense status - this will automatically update the views
             $this->db->execute(
                 "UPDATE expenses SET status = ?, approved_by = ?, approved_at = NOW() WHERE id = ?",
                 ['approved', $approvedBy, $id]
             );
             
-            // Update user allocation balance - deduct from remaining balance, add to spent
-            $this->db->execute(
-                "UPDATE user_allocation_balances 
-                 SET total_spent = total_spent + ?,
-                     remaining_balance = remaining_balance - ?
-                 WHERE user_id = ? AND project_id = ?",
-                [$expense['amount'], $expense['amount'], $expense['user_id'], $expense['project_id']]
-            );
-            
-            // Update project balance - deduct from allocated, add to spent
-            $projectBalance = $this->db->queryOne(
-                "SELECT * FROM project_balances WHERE id = ?",
+            // Check if project should be completed (all allocated money spent AND had allocated funds initially)
+            $updatedProjectBalance = $this->db->queryOne(
+                "SELECT allocated_balance, total_spent FROM project_balances WHERE id = ?",
                 [$expense['project_id']]
             );
             
-            if ($projectBalance) {
+            if ($updatedProjectBalance && 
+                $updatedProjectBalance['allocated_balance'] <= 0 && 
+                $updatedProjectBalance['total_spent'] > 0) {
+                // Only complete if project had allocated funds and now they're all spent
                 $this->db->execute(
-                    "UPDATE project_balances 
-                     SET allocated_balance = allocated_balance - ?,
-                         total_spent = total_spent + ?
-                     WHERE id = ?",
-                    [$expense['amount'], $expense['amount'], $expense['project_id']]
-                );
-                
-                // Check if project should be completed (all allocated money spent AND had allocated funds initially)
-                $updatedProjectBalance = $this->db->queryOne(
-                    "SELECT allocated_balance, total_spent FROM project_balances WHERE id = ?",
+                    "UPDATE projects SET status = 'completed', updated_at = NOW() WHERE id = ? AND status != 'completed'",
                     [$expense['project_id']]
                 );
-                
-                if ($updatedProjectBalance && 
-                    $updatedProjectBalance['allocated_balance'] <= 0 && 
-                    $updatedProjectBalance['total_spent'] > 0) {
-                    // Only complete if project had allocated funds and now they're all spent
-                    $this->db->execute(
-                        "UPDATE projects SET status = 'completed', updated_at = NOW() WHERE id = ? AND status != 'completed'",
-                        [$expense['project_id']]
-                    );
-                }
             }
             
             $this->db->commit();
