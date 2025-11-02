@@ -40,20 +40,7 @@ class ProjectController
             return Response::notFound('Project not found');
         }
         
-        // Get balance but don't fail if it doesn't exist
-        try {
-            $balance = $this->projectService->getBalance($data['id']);
-            $project['balance'] = $balance;
-        } catch (\Exception $e) {
-            // If balance table doesn't exist or has issues, set default balance
-            $project['balance'] = [
-                'total_deposits' => 0,
-                'unallocated_balance' => 0,
-                'allocated_balance' => 0,
-                'total_spent' => 0
-            ];
-        }
-        
+        // Get users assigned to the project
         $users = $this->projectService->getProjectUsers($data['id']);
         $project['users'] = $users;
         

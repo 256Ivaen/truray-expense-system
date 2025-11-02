@@ -20,20 +20,21 @@ class ProjectService
     public function getAll($userId = null, $role = null)
     {
         if ($role === 'admin' || $role === 'finance_manager') {
-            return $this->db->query(
+            $projects = $this->db->query(
                 "SELECT * FROM projects WHERE deleted_at IS NULL ORDER BY created_at DESC"
             );
-        }
-        
-        if ($userId) {
+        } else if ($userId) {
             $sql = "SELECT p.* FROM projects p 
                     INNER JOIN project_users pu ON p.id = pu.project_id 
                     WHERE pu.user_id = ? AND p.deleted_at IS NULL
                     ORDER BY p.created_at DESC";
-            return $this->db->query($sql, [$userId]);
+            $projects = $this->db->query($sql, [$userId]);
+        } else {
+            $projects = [];
         }
         
-        return [];
+        // Enhance each project with balance information
+        return $this->enhanceProjectsWithBalance($projects);
     }
     
     public function getById($id, $userId = null, $role = null)
@@ -46,7 +47,7 @@ class ProjectService
         
         // If user is admin or finance manager, return project
         if ($role === 'admin' || $role === 'finance_manager') {
-            return $project;
+            return $this->enhanceProjectWithBalance($project);
         }
         
         // For regular users, check if they're assigned to the project
@@ -54,7 +55,10 @@ class ProjectService
             $sql = "SELECT p.* FROM projects p
                     INNER JOIN project_users pu ON p.id = pu.project_id
                     WHERE p.id = ? AND pu.user_id = ? AND p.deleted_at IS NULL";
-            return $this->db->queryOne($sql, [$id, $userId]);
+            $project = $this->db->queryOne($sql, [$id, $userId]);
+            if ($project) {
+                return $this->enhanceProjectWithBalance($project);
+            }
         }
         
         return null;
@@ -88,7 +92,7 @@ class ProjectService
         );
         
         $project = $this->projectModel->find($projectId);
-        return ['success' => true, 'data' => $project];
+        return ['success' => true, 'data' => $this->enhanceProjectWithBalance($project)];
     }
     
     public function update($id, $data)
@@ -143,7 +147,7 @@ class ProjectService
         }
         
         if (empty($updateFields)) {
-            return ['success' => true, 'data' => $project];
+            return ['success' => true, 'data' => $this->enhanceProjectWithBalance($project)];
         }
         
         $updateFields[] = "updated_at = NOW()";
@@ -153,7 +157,7 @@ class ProjectService
         $this->db->execute($sql, $params);
         
         $updatedProject = $this->projectModel->find($id);
-        return ['success' => true, 'data' => $updatedProject];
+        return ['success' => true, 'data' => $this->enhanceProjectWithBalance($updatedProject)];
     }
     
     public function delete($id)
@@ -253,5 +257,57 @@ class ProjectService
     public function projectExists($id)
     {
         return $this->projectModel->find($id) !== null;
+    }
+    
+    // Helper method to enhance a single project with balance information
+    private function enhanceProjectWithBalance($project)
+    {
+        if (!$project) {
+            return $project;
+        }
+        
+        try {
+            $balance = $this->getBalance($project['id']);
+            $project['balance'] = $balance ?: [
+                'total_deposits' => 0,
+                'unallocated_balance' => 0,
+                'allocated_balance' => 0,
+                'total_spent' => 0,
+                'remaining_balance' => 0
+            ];
+        } catch (\Exception $e) {
+            // If balance table doesn't exist or has issues, set default balance
+            $project['balance'] = [
+                'total_deposits' => 0,
+                'unallocated_balance' => 0,
+                'allocated_balance' => 0,
+                'total_spent' => 0,
+                'remaining_balance' => 0
+            ];
+        }
+        
+        // Calculate remaining balance if not present
+        if (!isset($project['balance']['remaining_balance'])) {
+            $project['balance']['remaining_balance'] = 
+                ($project['balance']['total_deposits'] ?? 0) - 
+                ($project['balance']['total_spent'] ?? 0);
+        }
+        
+        return $project;
+    }
+    
+    // Helper method to enhance multiple projects with balance information
+    private function enhanceProjectsWithBalance($projects)
+    {
+        if (empty($projects)) {
+            return $projects;
+        }
+        
+        $enhancedProjects = [];
+        foreach ($projects as $project) {
+            $enhancedProjects[] = $this->enhanceProjectWithBalance($project);
+        }
+        
+        return $enhancedProjects;
     }
 }
