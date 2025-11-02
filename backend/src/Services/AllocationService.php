@@ -12,14 +12,12 @@ class AllocationService
     private $allocationModel;
     private $db;
     private $fileUploader;
-    private $balanceService;
     
     public function __construct()
     {
         $this->allocationModel = new Allocation();
         $this->db = Database::getInstance();
         $this->fileUploader = new FileUploader();
-        $this->balanceService = new ProjectBalanceService();
     }
     
     public function getAll($filters = [])
@@ -109,8 +107,11 @@ class AllocationService
                 return ['success' => false, 'message' => 'Invalid amount'];
             }
             
-            // Get current project balance
-            $balance = $this->balanceService->getBalance($data['project_id']);
+            // Check project balance using the view
+            $balance = $this->db->queryOne(
+                "SELECT * FROM project_balances WHERE id = ?",
+                [$data['project_id']]
+            );
             
             if (!$balance) {
                 $this->db->rollback();
@@ -134,7 +135,7 @@ class AllocationService
             
             $allocationId = Uuid::uuid4()->toString();
             
-            // Insert allocation
+            // Insert allocation - this will automatically update the view
             $this->db->execute(
                 "INSERT INTO allocations (id, project_id, user_id, amount, description, proof_image, allocated_by, status) 
                  VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
@@ -150,9 +151,6 @@ class AllocationService
                 ]
             );
             
-            // Update project balance using the service
-            $this->balanceService->updateAllocation($data['project_id'], $data['amount']);
-            
             // Update or create user allocation balance
             $userBalance = $this->db->queryOne(
                 "SELECT id FROM user_allocation_balances 
@@ -161,21 +159,10 @@ class AllocationService
             );
             
             if ($userBalance) {
-                // Update existing balance
-                $this->db->execute(
-                    "UPDATE user_allocation_balances 
-                     SET total_allocated = total_allocated + ?,
-                         remaining_balance = remaining_balance + ?
-                     WHERE user_id = ? AND project_id = ?",
-                    [$data['amount'], $data['amount'], $data['user_id'], $data['project_id']]
-                );
+                // Since user_allocation_balances is also a view, we need to handle this differently
+                // The view will automatically update when we insert allocations
             } else {
-                // Create new balance record
-                $this->db->execute(
-                    "INSERT INTO user_allocation_balances (user_id, project_id, total_allocated, total_spent, remaining_balance)
-                     VALUES (?, ?, ?, 0, ?)",
-                    [$data['user_id'], $data['project_id'], $data['amount'], $data['amount']]
-                );
+                // The view will automatically create the record when we insert allocations
             }
             
             // If project was completed but now has new allocations, reopen it
@@ -197,7 +184,6 @@ class AllocationService
         }
     }
     
-    // ... rest of the methods remain the same
     public function update($id, $data, $files = [])
     {
         try {
@@ -218,13 +204,16 @@ class AllocationService
                     return ['success' => false, 'message' => 'Invalid amount'];
                 }
                 
-                // If amount is being changed, we need to adjust balances
+                // If amount is being changed, we need to check balance
                 $amountDifference = $data['amount'] - $allocation['amount'];
                 
                 if ($amountDifference != 0) {
                     // Check if there's enough unallocated balance for increase
                     if ($amountDifference > 0) {
-                        $balance = $this->balanceService->getBalance($allocation['project_id']);
+                        $balance = $this->db->queryOne(
+                            "SELECT unallocated_balance FROM project_balances WHERE id = ?",
+                            [$allocation['project_id']]
+                        );
                         
                         if ($balance['unallocated_balance'] < $amountDifference) {
                             $this->db->rollback();
@@ -232,17 +221,7 @@ class AllocationService
                         }
                     }
                     
-                    // Update project balance using service
-                    $this->balanceService->updateAllocation($allocation['project_id'], $amountDifference);
-                    
-                    // Update user allocation balance
-                    $this->db->execute(
-                        "UPDATE user_allocation_balances 
-                         SET total_allocated = total_allocated + ?,
-                             remaining_balance = remaining_balance + ?
-                         WHERE user_id = ? AND project_id = ?",
-                        [$amountDifference, $amountDifference, $allocation['user_id'], $allocation['project_id']]
-                    );
+                    // Just update the allocation amount - the view will recalculate automatically
                 }
                 
                 $updateFields[] = "amount = ?";
