@@ -209,44 +209,87 @@ class ExpenseService
     
     public function approve($id, $approvedBy)
     {
-        $expense = $this->expenseModel->find($id);
-        if (!$expense) {
-            return ['success' => false, 'message' => 'Expense not found'];
-        }
-        
-        if ($expense['status'] === 'approved') {
-            return ['success' => false, 'message' => 'Expense already approved'];
-        }
-        
-        $userBalance = $this->db->queryOne(
-            "SELECT * FROM user_allocation_balances 
-             WHERE user_id = ? AND project_id = ?",
-            [$expense['user_id'], $expense['project_id']]
-        );
-        
-        if (!$userBalance || $userBalance['remaining_balance'] < $expense['amount']) {
-            return ['success' => false, 'message' => 'Insufficient allocation balance'];
-        }
-        
-        $this->db->execute(
-            "UPDATE expenses SET status = ?, approved_by = ?, approved_at = NOW() WHERE id = ?",
-            ['approved', $approvedBy, $id]
-        );
-        
-        $projectBalance = $this->db->queryOne(
-            "SELECT * FROM project_balances WHERE id = ?",
-            [$expense['project_id']]
-        );
-        
-        if ($projectBalance && $projectBalance['allocated_balance'] <= 0) {
-            $this->db->execute(
-                "UPDATE projects SET status = ? WHERE id = ?",
-                ['closed', $expense['project_id']]
+        try {
+            $this->db->beginTransaction();
+            
+            $expense = $this->expenseModel->find($id);
+            if (!$expense) {
+                $this->db->rollback();
+                return ['success' => false, 'message' => 'Expense not found'];
+            }
+            
+            if ($expense['status'] === 'approved') {
+                $this->db->rollback();
+                return ['success' => false, 'message' => 'Expense already approved'];
+            }
+            
+            // Check user balance with row locking
+            $userBalance = $this->db->queryOne(
+                "SELECT * FROM user_allocation_balances 
+                 WHERE user_id = ? AND project_id = ? FOR UPDATE",
+                [$expense['user_id'], $expense['project_id']]
             );
+            
+            if (!$userBalance || $userBalance['remaining_balance'] < $expense['amount']) {
+                $this->db->rollback();
+                return ['success' => false, 'message' => 'Insufficient allocation balance'];
+            }
+            
+            // Update expense status
+            $this->db->execute(
+                "UPDATE expenses SET status = ?, approved_by = ?, approved_at = NOW() WHERE id = ?",
+                ['approved', $approvedBy, $id]
+            );
+            
+            // Update user allocation balance - deduct from remaining balance, add to spent
+            $this->db->execute(
+                "UPDATE user_allocation_balances 
+                 SET total_spent = total_spent + ?,
+                     remaining_balance = remaining_balance - ?,
+                     updated_at = NOW()
+                 WHERE user_id = ? AND project_id = ?",
+                [$expense['amount'], $expense['amount'], $expense['user_id'], $expense['project_id']]
+            );
+            
+            // Update project balance - deduct from allocated, add to spent
+            $projectBalance = $this->db->queryOne(
+                "SELECT * FROM project_balances WHERE id = ? FOR UPDATE",
+                [$expense['project_id']]
+            );
+            
+            if ($projectBalance) {
+                $this->db->execute(
+                    "UPDATE project_balances 
+                     SET allocated_balance = allocated_balance - ?,
+                         total_spent = total_spent + ?,
+                         updated_at = NOW()
+                     WHERE id = ?",
+                    [$expense['amount'], $expense['amount'], $expense['project_id']]
+                );
+                
+                // Check if project should be closed (all allocated money spent)
+                $updatedProjectBalance = $this->db->queryOne(
+                    "SELECT allocated_balance FROM project_balances WHERE id = ?",
+                    [$expense['project_id']]
+                );
+                
+                if ($updatedProjectBalance && $updatedProjectBalance['allocated_balance'] <= 0) {
+                    $this->db->execute(
+                        "UPDATE projects SET status = ? WHERE id = ?",
+                        ['closed', $expense['project_id']]
+                    );
+                }
+            }
+            
+            $this->db->commit();
+            
+            $updatedExpense = $this->getById($id);
+            return ['success' => true, 'data' => $updatedExpense];
+            
+        } catch (\Exception $e) {
+            $this->db->rollback();
+            return ['success' => false, 'message' => 'Failed to approve expense: ' . $e->getMessage()];
         }
-        
-        $updatedExpense = $this->getById($id);
-        return ['success' => true, 'data' => $updatedExpense];
     }
     
     public function reject($id, $approvedBy)
