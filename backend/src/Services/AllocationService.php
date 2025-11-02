@@ -151,12 +151,11 @@ class AllocationService
                 ]
             );
             
-            // Update project balance - deduct from unallocated, add to allocated
+            // Update project balance - deduct from unallocated, add to allocated (without updated_at)
             $this->db->execute(
                 "UPDATE project_balances 
                  SET unallocated_balance = unallocated_balance - ?,
-                     allocated_balance = allocated_balance + ?,
-                     updated_at = NOW()
+                     allocated_balance = allocated_balance + ?
                  WHERE id = ?",
                 [$data['amount'], $data['amount'], $data['project_id']]
             );
@@ -169,12 +168,11 @@ class AllocationService
             );
             
             if ($userBalance) {
-                // Update existing balance
+                // Update existing balance (without updated_at)
                 $this->db->execute(
                     "UPDATE user_allocation_balances 
                      SET total_allocated = total_allocated + ?,
-                         remaining_balance = remaining_balance + ?,
-                         updated_at = NOW()
+                         remaining_balance = remaining_balance + ?
                      WHERE user_id = ? AND project_id = ?",
                     [$data['amount'], $data['amount'], $data['user_id'], $data['project_id']]
                 );
@@ -243,22 +241,20 @@ class AllocationService
                         }
                     }
                     
-                    // Update project balance
+                    // Update project balance (without updated_at)
                     $this->db->execute(
                         "UPDATE project_balances 
                          SET unallocated_balance = unallocated_balance - ?,
-                             allocated_balance = allocated_balance + ?,
-                             updated_at = NOW()
+                             allocated_balance = allocated_balance + ?
                          WHERE id = ?",
                         [$amountDifference, $amountDifference, $allocation['project_id']]
                     );
                     
-                    // Update user allocation balance
+                    // Update user allocation balance (without updated_at)
                     $this->db->execute(
                         "UPDATE user_allocation_balances 
                          SET total_allocated = total_allocated + ?,
-                             remaining_balance = remaining_balance + ?,
-                             updated_at = NOW()
+                             remaining_balance = remaining_balance + ?
                          WHERE user_id = ? AND project_id = ?",
                         [$amountDifference, $amountDifference, $allocation['user_id'], $allocation['project_id']]
                     );
