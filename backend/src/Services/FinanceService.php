@@ -17,7 +17,7 @@ class FinanceService
         $this->db = Database::getInstance();
     }
     
-    public function getAll($filters = [])
+    public function getAll($filters = [], $page = 1, $perPage = 5)
     {
         $sql = "SELECT f.*, p.project_code, p.name as project_name 
                 FROM finances f
@@ -25,19 +25,40 @@ class FinanceService
                 WHERE 1=1";
         $params = [];
         
+        $countSql = "SELECT COUNT(*) as total FROM finances f
+                INNER JOIN projects p ON f.project_id = p.id
+                WHERE 1=1";
+        $countParams = [];
+        
         if (isset($filters['project_id'])) {
             $sql .= " AND f.project_id = ?";
             $params[] = $filters['project_id'];
+            $countSql .= " AND f.project_id = ?";
+            $countParams[] = $filters['project_id'];
         }
         
         if (isset($filters['status'])) {
             $sql .= " AND f.status = ?";
             $params[] = $filters['status'];
+            $countSql .= " AND f.status = ?";
+            $countParams[] = $filters['status'];
         }
         
-        $sql .= " ORDER BY f.deposited_at DESC";
+        $countResult = $this->db->queryOne($countSql, $countParams);
+        $total = $countResult['total'] ?? 0;
         
-        return $this->db->query($sql, $params);
+        $sql .= " ORDER BY f.deposited_at DESC";
+        $offset = ($page - 1) * $perPage;
+        $sql .= " LIMIT " . (int)$perPage . " OFFSET " . (int)$offset;
+        
+        $data = $this->db->query($sql, $params);
+        
+        return [
+            'data' => $data,
+            'total' => $total,
+            'page' => $page,
+            'per_page' => $perPage
+        ];
     }
     
     public function getById($id)
@@ -87,9 +108,9 @@ class FinanceService
         return ['success' => true, 'data' => $finance];
     }
     
-    public function getByProject($projectId)
+    public function getByProject($projectId, $page = 1, $perPage = 5)
     {
-        return $this->getAll(['project_id' => $projectId]);
+        return $this->getAll(['project_id' => $projectId], $page, $perPage);
     }
     
     public function getTotalDeposits($projectId)

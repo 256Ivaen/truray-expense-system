@@ -10,6 +10,7 @@ use App\Controllers\AllocationController;
 use App\Controllers\ExpenseController;
 use App\Controllers\ReportController;
 use App\Controllers\DashboardController;
+use App\Controllers\NotificationController;
 use App\Middleware\AuthMiddleware;
 use App\Middleware\RoleMiddleware;
 use App\Middleware\RateLimitMiddleware;
@@ -76,6 +77,11 @@ class Router
         $this->routes['GET']['/api/reports/project-summary'] = [ReportController::class, 'projectSummary', true, ['admin', 'finance_manager']];
         $this->routes['GET']['/api/reports/user-spending'] = [ReportController::class, 'userSpending', true, ['admin', 'finance_manager']];
         $this->routes['GET']['/api/reports/financial-overview'] = [ReportController::class, 'financialOverview', true, ['admin', 'finance_manager']];
+        
+        $this->routes['GET']['/api/notifications'] = [NotificationController::class, 'index', true];
+        $this->routes['GET']['/api/notifications/unread'] = [NotificationController::class, 'unread', true];
+        $this->routes['POST']['/api/notifications/:id/read'] = [NotificationController::class, 'markAsRead', true];
+        $this->routes['POST']['/api/notifications/read-all'] = [NotificationController::class, 'markAllAsRead', true];
     }
     
     public function dispatch($method, $uri, $data = [])

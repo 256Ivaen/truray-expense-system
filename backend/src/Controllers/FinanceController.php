@@ -28,9 +28,12 @@ class FinanceController
             $filters['status'] = $data['status'];
         }
         
-        $finances = $this->financeService->getAll($filters);
+        $page = isset($data['page']) ? max(1, (int)$data['page']) : 1;
+        $perPage = isset($data['per_page']) ? max(1, (int)$data['per_page']) : 5;
         
-        return Response::success($finances);
+        $result = $this->financeService->getAll($filters, $page, $perPage);
+        
+        return Response::paginated($result['data'], $result['total'], $result['page'], $result['per_page']);
     }
     
     public function show($data)
@@ -77,13 +80,12 @@ class FinanceController
             return Response::error('Project ID is required', 400);
         }
         
-        $finances = $this->financeService->getByProject($data['id']);
+        $page = isset($data['page']) ? max(1, (int)$data['page']) : 1;
+        $perPage = isset($data['per_page']) ? max(1, (int)$data['per_page']) : 5;
         
+        $result = $this->financeService->getByProject($data['id'], $page, $perPage);
         $total = $this->financeService->getTotalDeposits($data['id']);
         
-        return Response::success([
-            'finances' => $finances,
-            'total_deposits' => $total
-        ]);
+        return Response::paginated($result['data'], $result['total'], $result['page'], $result['per_page'], 'Finances retrieved successfully');
     }
 }

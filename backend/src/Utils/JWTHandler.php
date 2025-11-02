@@ -80,4 +80,10 @@ class JWTHandler
     {
         return hash('sha256', $token);
     }
+    
+    public static function decode($token)
+    {
+        $handler = new self();
+        return $handler->validate($token);
+    }
 }

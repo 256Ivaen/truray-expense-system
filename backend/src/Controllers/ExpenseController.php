@@ -35,9 +35,12 @@ class ExpenseController
             $filters['status'] = $data['status'];
         }
         
-        $expenses = $this->expenseService->getAll($filters);
+        $page = isset($data['page']) ? max(1, (int)$data['page']) : 1;
+        $perPage = isset($data['per_page']) ? max(1, (int)$data['per_page']) : 5;
         
-        return Response::success($expenses);
+        $result = $this->expenseService->getAll($filters, $page, $perPage);
+        
+        return Response::paginated($result['data'], $result['total'], $result['page'], $result['per_page']);
     }
     
     public function show($data)
@@ -190,8 +193,11 @@ class ExpenseController
             return Response::error('Project ID is required', 400);
         }
         
-        $expenses = $this->expenseService->byProject($data['id']);
+        $page = isset($data['page']) ? max(1, (int)$data['page']) : 1;
+        $perPage = isset($data['per_page']) ? max(1, (int)$data['per_page']) : 5;
         
-        return Response::success($expenses);
+        $result = $this->expenseService->getByProject($data['id'], $page, $perPage);
+        
+        return Response::paginated($result['data'], $result['total'], $result['page'], $result['per_page']);
     }
 }

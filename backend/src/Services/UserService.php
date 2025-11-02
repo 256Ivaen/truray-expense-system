@@ -19,7 +19,7 @@ class UserService
         $this->securityConfig = require BASE_PATH . '/config/security.php';
     }
     
-    public function getAll($filters = [])
+    public function getAll($filters = [], $page = 1, $perPage = 5)
     {
         $sql = "SELECT id, email, first_name, last_name, phone, role, status, created_at 
                 FROM users WHERE deleted_at IS NULL";
@@ -35,9 +35,25 @@ class UserService
             $params[] = $filters['status'];
         }
         
-        $sql .= " ORDER BY created_at DESC";
+        $countSql = "SELECT COUNT(*) as total FROM users WHERE deleted_at IS NULL" . 
+                    (isset($filters['role']) ? " AND role = ?" : "") .
+                    (isset($filters['status']) ? " AND status = ?" : "");
+        $countParams = array_filter([$filters['role'] ?? null, $filters['status'] ?? null], function($v) { return $v !== null; });
+        $countResult = $this->db->queryOne($countSql, array_values($countParams));
+        $total = $countResult['total'] ?? 0;
         
-        return $this->db->query($sql, $params);
+        $sql .= " ORDER BY created_at DESC";
+        $offset = ($page - 1) * $perPage;
+        $sql .= " LIMIT " . (int)$perPage . " OFFSET " . (int)$offset;
+        
+        $data = $this->db->query($sql, $params);
+        
+        return [
+            'data' => $data,
+            'total' => $total,
+            'page' => $page,
+            'per_page' => $perPage
+        ];
     }
     
     public function getById($id)

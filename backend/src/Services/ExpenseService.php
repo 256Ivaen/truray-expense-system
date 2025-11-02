@@ -20,7 +20,7 @@ class ExpenseService
         $this->fileUploader = new FileUploader();
     }
     
-    public function getAll($filters = [])
+    public function getAll($filters = [], $page = 1, $perPage = 5)
     {
         $sql = "SELECT e.*, p.project_code, p.name as project_name,
                 u.first_name, u.last_name, u.email
@@ -30,24 +30,48 @@ class ExpenseService
                 WHERE 1=1";
         $params = [];
         
+        $countSql = "SELECT COUNT(*) as total FROM expenses e
+                INNER JOIN projects p ON e.project_id = p.id
+                INNER JOIN users u ON e.user_id = u.id
+                WHERE 1=1";
+        $countParams = [];
+        
         if (isset($filters['project_id'])) {
             $sql .= " AND e.project_id = ?";
             $params[] = $filters['project_id'];
+            $countSql .= " AND e.project_id = ?";
+            $countParams[] = $filters['project_id'];
         }
         
         if (isset($filters['user_id'])) {
             $sql .= " AND e.user_id = ?";
             $params[] = $filters['user_id'];
+            $countSql .= " AND e.user_id = ?";
+            $countParams[] = $filters['user_id'];
         }
         
         if (isset($filters['status'])) {
             $sql .= " AND e.status = ?";
             $params[] = $filters['status'];
+            $countSql .= " AND e.status = ?";
+            $countParams[] = $filters['status'];
         }
         
-        $sql .= " ORDER BY e.spent_at DESC";
+        $countResult = $this->db->queryOne($countSql, $countParams);
+        $total = $countResult['total'] ?? 0;
         
-        return $this->db->query($sql, $params);
+        $sql .= " ORDER BY e.spent_at DESC";
+        $offset = ($page - 1) * $perPage;
+        $sql .= " LIMIT " . (int)$perPage . " OFFSET " . (int)$offset;
+        
+        $data = $this->db->query($sql, $params);
+        
+        return [
+            'data' => $data,
+            'total' => $total,
+            'page' => $page,
+            'per_page' => $perPage
+        ];
     }
     
     public function getById($id)
@@ -289,9 +313,9 @@ class ExpenseService
         return ['success' => true, 'data' => $updatedExpense];
     }
     
-    public function getByProject($projectId)
+    public function getByProject($projectId, $page = 1, $perPage = 5)
     {
-        return $this->getAll(['project_id' => $projectId]);
+        return $this->getAll(['project_id' => $projectId], $page, $perPage);
     }
     
     public function getByUser($userId)

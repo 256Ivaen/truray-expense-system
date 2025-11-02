@@ -34,9 +34,12 @@ class AllocationController
             $filters['status'] = $data['status'];
         }
         
-        $allocations = $this->allocationService->getAll($filters);
+        $page = isset($data['page']) ? max(1, (int)$data['page']) : 1;
+        $perPage = isset($data['per_page']) ? max(1, (int)$data['per_page']) : 5;
         
-        return Response::success($allocations);
+        $result = $this->allocationService->getAll($filters, $page, $perPage);
+        
+        return Response::paginated($result['data'], $result['total'], $result['page'], $result['per_page']);
     }
     
     public function show($data)
@@ -121,9 +124,12 @@ class AllocationController
             return Response::forbidden('You can only view your own allocations');
         }
         
-        $allocations = $this->allocationService->getByUser($data['id']);
+        $page = isset($data['page']) ? max(1, (int)$data['page']) : 1;
+        $perPage = isset($data['per_page']) ? max(1, (int)$data['per_page']) : 5;
         
-        return Response::success($allocations);
+        $result = $this->allocationService->getByUser($data['id'], $page, $perPage);
+        
+        return Response::paginated($result['data'], $result['total'], $result['page'], $result['per_page']);
     }
     
     public function byProject($data)
@@ -132,8 +138,11 @@ class AllocationController
             return Response::error('Project ID is required', 400);
         }
         
-        $allocations = $this->allocationService->getByProject($data['id']);
+        $page = isset($data['page']) ? max(1, (int)$data['page']) : 1;
+        $perPage = isset($data['per_page']) ? max(1, (int)$data['per_page']) : 5;
         
-        return Response::success($allocations);
+        $result = $this->allocationService->getByProject($data['id'], $page, $perPage);
+        
+        return Response::paginated($result['data'], $result['total'], $result['page'], $result['per_page']);
     }
 }

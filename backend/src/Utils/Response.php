@@ -20,10 +20,36 @@ class Response
         ];
         
         if ($data !== null) {
-            $response['data'] = $data;
+            if (isset($data['data']) && isset($data['pagination'])) {
+                $response['data'] = $data['data'];
+                $response['pagination'] = $data['pagination'];
+            } else {
+                $response['data'] = $data;
+            }
         }
         
         self::send($response, $statusCode);
+    }
+    
+    public static function paginated($data, $total, $page, $perPage, $message = 'Success')
+    {
+        $totalPages = ceil($total / $perPage);
+        
+        $response = [
+            'success' => true,
+            'message' => $message,
+            'data' => $data,
+            'pagination' => [
+                'current_page' => (int)$page,
+                'per_page' => (int)$perPage,
+                'total' => (int)$total,
+                'total_pages' => (int)$totalPages,
+                'has_next_page' => $page < $totalPages,
+                'has_previous_page' => $page > 1
+            ]
+        ];
+        
+        self::send($response, 200);
     }
     
     public static function error($message = 'An error occurred', $statusCode = 400, $errors = null)

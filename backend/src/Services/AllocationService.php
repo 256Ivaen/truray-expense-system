@@ -20,7 +20,7 @@ class AllocationService
         $this->fileUploader = new FileUploader();
     }
     
-    public function getAll($filters = [])
+    public function getAll($filters = [], $page = 1, $perPage = 5)
     {
         $sql = "SELECT a.*, p.project_code, p.name as project_name, 
                 u.first_name, u.last_name, u.email
@@ -30,24 +30,48 @@ class AllocationService
                 WHERE 1=1";
         $params = [];
         
+        $countSql = "SELECT COUNT(*) as total FROM allocations a
+                INNER JOIN projects p ON a.project_id = p.id
+                INNER JOIN users u ON a.user_id = u.id
+                WHERE 1=1";
+        $countParams = [];
+        
         if (isset($filters['project_id'])) {
             $sql .= " AND a.project_id = ?";
             $params[] = $filters['project_id'];
+            $countSql .= " AND a.project_id = ?";
+            $countParams[] = $filters['project_id'];
         }
         
         if (isset($filters['user_id'])) {
             $sql .= " AND a.user_id = ?";
             $params[] = $filters['user_id'];
+            $countSql .= " AND a.user_id = ?";
+            $countParams[] = $filters['user_id'];
         }
         
         if (isset($filters['status'])) {
             $sql .= " AND a.status = ?";
             $params[] = $filters['status'];
+            $countSql .= " AND a.status = ?";
+            $countParams[] = $filters['status'];
         }
         
-        $sql .= " ORDER BY a.allocated_at DESC";
+        $countResult = $this->db->queryOne($countSql, $countParams);
+        $total = $countResult['total'] ?? 0;
         
-        return $this->db->query($sql, $params);
+        $sql .= " ORDER BY a.allocated_at DESC";
+        $offset = ($page - 1) * $perPage;
+        $sql .= " LIMIT " . (int)$perPage . " OFFSET " . (int)$offset;
+        
+        $data = $this->db->query($sql, $params);
+        
+        return [
+            'data' => $data,
+            'total' => $total,
+            'page' => $page,
+            'per_page' => $perPage
+        ];
     }
     
     public function getById($id)
@@ -266,14 +290,14 @@ class AllocationService
         }
     }
     
-    public function getByUser($userId)
+    public function getByUser($userId, $page = 1, $perPage = 5)
     {
-        return $this->getAll(['user_id' => $userId]);
+        return $this->getAll(['user_id' => $userId], $page, $perPage);
     }
     
-    public function getByProject($projectId)
+    public function getByProject($projectId, $page = 1, $perPage = 5)
     {
-        return $this->getAll(['project_id' => $projectId]);
+        return $this->getAll(['project_id' => $projectId], $page, $perPage);
     }
     
     public function getUserBalance($userId, $projectId)

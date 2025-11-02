@@ -17,24 +17,44 @@ class ProjectService
         $this->db = Database::getInstance();
     }
     
-    public function getAll($userId = null, $role = null)
+    public function getAll($userId = null, $role = null, $page = 1, $perPage = 5)
     {
-        if ($role === 'admin' || $role === 'finance_manager') {
-            $projects = $this->db->query(
-                "SELECT * FROM projects WHERE deleted_at IS NULL ORDER BY created_at DESC"
-            );
-        } else if ($userId) {
-            $sql = "SELECT p.* FROM projects p 
+        $baseSql = "SELECT * FROM projects WHERE deleted_at IS NULL";
+        $baseSqlWithJoin = "SELECT p.* FROM projects p 
                     INNER JOIN project_users pu ON p.id = pu.project_id 
-                    WHERE pu.user_id = ? AND p.deleted_at IS NULL
-                    ORDER BY p.created_at DESC";
+                    WHERE pu.user_id = ? AND p.deleted_at IS NULL";
+        
+        if ($role === 'admin' || $role === 'finance_manager') {
+            $countSql = "SELECT COUNT(*) as total FROM projects WHERE deleted_at IS NULL";
+            $countResult = $this->db->queryOne($countSql);
+            $total = $countResult['total'] ?? 0;
+            
+            $offset = ($page - 1) * $perPage;
+            $sql = $baseSql . " ORDER BY created_at DESC LIMIT " . (int)$perPage . " OFFSET " . (int)$offset;
+            $projects = $this->db->query($sql);
+        } else if ($userId) {
+            $countSql = "SELECT COUNT(*) as total FROM projects p 
+                        INNER JOIN project_users pu ON p.id = pu.project_id 
+                        WHERE pu.user_id = ? AND p.deleted_at IS NULL";
+            $countResult = $this->db->queryOne($countSql, [$userId]);
+            $total = $countResult['total'] ?? 0;
+            
+            $offset = ($page - 1) * $perPage;
+            $sql = $baseSqlWithJoin . " ORDER BY p.created_at DESC LIMIT " . (int)$perPage . " OFFSET " . (int)$offset;
             $projects = $this->db->query($sql, [$userId]);
         } else {
             $projects = [];
+            $total = 0;
         }
         
-        // Enhance each project with balance information
-        return $this->enhanceProjectsWithBalance($projects);
+        $enhancedProjects = $this->enhanceProjectsWithBalance($projects);
+        
+        return [
+            'data' => $enhancedProjects,
+            'total' => $total,
+            'page' => $page,
+            'per_page' => $perPage
+        ];
     }
     
     public function getById($id, $userId = null, $role = null)

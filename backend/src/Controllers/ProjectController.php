@@ -21,9 +21,12 @@ class ProjectController
     {
         $currentUser = AuthMiddleware::user();
         
-        $projects = $this->projectService->getAll($currentUser['id'], $currentUser['role']);
+        $page = isset($data['page']) ? max(1, (int)$data['page']) : 1;
+        $perPage = isset($data['per_page']) ? max(1, (int)$data['per_page']) : 5;
         
-        return Response::success($projects);
+        $result = $this->projectService->getAll($currentUser['id'], $currentUser['role'], $page, $perPage);
+        
+        return Response::paginated($result['data'], $result['total'], $result['page'], $result['per_page']);
     }
     
     public function show($data)
