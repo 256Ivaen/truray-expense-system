@@ -9,9 +9,9 @@ import {
   FiSettings,
 } from 'react-icons/fi'
 import { ChevronLeft, X, LogOut } from 'react-feather'
-import { Building2, BarChart3, Megaphone, DollarSign, PieChart, Wallet } from "lucide-react"
+import { Building2, BarChart3, Megaphone, DollarSign, PieChart, Wallet, User } from "lucide-react"
 import { LuLayoutDashboard } from "react-icons/lu"
-import { logout } from '../../utils/service.js'
+import { logout, getCurrentUser } from '../../utils/service.js'
 
 const Sidebar = ({ 
   isOpen, 
@@ -23,25 +23,31 @@ const Sidebar = ({
 }) => {
   const navigate = useNavigate()
   const location = useLocation()
-  const [expandedItems, setExpandedItems] = useState({ 
-    reports: true 
-  })
+  const [expandedItems, setExpandedItems] = useState({})
 
-  // Get user role from localStorage
-  const getUserRole = () => {
+  // Get user info from localStorage
+  const getUserInfo = () => {
     try {
-      const userStr = localStorage.getItem('truray_user')
-      if (userStr) {
-        const user = JSON.parse(userStr)
-        return user.role || 'user'
+      const user = getCurrentUser()
+      if (user) {
+        return {
+          firstName: user.first_name || 'User',
+          lastName: user.last_name || '',
+          role: user.role || 'user'
+        }
       }
     } catch (error) {
-      console.error('Error getting user role from localStorage:', error)
+      console.error('Error getting user info from localStorage:', error)
     }
-    return 'user'
+    return {
+      firstName: 'User',
+      lastName: '',
+      role: 'user'
+    }
   }
 
-  const currentUserRole = getUserRole()
+  const currentUser = getUserInfo()
+  const currentUserRole = currentUser.role
 
   const navData = useMemo(() => {
     const baseNav = [
@@ -85,14 +91,15 @@ const Sidebar = ({
       })
     }
 
-    // Allocations section - All roles can access (but with different permissions)
-    baseNav.push({
-      title: 'Allocations',
-      path: '/allocations',
-      section: 'allocations',
-      icon: <PieChart className="h-4 w-4" />,
-      roles: ['admin', 'finance_manager', 'user']
-    })
+    if (currentUserRole === 'admin') {
+      baseNav.push({
+        title: 'Allocations',
+        path: '/allocations',
+        section: 'allocations',
+        icon: <PieChart className="h-4 w-4" />,
+        roles: ['admin', 'finance_manager', 'user']
+      })
+    }
 
     // Expenses section - All roles can access
     baseNav.push({
@@ -103,38 +110,14 @@ const Sidebar = ({
       roles: ['admin', 'finance_manager', 'user']
     })
 
-    // Reports section - Admin and Finance Manager only
+    // Reports section - Admin and Finance Manager only - NOW A NORMAL ITEM
     if (currentUserRole === 'admin' || currentUserRole === 'finance_manager') {
       baseNav.push({
         title: 'Reports',
+        path: '/reports',
+        section: 'reports',
         icon: <BarChart3 className="h-4 w-4" />,
-        roles: ['admin', 'finance_manager'],
-        children: [
-          {
-            title: 'Dashboard Stats',
-            path: '/reports/dashboard',
-            section: 'reports-dashboard',
-            roles: ['admin', 'finance_manager']
-          },
-          {
-            title: 'Project Summary',
-            path: '/reports/project-summary',
-            section: 'reports-project-summary',
-            roles: ['admin', 'finance_manager']
-          },
-          {
-            title: 'User Spending',
-            path: '/reports/user-spending',
-            section: 'reports-user-spending',
-            roles: ['admin', 'finance_manager']
-          },
-          {
-            title: 'Financial Overview',
-            path: '/reports/financial-overview',
-            section: 'reports-financial-overview',
-            roles: ['admin', 'finance_manager']
-          }
-        ]
+        roles: ['admin', 'finance_manager']
       })
     }
 
@@ -225,13 +208,12 @@ const Sidebar = ({
               exit={{ opacity: 0, x: -20 }}
               className="flex items-center gap-3"
             >
-              <div className="w-8 h-8 bg-yellow-400 rounded-xl flex items-center justify-center">
-                <Megaphone className="h-4 w-4 text-gray-900" />
+              <div className="flex items-center gap-2">
+                <User className="h-5 w-5 text-gray-700" />
+                <span className="text-sm font-medium text-gray-900">
+                  Hello {currentUser.firstName}
+                </span>
               </div>
-              <h1 className="text-lg font-bold text-gray-900">Truray</h1>
-              <span className="text-xs bg-gray-100 px-2 py-1 rounded text-gray-600 capitalize">
-                {currentUserRole}
-              </span>
             </motion.div>
           ) : (
             <motion.div
@@ -239,9 +221,9 @@ const Sidebar = ({
               initial={{ opacity: 0, scale: 0.8 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.8 }}
-              className="w-8 h-8 bg-yellow-400 rounded-xl flex items-center justify-center mx-auto"
+              className="flex items-center justify-center"
             >
-              <Megaphone className="h-4 w-4 text-gray-900" />
+              <User className="h-5 w-5 text-gray-700" />
             </motion.div>
           )}
         </AnimatePresence>
@@ -264,7 +246,7 @@ const Sidebar = ({
                 onClick={() => handleNavClick(item)}
                 className={`w-full flex items-center ${isOpen ? 'px-3' : 'justify-center px-2'} py-2.5 rounded-lg transition-all text-xs ${
                   isActiveRoute(item.path, item.section)
-                    ? 'bg-yellow-400 text-gray-900 font-medium'
+                    ? 'bg-secondary text-white font-medium'
                     : isParentActive(item)
                     ? 'bg-gray-100 text-gray-900'
                     : 'text-gray-600 hover:bg-gray-50'
@@ -292,27 +274,7 @@ const Sidebar = ({
               )}
             </div>
 
-            {item.children && isOpen && expandedItems[item.title.toLowerCase()] && (
-              <div className="ml-3 relative space-y-1 pl-3">
-                <div className="absolute left-2 top-0 bottom-0 w-px bg-gray-300"></div>
-                
-                {item.children
-                  .filter(child => child.roles && child.roles.includes(currentUserRole))
-                  .map((child) => (
-                    <button
-                      key={child.title}
-                      onClick={() => handleNavClick(child)}
-                      className={`w-full flex items-center pl-4 pr-3 py-2 rounded-lg transition-all text-xs relative ${
-                        isActiveRoute(child.path, child.section)
-                          ? 'bg-yellow-400 text-gray-900 font-medium'
-                          : 'text-gray-600 hover:bg-gray-50'
-                      }`}
-                    >
-                      <span className="font-medium text-xs">{child.title}</span>
-                    </button>
-                  ))}
-              </div>
-            )}
+            {/* Remove the children rendering section since Reports no longer has children */}
           </div>
         ))}
       </nav>

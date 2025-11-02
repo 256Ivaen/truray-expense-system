@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { 
   Folder, 
   Search, 
@@ -10,14 +11,15 @@ import {
   Calendar,
   DollarSign,
   X,
-  UserPlus,
-  UserMinus,
-  Mail,
+  CheckCircle,
+  Clock,
 } from "lucide-react";
 import { get, post, put, del } from "../utils/service";
 import { toast } from "sonner";
 import { DataTable } from "../components/shared/DataTable";
 import { DeleteModal } from "../components/shared/Modals";
+import { StatCard } from "../components/shared/StatCard";
+import { CalendarPicker } from "../components/shared/CalendarPicker";
 
 interface Project {
   id: string;
@@ -106,19 +108,6 @@ const SkeletonBox = ({ className }: { className?: string }) => (
   <div className={`animate-pulse bg-gray-200 rounded-lg ${className}`}></div>
 );
 
-const StatCardSkeleton = () => (
-  <div className="bg-white rounded-lg border border-gray-200 p-4">
-    <div className="flex items-center justify-between">
-      <div className="flex-1">
-        <SkeletonBox className="h-3 w-16 mb-2" />
-        <SkeletonBox className="h-6 w-12 mb-1" />
-        <SkeletonBox className="h-3 w-10" />
-      </div>
-      <SkeletonBox className="h-8 w-8 rounded-full" />
-    </div>
-  </div>
-);
-
 const SearchSkeleton = () => (
   <div className="bg-white rounded-lg border border-gray-200 p-4 mb-6">
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
@@ -151,6 +140,25 @@ function CreateProjectModal({ isOpen, onClose, onSubmit, loading = false }: Crea
     end_date: ""
   });
 
+  const [startDate, setStartDate] = useState<Date | null>(null);
+  const [endDate, setEndDate] = useState<Date | null>(null);
+
+  const formatDateForInput = (date: Date | null): string => {
+    if (!date) return '';
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
+  useEffect(() => {
+    setForm(prev => ({
+      ...prev,
+      start_date: formatDateForInput(startDate),
+      end_date: formatDateForInput(endDate)
+    }));
+  }, [startDate, endDate]);
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     onSubmit(form);
@@ -164,6 +172,8 @@ function CreateProjectModal({ isOpen, onClose, onSubmit, loading = false }: Crea
       start_date: "",
       end_date: ""
     });
+    setStartDate(null);
+    setEndDate(null);
     onClose();
   };
 
@@ -235,11 +245,10 @@ function CreateProjectModal({ isOpen, onClose, onSubmit, loading = false }: Crea
               <label className="block text-xs font-medium text-gray-700 mb-1">
                 Start Date
               </label>
-              <input
-                type="date"
-                value={form.start_date}
-                onChange={(e) => setForm({ ...form, start_date: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary text-xs"
+              <CalendarPicker
+                value={startDate}
+                onChange={setStartDate}
+                placeholder="Select start date"
                 disabled={loading}
               />
             </div>
@@ -247,11 +256,10 @@ function CreateProjectModal({ isOpen, onClose, onSubmit, loading = false }: Crea
               <label className="block text-xs font-medium text-gray-700 mb-1">
                 End Date
               </label>
-              <input
-                type="date"
-                value={form.end_date}
-                onChange={(e) => setForm({ ...form, end_date: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary text-xs"
+              <CalendarPicker
+                value={endDate}
+                onChange={setEndDate}
+                placeholder="Select end date"
                 disabled={loading}
               />
             </div>
@@ -298,6 +306,17 @@ function EditProjectModal({ isOpen, onClose, onSubmit, project, loading = false 
     status: "planning"
   });
 
+  const [startDate, setStartDate] = useState<Date | null>(null);
+  const [endDate, setEndDate] = useState<Date | null>(null);
+
+  const formatDateForInput = (date: Date | null): string => {
+    if (!date) return '';
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
   useEffect(() => {
     if (project) {
       setForm({
@@ -308,8 +327,23 @@ function EditProjectModal({ isOpen, onClose, onSubmit, project, loading = false 
         end_date: project.end_date || "",
         status: project.status
       });
+      
+      if (project.start_date) {
+        setStartDate(new Date(project.start_date));
+      }
+      if (project.end_date) {
+        setEndDate(new Date(project.end_date));
+      }
     }
   }, [project]);
+
+  useEffect(() => {
+    setForm(prev => ({
+      ...prev,
+      start_date: formatDateForInput(startDate),
+      end_date: formatDateForInput(endDate)
+    }));
+  }, [startDate, endDate]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -387,11 +421,10 @@ function EditProjectModal({ isOpen, onClose, onSubmit, project, loading = false 
               <label className="block text-xs font-medium text-gray-700 mb-1">
                 Start Date
               </label>
-              <input
-                type="date"
-                value={form.start_date}
-                onChange={(e) => setForm({ ...form, start_date: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary text-xs"
+              <CalendarPicker
+                value={startDate}
+                onChange={setStartDate}
+                placeholder="Select start date"
                 disabled={loading}
               />
             </div>
@@ -399,11 +432,10 @@ function EditProjectModal({ isOpen, onClose, onSubmit, project, loading = false 
               <label className="block text-xs font-medium text-gray-700 mb-1">
                 End Date
               </label>
-              <input
-                type="date"
-                value={form.end_date}
-                onChange={(e) => setForm({ ...form, end_date: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary text-xs"
+              <CalendarPicker
+                value={endDate}
+                onChange={setEndDate}
+                placeholder="Select end date"
                 disabled={loading}
               />
             </div>
@@ -450,242 +482,8 @@ function EditProjectModal({ isOpen, onClose, onSubmit, project, loading = false 
   );
 }
 
-interface ViewProjectModalProps {
-  isOpen: boolean;
-  onClose: () => void;
-  onAssignUser: (userId: string) => void;
-  onRemoveUser: (userId: string) => void;
-  project: Project | null;
-  users: User[];
-  loading?: boolean;
-  currentUserRole: string;
-}
-
-function ViewProjectModal({ isOpen, onClose, onAssignUser, onRemoveUser, project, users, loading = false, currentUserRole }: ViewProjectModalProps) {
-  const [selectedUser, setSelectedUser] = useState("");
-
-  const handleAssignUser = () => {
-    if (selectedUser) {
-      onAssignUser(selectedUser);
-      setSelectedUser("");
-    }
-  };
-
-  const handleClose = () => {
-    setSelectedUser("");
-    onClose();
-  };
-
-  if (!project) return null;
-
-  const assignedUserIds = project.users?.map(u => u.id) || [];
-  const availableUsers = users.filter(u => !assignedUserIds.includes(u.id));
-
-  const formatCurrency = (amount: string) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-    }).format(parseFloat(amount));
-  };
-
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString();
-  };
-
-  const canManageUsers = currentUserRole === 'admin' || currentUserRole === 'finance_manager';
-
-  return (
-    <div 
-      className={`fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50 ${isOpen ? 'block' : 'hidden'}`}
-      onClick={onClose}
-    >
-      <div 
-        className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="flex items-center justify-between p-6 border-b border-gray-200">
-          <h2 className="text-xs font-semibold text-gray-900">
-            Project Details: {project.project_code} - {project.name}
-          </h2>
-          <button
-            onClick={onClose}
-            className="text-gray-400 hover:text-gray-600 transition-colors"
-          >
-            <X className="h-4 w-4" />
-          </button>
-        </div>
-        
-        <div className="p-6 space-y-6">
-          {/* Project Information */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div>
-              <h3 className="text-xs font-semibold text-gray-900 mb-4">Project Information</h3>
-              <div className="space-y-3">
-                <div>
-                  <label className="text-xs font-medium text-gray-700">Project Code</label>
-                  <p className="text-xs text-gray-900">{project.project_code}</p>
-                </div>
-                <div>
-                  <label className="text-xs font-medium text-gray-700">Project Name</label>
-                  <p className="text-xs text-gray-900">{project.name}</p>
-                </div>
-                <div>
-                  <label className="text-xs font-medium text-gray-700">Description</label>
-                  <p className="text-xs text-gray-900">{project.description || 'No description'}</p>
-                </div>
-                <div>
-                  <label className="text-xs font-medium text-gray-700">Status</label>
-                  <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full capitalize ${
-                    project.status === 'active' ? 'bg-green-100 text-green-800' :
-                    project.status === 'completed' ? 'bg-blue-100 text-blue-800' :
-                    project.status === 'planning' ? 'bg-yellow-100 text-yellow-800' :
-                    'bg-gray-100 text-gray-800'
-                  }`}>
-                    {project.status}
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            <div>
-              <h3 className="text-xs font-semibold text-gray-900 mb-4">Financial Overview</h3>
-              <div className="space-y-3">
-                <div>
-                  <label className="text-xs font-medium text-gray-700">Total Deposits</label>
-                  <p className="text-xs text-gray-900">{formatCurrency(project.balance?.total_deposits || '0')}</p>
-                </div>
-                <div>
-                  <label className="text-xs font-medium text-gray-700">Total Allocated</label>
-                  <p className="text-xs text-gray-900">{formatCurrency(project.balance?.total_allocated || '0')}</p>
-                </div>
-                <div>
-                  <label className="text-xs font-medium text-gray-700">Total Spent</label>
-                  <p className="text-xs text-gray-900">{formatCurrency(project.balance?.total_spent || '0')}</p>
-                </div>
-                <div>
-                  <label className="text-xs font-medium text-gray-700">Unallocated Balance</label>
-                  <p className="text-xs text-gray-900">{formatCurrency(project.balance?.unallocated_balance || '0')}</p>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* User Assignment Section - Only show for admins and finance managers */}
-          {canManageUsers && (
-            <div className="border-t border-gray-200 pt-6">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-xs font-semibold text-gray-900">Team Members ({project.users?.length || 0})</h3>
-                <div className="flex gap-2">
-                  <select
-                    value={selectedUser}
-                    onChange={(e) => setSelectedUser(e.target.value)}
-                    className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary text-xs"
-                    disabled={loading || availableUsers.length === 0}
-                  >
-                    <option value="">Select user to assign</option>
-                    {availableUsers.map(user => (
-                      <option key={user.id} value={user.id}>
-                        {user.first_name} {user.last_name} ({user.email})
-                      </option>
-                    ))}
-                  </select>
-                  <button
-                    onClick={handleAssignUser}
-                    disabled={!selectedUser || loading}
-                    className="px-4 py-2 bg-primary text-black rounded-lg hover:bg-primary/90 transition-colors text-xs font-medium disabled:opacity-50 flex items-center gap-2"
-                  >
-                    <UserPlus className="h-4 w-4" />
-                    Assign
-                  </button>
-                </div>
-              </div>
-
-              {/* Assigned Users List */}
-              <div className="space-y-3 max-h-60 overflow-y-auto">
-                {project.users?.map(user => (
-                  <div key={user.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                    <div className="flex items-center space-x-3">
-                      <div className="h-8 w-8 bg-primary/20 rounded-full flex items-center justify-center">
-                        <span className="text-black font-medium text-xs">
-                          {user.first_name[0]}{user.last_name[0]}
-                        </span>
-                      </div>
-                      <div>
-                        <div className="text-xs font-medium text-gray-900">
-                          {user.first_name} {user.last_name}
-                        </div>
-                        <div className="text-xs text-gray-500 flex items-center gap-1">
-                          <Mail className="h-3 w-3" />
-                          {user.email}
-                        </div>
-                        <div className="text-xs text-gray-500">
-                          Assigned: {formatDate(user.assigned_at)}
-                        </div>
-                      </div>
-                    </div>
-                    <button
-                      onClick={() => onRemoveUser(user.id)}
-                      disabled={loading}
-                      className="text-red-600 hover:text-red-800 transition-colors text-xs font-medium disabled:opacity-50 flex items-center gap-1"
-                    >
-                      <UserMinus className="h-4 w-4" />
-                      Remove
-                    </button>
-                  </div>
-                ))}
-                {(!project.users || project.users.length === 0) && (
-                  <div className="text-center py-8 text-xs text-gray-500">
-                    <Users className="h-8 w-8 mx-auto mb-2 text-gray-400" />
-                    No users assigned to this project
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-
-          {/* For normal users, show assigned team members without management options */}
-          {!canManageUsers && project.users && project.users.length > 0 && (
-            <div className="border-t border-gray-200 pt-6">
-              <h3 className="text-xs font-semibold text-gray-900 mb-4">Team Members ({project.users.length})</h3>
-              <div className="space-y-3">
-                {project.users.map(user => (
-                  <div key={user.id} className="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg">
-                    <div className="h-8 w-8 bg-primary/20 rounded-full flex items-center justify-center">
-                      <span className="text-black font-medium text-xs">
-                        {user.first_name[0]}{user.last_name[0]}
-                      </span>
-                    </div>
-                    <div>
-                      <div className="text-xs font-medium text-gray-900">
-                        {user.first_name} {user.last_name}
-                      </div>
-                      <div className="text-xs text-gray-500 flex items-center gap-1">
-                        <Mail className="h-3 w-3" />
-                        {user.email}
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          <div className="flex gap-3 pt-4 border-t border-gray-200">
-            <button
-              onClick={handleClose}
-              disabled={loading}
-              className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors text-xs font-medium disabled:opacity-50"
-            >
-              Close
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 const ProjectsPage = () => {
+  const navigate = useNavigate();
   const [projects, setProjects] = useState<Project[]>([]);
   const [userProjects, setUserProjects] = useState<Project[]>([]);
   const [users, setUsers] = useState<User[]>([]);
@@ -697,7 +495,6 @@ const ProjectsPage = () => {
   // Modal states
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
-  const [showViewModal, setShowViewModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
 
@@ -723,9 +520,7 @@ const ProjectsPage = () => {
         const allProjects = response.data;
         setProjects(allProjects);
         
-        // For normal users, filter projects to only show assigned ones
         if (currentUserRole === 'user') {
-          // Fetch detailed project info to check user assignments
           const userAssignedProjects = await fetchUserAssignedProjects(allProjects);
           setUserProjects(userAssignedProjects);
         } else {
@@ -746,7 +541,6 @@ const ProjectsPage = () => {
     try {
       const assignedProjects: Project[] = [];
       
-      // Check each project to see if current user is assigned
       for (const project of allProjects) {
         try {
           const projectDetails = await get(`/projects/${project.id}`);
@@ -778,22 +572,6 @@ const ProjectsPage = () => {
       }
     } catch (error) {
       console.error('Error fetching users:', error);
-    }
-  };
-
-  const fetchProjectById = async (projectId: string): Promise<Project | null> => {
-    try {
-      const response = await get(`/projects/${projectId}`);
-      if (response.success) {
-        return response.data;
-      } else {
-        toast.error('Failed to fetch project details');
-        return null;
-      }
-    } catch (error) {
-      console.error('Error fetching project:', error);
-      toast.error('Error loading project details');
-      return null;
     }
   };
 
@@ -860,68 +638,9 @@ const ProjectsPage = () => {
     }
   };
 
-  const handleViewProject = async (project: Project) => {
-    setActionLoading(true);
-    try {
-      const projectDetails = await fetchProjectById(project.id);
-      if (projectDetails) {
-        setSelectedProject(projectDetails);
-        setShowViewModal(true);
-      }
-    } catch (error) {
-      console.error('Error viewing project:', error);
-      toast.error('Error loading project details');
-    } finally {
-      setActionLoading(false);
-    }
-  };
-
-  const handleAssignUserToProject = async (userId: string) => {
-    if (!selectedProject) return;
-    
-    setActionLoading(true);
-    try {
-      const response = await post(`/projects/${selectedProject.id}/assign-user`, { user_id: userId });
-      if (response.success) {
-        toast.success('User assigned to project successfully');
-        // Refresh project details
-        const projectDetails = await fetchProjectById(selectedProject.id);
-        if (projectDetails) {
-          setSelectedProject(projectDetails);
-        }
-      } else {
-        toast.error(response.message || 'Failed to assign user to project');
-      }
-    } catch (error: any) {
-      console.error('Error assigning user to project:', error);
-      toast.error(error.response?.data?.message || 'Error assigning user to project');
-    } finally {
-      setActionLoading(false);
-    }
-  };
-
-  const handleRemoveUserFromProject = async (userId: string) => {
-    if (!selectedProject) return;
-    
-    setActionLoading(true);
-    try {
-      const response = await del(`/projects/${selectedProject.id}/remove-user/${userId}`);
-      if (response.success) {
-        toast.success('User removed from project successfully');
-        // Refresh project details
-        const projectDetails = await fetchProjectById(selectedProject.id);
-        if (projectDetails) {
-          setSelectedProject(projectDetails);
-        }
-      } else {
-        toast.error(response.message || 'Failed to remove user from project');
-      }
-    } catch (error: any) {
-      console.error('Error removing user from project:', error);
-      toast.error(error.response?.data?.message || 'Error removing user from project');
-    } finally {
-      setActionLoading(false);
-    }
+  const handleViewProject = (project: Project) => {
+    // Navigate to project details page using React Router
+    navigate(`/projects/${project.id}`);
   };
 
   const openCreateModal = () => {
@@ -941,15 +660,12 @@ const ProjectsPage = () => {
   const closeModals = () => {
     setShowCreateModal(false);
     setShowEditModal(false);
-    setShowViewModal(false);
     setShowDeleteModal(false);
     setSelectedProject(null);
   };
 
-  // Determine which projects to display based on user role
   const displayProjects = currentUserRole === 'user' ? userProjects : projects;
 
-  // Filter projects based on search and filters
   const filteredProjects = displayProjects.filter(project => {
     const matchesSearch = 
       project.project_code.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -961,7 +677,6 @@ const ProjectsPage = () => {
     return matchesSearch && matchesStatus;
   });
 
-  // Calculate project statistics based on displayed projects
   const projectStats = {
     total: displayProjects.length,
     active: displayProjects.filter(p => p.status === 'active').length,
@@ -971,92 +686,74 @@ const ProjectsPage = () => {
 
   return (
     <div className="min-h-screen bg-gray-50 p-4 sm:p-6">
-      <div className="max-w-7xl mx-auto">
+      <div className="max-w-7xl mx-auto space-y-6">
         {/* Header */}
-        <div className="mb-6 sm:mb-8">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              {loading ? (
-                <>
-                  <SkeletonBox className="h-8 w-48 mb-1" />
-                  <SkeletonBox className="h-4 w-32" />
-                </>
-              ) : (
-                <>
-                  <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">
-                    {currentUserRole === 'user' ? 'My Projects' : 'Projects Management'}
-                  </h1>
-                  <p className="text-xs text-gray-600 mt-1">
-                    {currentUserRole === 'user' 
-                      ? 'View and manage your assigned projects' 
-                      : 'Manage and track all projects'
-                    }
-                  </p>
-                </>
-              )}
-            </div>
-            {canManageProjects && (
-              loading ? (
-                <SkeletonBox className="h-10 w-32 rounded-lg" />
-              ) : (
-                <button
-                  onClick={openCreateModal}
-                  className="mt-4 sm:mt-0 flex items-center gap-2 px-4 py-2 bg-primary text-black rounded-lg hover:bg-primary/90 transition-colors text-xs font-medium"
-                >
-                  <Plus className="h-4 w-4" />
-                  New Project
-                </button>
-              )
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            {loading ? (
+              <>
+                <SkeletonBox className="h-8 w-48 mb-1" />
+                <SkeletonBox className="h-4 w-32" />
+              </>
+            ) : (
+              <>
+                <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">
+                  {currentUserRole === 'user' ? 'My Projects' : 'Projects Management'}
+                </h1>
+                <p className="text-xs text-gray-600 mt-1">
+                  {currentUserRole === 'user' 
+                    ? 'View and manage your assigned projects' 
+                    : 'Manage and track all projects'
+                  }
+                </p>
+              </>
             )}
           </div>
+          {canManageProjects && (
+            loading ? (
+              <SkeletonBox className="h-10 w-32 rounded-lg" />
+            ) : (
+              <button
+                onClick={openCreateModal}
+                className="mt-4 sm:mt-0 flex items-center gap-2 px-4 py-2 bg-primary text-black rounded-lg hover:bg-primary/90 transition-colors text-xs font-medium"
+              >
+                <Plus className="h-4 w-4" />
+                New Project
+              </button>
+            )
+          )}
         </div>
 
-        {/* Project Statistics */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-          {loading ? (
-            Array.from({ length: 4 }).map((_, index) => (
-              <StatCardSkeleton key={index} />
-            ))
-          ) : (
-            <>
-              <div className="bg-white rounded-lg border border-gray-200 p-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-xs font-medium text-gray-600">Total Projects</p>
-                    <p className="text-2xl font-bold text-gray-900">{projectStats.total}</p>
-                  </div>
-                  <Folder className="h-8 w-8 text-primary" />
-                </div>
-              </div>
-              <div className="bg-white rounded-lg border border-gray-200 p-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-xs font-medium text-gray-600">Active</p>
-                    <p className="text-2xl font-bold text-gray-900">{projectStats.active}</p>
-                  </div>
-                  <Users className="h-8 w-8 text-green-500" />
-                </div>
-              </div>
-              <div className="bg-white rounded-lg border border-gray-200 p-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-xs font-medium text-gray-600">Completed</p>
-                    <p className="text-2xl font-bold text-gray-900">{projectStats.completed}</p>
-                  </div>
-                  <Calendar className="h-8 w-8 text-blue-500" />
-                </div>
-              </div>
-              <div className="bg-white rounded-lg border border-gray-200 p-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-xs font-medium text-gray-600">Planning</p>
-                    <p className="text-2xl font-bold text-gray-900">{projectStats.planning}</p>
-                  </div>
-                  <DollarSign className="h-8 w-8 text-yellow-500" />
-                </div>
-              </div>
-            </>
-          )}
+        {/* Stats Cards */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <StatCard
+            title="Total Projects"
+            value={projectStats.total}
+            subtitle="All projects"
+            icon={Folder}
+            loading={loading}
+          />
+          <StatCard
+            title="Active Projects"
+            value={projectStats.active}
+            subtitle="Currently active"
+            icon={CheckCircle}
+            loading={loading}
+          />
+          <StatCard
+            title="Completed"
+            value={projectStats.completed}
+            subtitle="Finished projects"
+            icon={CheckCircle}
+            loading={loading}
+          />
+          <StatCard
+            title="Planning"
+            value={projectStats.planning}
+            subtitle="In planning phase"
+            icon={Clock}
+            loading={loading}
+          />
         </div>
 
         {/* Filters and Search */}
@@ -1065,7 +762,6 @@ const ProjectsPage = () => {
         ) : (
           <div className="bg-white rounded-lg border border-gray-200 p-4 mb-6">
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-              {/* Search */}
               <div className="lg:col-span-2">
                 <div className="relative">
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
@@ -1083,7 +779,6 @@ const ProjectsPage = () => {
                 </div>
               </div>
 
-              {/* Status Filter */}
               <div>
                 <select
                   value={statusFilter}
@@ -1104,7 +799,6 @@ const ProjectsPage = () => {
 
         {/* Projects Table */}
         <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
-          {/* Table Header */}
           <div className="px-4 sm:px-6 py-4 border-b border-gray-200 bg-gray-50">
             {loading ? (
               <div className="flex items-center justify-between">
@@ -1124,7 +818,6 @@ const ProjectsPage = () => {
             )}
           </div>
 
-          {/* Data Table Component */}
           <DataTable
             data={filteredProjects}
             loading={loading}
@@ -1132,14 +825,14 @@ const ProjectsPage = () => {
             onEdit={canManageProjects ? openEditModal : undefined}
             onDelete={canManageProjects ? openDeleteModal : undefined}
             onView={handleViewProject}
-            showActions={canManageProjects}
+            showActions={true}
             currentUserRole={currentUserRole}
             currentUserId={currentUserId}
+            actionLoading={actionLoading}
           />
         </div>
       </div>
 
-      {/* Create Project Modal - Only for admins and finance managers */}
       {canManageProjects && (
         <CreateProjectModal
           isOpen={showCreateModal}
@@ -1149,7 +842,6 @@ const ProjectsPage = () => {
         />
       )}
 
-      {/* Edit Project Modal - Only for admins and finance managers */}
       {canManageProjects && (
         <EditProjectModal
           isOpen={showEditModal}
@@ -1160,19 +852,6 @@ const ProjectsPage = () => {
         />
       )}
 
-      {/* View Project Modal */}
-      <ViewProjectModal
-        isOpen={showViewModal}
-        onClose={closeModals}
-        onAssignUser={handleAssignUserToProject}
-        onRemoveUser={handleRemoveUserFromProject}
-        project={selectedProject}
-        users={users}
-        loading={actionLoading}
-        currentUserRole={currentUserRole}
-      />
-
-      {/* Delete Confirmation Modal - Only for admins and finance managers */}
       {canManageProjects && (
         <DeleteModal
           isOpen={showDeleteModal}

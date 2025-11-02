@@ -1,52 +1,61 @@
-import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate } from 'react-router-dom'
-import { Toaster } from 'sonner'
-import DashboardPage from '@/pages/DashboardPage'
-import Login from '@/pages/Login'
-import MainLayout from '@/components/layout/MainLayout'
-import { isLoggedIn } from './utils/service.js'
-import { useEffect, useState } from 'react'
-import UsersPage from './pages/Users.js'
-import ProjectsPage from './pages/Projects.js'
-import FinancesPage from './pages/Finance.js'
-import AllocationsPage from './pages/Allocations.js'
-import ExpensesPage from './pages/Expenses.js'
+import {
+  BrowserRouter as Router,
+  Routes,
+  Route,
+  Navigate,
+  useNavigate,
+} from "react-router-dom";
+import { Toaster } from "sonner";
+import DashboardPage from "@/pages/DashboardPage";
+import Login from "@/pages/Login";
+import MainLayout from "@/components/layout/MainLayout";
+import { isLoggedIn } from "./utils/service.js";
+import { useEffect, useState } from "react";
+import UsersPage from "./pages/Users.js";
+import ProjectsPage from "./pages/Projects.js";
+import FinancesPage from "./pages/Finance.js";
+import AllocationsPage from "./pages/Allocations.js";
+import ExpensesPage from "./pages/Expenses.js";
+import ReportsPage from "./pages/Reports";
+import SettingsPage from "./pages/Settings";
+import ProjectDetailsPage from "./pages/ProjectDetails.js";
 
 // Protected Route Component
 const ProtectedRoute = ({ children }) => {
   if (!isLoggedIn()) {
-    return <Navigate to="/login" replace />
+    return <Navigate to="/login" replace />;
   }
-  
-  return children
-}
+
+  return children;
+};
 
 // Public Route Component (redirects to dashboard if already logged in)
 const PublicRoute = ({ children }) => {
   if (isLoggedIn()) {
-    return <Navigate to="/" replace />
+    return <Navigate to="/" replace />;
   }
-  
-  return children
-}
+
+  return children;
+};
 
 const UnderConstructionPage = ({ title }) => {
-  const navigate = useNavigate()
-  const [countdown, setCountdown] = useState(10)
+  const navigate = useNavigate();
+  const [countdown, setCountdown] = useState(10);
 
   useEffect(() => {
     const timer = setInterval(() => {
       setCountdown((prev) => {
         if (prev <= 1) {
-          clearInterval(timer)
-          navigate(-1) // Go back to previous page
-          return 0
+          clearInterval(timer);
+          navigate(-1); // Go back to previous page
+          return 0;
         }
-        return prev - 1
-      })
-    }, 1000)
+        return prev - 1;
+      });
+    }, 1000);
 
-    return () => clearInterval(timer)
-  }, [navigate])
+    return () => clearInterval(timer);
+  }, [navigate]);
 
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center p-6">
@@ -59,32 +68,23 @@ const UnderConstructionPage = ({ title }) => {
         <p className="text-xs text-gray-500 mb-6">
           Redirecting back in {countdown} seconds...
         </p>
-        <button 
-          onClick={() => navigate(-1)} 
+        <button
+          onClick={() => navigate(-1)}
           className="px-6 py-2 bg-primary text-white rounded-lg hover:bg-primary transition-colors font-medium"
         >
           Go Back Now
         </button>
       </div>
     </div>
-  )
-}
+  );
+};
 
 // Wrapper component to ensure all pages use MainLayout
-const LayoutWrapper = ({ children, title = 'Truray' }) => {
-  return (
-    <MainLayout>
-      {children}
-    </MainLayout>
-  )
-}
+const LayoutWrapper = ({ children, title = "Truray" }) => {
+  return <MainLayout>{children}</MainLayout>;
+};
 
 // Placeholder components for each page
-const ReportsDashboardPage = () => <UnderConstructionPage title="Dashboard Statistics" />
-const ReportsProjectSummaryPage = () => <UnderConstructionPage title="Project Summary Report" />
-const ReportsUserSpendingPage = () => <UnderConstructionPage title="User Spending Report" />
-const ReportsFinancialOverviewPage = () => <UnderConstructionPage title="Financial Overview" />
-const SettingsPage = () => <UnderConstructionPage title="Settings" />
 
 function AppContent() {
   return (
@@ -92,165 +92,143 @@ function AppContent() {
       <div className="min-h-screen bg-background">
         <Routes>
           {/* Public Routes */}
-          <Route 
-            path="/login" 
+          <Route
+            path="/login"
             element={
               <PublicRoute>
                 <Login />
               </PublicRoute>
-            } 
+            }
           />
-          
+
           {/* Protected Routes - All wrapped with MainLayout */}
-          <Route 
-            path="/" 
+          <Route
+            path="/"
             element={
               <ProtectedRoute>
                 <LayoutWrapper>
                   <DashboardPage />
                 </LayoutWrapper>
               </ProtectedRoute>
-            } 
+            }
           />
-          
+
           {/* Users Management */}
-          <Route 
-            path="/users" 
+          <Route
+            path="/users"
             element={
               <ProtectedRoute>
                 <LayoutWrapper>
                   <UsersPage />
                 </LayoutWrapper>
               </ProtectedRoute>
-            } 
+            }
           />
-          
+
           {/* Projects Management */}
-          <Route 
-            path="/projects" 
+          <Route
+            path="/projects"
             element={
               <ProtectedRoute>
                 <LayoutWrapper>
                   <ProjectsPage />
                 </LayoutWrapper>
               </ProtectedRoute>
-            } 
+            }
           />
-          
+
+          <Route
+            path="/projects/:id"
+            element={
+              <ProtectedRoute>
+                <LayoutWrapper>
+                  <ProjectDetailsPage />
+                </LayoutWrapper>
+              </ProtectedRoute>
+            }
+          />
+
           {/* Finance Deposits */}
-          <Route 
-            path="/finance" 
+          <Route
+            path="/finance"
             element={
               <ProtectedRoute>
                 <LayoutWrapper>
                   <FinancesPage />
                 </LayoutWrapper>
               </ProtectedRoute>
-            } 
+            }
           />
-          
+
           {/* Money Allocations */}
-          <Route 
-            path="/allocations" 
+          <Route
+            path="/allocations"
             element={
               <ProtectedRoute>
                 <LayoutWrapper>
                   <AllocationsPage />
                 </LayoutWrapper>
               </ProtectedRoute>
-            } 
+            }
           />
-          
+
           {/* Expense Tracking */}
-          <Route 
-            path="/expenses" 
+          <Route
+            path="/expenses"
             element={
               <ProtectedRoute>
                 <LayoutWrapper>
                   <ExpensesPage />
                 </LayoutWrapper>
               </ProtectedRoute>
-            } 
+            }
           />
-          
+
           {/* Reports & Analytics */}
-          <Route 
-            path="/reports/dashboard" 
+          <Route
+            path="/reports"
             element={
               <ProtectedRoute>
                 <LayoutWrapper>
-                  <ReportsDashboardPage />
+                  <ReportsPage />
                 </LayoutWrapper>
               </ProtectedRoute>
-            } 
+            }
           />
-          <Route 
-            path="/reports/project-summary" 
-            element={
-              <ProtectedRoute>
-                <LayoutWrapper>
-                  <ReportsProjectSummaryPage />
-                </LayoutWrapper>
-              </ProtectedRoute>
-            } 
-          />
-          <Route 
-            path="/reports/user-spending" 
-            element={
-              <ProtectedRoute>
-                <LayoutWrapper>
-                  <ReportsUserSpendingPage />
-                </LayoutWrapper>
-              </ProtectedRoute>
-            } 
-          />
-          <Route 
-            path="/reports/financial-overview" 
-            element={
-              <ProtectedRoute>
-                <LayoutWrapper>
-                  <ReportsFinancialOverviewPage />
-                </LayoutWrapper>
-              </ProtectedRoute>
-            } 
-          />
-          
+
           {/* Settings */}
-          <Route 
-            path="/settings" 
+          <Route
+            path="/settings"
             element={
               <ProtectedRoute>
                 <LayoutWrapper>
                   <SettingsPage />
                 </LayoutWrapper>
               </ProtectedRoute>
-            } 
+            }
           />
-          
+
           {/* Catch all - redirect to login if not authenticated, dashboard if authenticated */}
-          <Route 
-            path="*" 
+          <Route
+            path="*"
             element={
-              isLoggedIn() 
-                ? <Navigate to="/" replace /> 
-                : <Navigate to="/login" replace />
-            } 
+              isLoggedIn() ? (
+                <Navigate to="/" replace />
+              ) : (
+                <Navigate to="/login" replace />
+              )
+            }
           />
         </Routes>
-        
-        <Toaster 
-          position="top-right" 
-          richColors 
-          closeButton
-          duration={4000}
-        />
+
+        <Toaster position="top-right" richColors closeButton duration={4000} />
       </div>
     </Router>
-  )
+  );
 }
 
 function App() {
-  return <AppContent />
+  return <AppContent />;
 }
 
-export default App
+export default App;

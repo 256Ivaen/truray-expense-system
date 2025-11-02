@@ -10,15 +10,18 @@ import {
   Wallet,
   AlertTriangle,
   RefreshCw,
-  User,
   FolderOpen,
   CreditCard,
-  Clock,
-  Filter,
   ArrowRight,
   Zap
 } from "lucide-react";
-import { get } from "../../utils/service.js";
+import { get, getCurrentUser } from "../../utils/service.js";
+import {
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
+} from "@/components/ui/chart";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer } from "recharts";
 
 interface DashboardProps {
   activeSection: string;
@@ -113,7 +116,11 @@ interface UserDashboardData {
     project_name: string;
     project_code: string;
   }>;
-  monthly_expenses: Array<any>;
+  monthly_expenses: Array<{
+    month: string;
+    month_name: string;
+    total: number;
+  }>;
 }
 
 type DashboardData = AdminDashboardData | UserDashboardData | null;
@@ -322,6 +329,36 @@ const CTABanner = ({
   );
 };
 
+// Welcome Card Component
+const WelcomeCard = ({ userName, loading = false }: { userName: string; loading?: boolean }) => {
+  const getGreeting = () => {
+    const hour = new Date().getHours();
+    if (hour < 12) return "Good morning";
+    if (hour < 18) return "Good afternoon";
+    return "Good evening";
+  };
+
+  return (
+    <div className="rounded-xl border border-gray-200 bg-secondary p-6">
+      {loading ? (
+        <>
+          <SkeletonBox className="h-8 w-64 mb-2" />
+          <SkeletonBox className="h-4 w-48" />
+        </>
+      ) : (
+        <>
+          <h1 className="text-2xl sm:text-3xl font-bold text-white mb-2">
+            {getGreeting()}, {userName}
+          </h1>
+          <p className="text-xs text-white">
+            Here's what's happening with your projects today
+          </p>
+        </>
+      )}
+    </div>
+  );
+};
+
 // Skeleton components for different sections
 const ListItemSkeleton = () => (
   <div className="bg-white rounded-lg border border-gray-200 p-3">
@@ -360,10 +397,18 @@ function EnhancedDashboardContent({
   const [dashboardData, setDashboardData] = useState<DashboardData>(null);
   const [dataLoading, setDataLoading] = useState(true);
   const [userRole, setUserRole] = useState<'admin' | 'finance_manager' | 'user'>('user');
+  const [userName, setUserName] = useState<string>('User');
 
   useEffect(() => {
     const role = getCurrentUserRole();
     setUserRole(role);
+    
+    // Get user name
+    const user = getCurrentUser();
+    if (user && user.first_name) {
+      setUserName(user.first_name);
+    }
+    
     fetchDashboardData();
   }, []);
 
@@ -430,6 +475,24 @@ function EnhancedDashboardContent({
 
   const isLoading = loading || dataLoading;
   const isAdmin = userRole === 'admin' || userRole === 'finance_manager';
+
+  // Chart config
+  const chartConfig = {
+    total: {
+      label: "Monthly Spend",
+      color: "#10b981",
+    },
+  };
+
+  // Prepare chart data
+  const getChartData = () => {
+    const rawData = isAdmin 
+      ? (dashboardData as AdminDashboardData)?.monthly_spending || []
+      : (dashboardData as UserDashboardData)?.monthly_expenses || [];
+    
+    // Get last 4 months of data
+    return rawData.slice(-4);
+  };
 
   // Admin Stats Grid
   const renderAdminStats = () => {
@@ -638,37 +701,23 @@ function EnhancedDashboardContent({
       <div className="p-4 sm:p-6 lg:p-8">
         <div className="max-w-7xl mx-auto space-y-6">
           {/* Header with Refresh */}
-          <div className="flex justify-between items-center">
-            <div>
-              {isLoading ? (
-                <>
-                  <SkeletonBox className="h-7 w-40 mb-2" />
-                  <SkeletonBox className="h-4 w-32" />
-                </>
-              ) : (
-                <>
-                  <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">
-                    {isAdmin ? 'Admin Dashboard' : 'My Dashboard'}
-                  </h1>
-                  <p className="text-sm text-gray-600 mt-1">
-                    {isAdmin ? 'System Overview & Analytics' : 'Personal Expense Overview'}
-                  </p>
-                </>
-              )}
-            </div>
+          <div className="flex justify-end items-center">
             {isLoading ? (
               <SkeletonBox className="h-9 w-24 rounded-lg" />
             ) : (
               <button
                 onClick={handleRefresh}
                 disabled={isLoading}
-                className="flex items-center gap-2 px-4 py-2 text-sm bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50"
+                className="flex items-center gap-2 px-4 py-2 text-xs bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50"
               >
                 <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
                 Refresh
               </button>
             )}
           </div>
+
+          {/* Welcome Card */}
+          <WelcomeCard userName={userName} loading={isLoading} />
 
           {/* Top Stats - Responsive Grid */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -683,10 +732,67 @@ function EnhancedDashboardContent({
             loading={isLoading}
           />
 
+          {/* Monthly Spending Chart */}
+          <div className="bg-white rounded-xl border border-gray-200 p-4">
+            <div className="border-b border-gray-100 pb-3 mb-4">
+              {isLoading ? (
+                <>
+                  <SkeletonBox className="h-5 w-32 mb-1" />
+                  <SkeletonBox className="h-3 w-24" />
+                </>
+              ) : (
+                <>
+                  <h2 className="text-lg font-bold text-gray-900">
+                    Monthly Spending
+                  </h2>
+                  <p className="text-xs text-gray-500 mt-0.5">
+                    {isAdmin ? 'Total spending by month' : 'My spending by month'}
+                  </p>
+                </>
+              )}
+            </div>
+            <div className="h-80">
+              {isLoading ? (
+                <div className="w-full h-full flex items-center justify-center">
+                  <SkeletonBox className="w-full h-64" />
+                </div>
+              ) : (
+                <ChartContainer config={chartConfig} className="h-full w-full">
+                  <BarChart data={getChartData()} margin={{ top: 20, right: 30, left: 20, bottom: 20 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                    <XAxis 
+                      dataKey="month_name" 
+                      tick={{ fill: '#6b7280', fontSize: 12 }}
+                      axisLine={{ stroke: '#e5e7eb' }}
+                    />
+                    <YAxis 
+                      tick={{ fill: '#6b7280', fontSize: 12 }}
+                      axisLine={{ stroke: '#e5e7eb' }}
+                      tickFormatter={(value) => `$${(value / 1000).toFixed(0)}k`}
+                    />
+                    <ChartTooltip 
+                      content={
+                        <ChartTooltipContent 
+                          className="text-xs"
+                          formatter={(value) => formatCurrency(Number(value))}
+                        />
+                      } 
+                    />
+                    <Bar 
+                      dataKey="total" 
+                      fill="var(--color-total)"
+                      radius={[8, 8, 0, 0]}
+                    />
+                  </BarChart>
+                </ChartContainer>
+              )}
+            </div>
+          </div>
+
           {/* Main Content Grid */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Projects Section */}
-            <div className="bg-white rounded-xl border border-gray-200 lg:col-span-2 xl:col-span-1">
+            <div className="bg-white rounded-xl border border-gray-200">
               <div className="p-4 border-b border-gray-100">
                 {isLoading ? (
                   <>
@@ -698,7 +804,7 @@ function EnhancedDashboardContent({
                     <h2 className="text-lg font-bold text-gray-900">
                       {isAdmin ? 'Recent Projects' : 'My Projects'}
                     </h2>
-                    <p className="text-sm text-gray-500 mt-0.5">
+                    <p className="text-xs text-gray-500 mt-0.5">
                       {isAdmin ? 'Latest project activities' : 'Projects assigned to me'}
                     </p>
                   </>
@@ -716,7 +822,7 @@ function EnhancedDashboardContent({
                       <div key={project.id} className="bg-white rounded-lg border border-gray-200 p-3">
                         <div className="flex justify-between items-start">
                           <div className="flex-1">
-                            <h3 className="text-sm font-semibold text-gray-900 mb-1">
+                            <h3 className="text-xs font-semibold text-gray-900 mb-1">
                               {project.name}
                             </h3>
                             <p className="text-xs text-gray-500 mb-1">
@@ -733,7 +839,7 @@ function EnhancedDashboardContent({
                       </div>
                     ))
                   ) : (
-                    <p className="text-sm text-gray-500 text-center py-6">No projects found</p>
+                    <p className="text-xs text-gray-500 text-center py-6">No projects found</p>
                   )
                 ) : (
                   (dashboardData as UserDashboardData)?.my_projects && 
@@ -742,7 +848,7 @@ function EnhancedDashboardContent({
                       <div key={project.id} className="bg-white rounded-lg border border-gray-200 p-3">
                         <div className="flex justify-between items-start">
                           <div className="flex-1">
-                            <h3 className="text-sm font-semibold text-gray-900 mb-1">
+                            <h3 className="text-xs font-semibold text-gray-900 mb-1">
                               {project.name}
                             </h3>
                             <p className="text-xs text-gray-500 mb-1">
@@ -759,87 +865,7 @@ function EnhancedDashboardContent({
                       </div>
                     ))
                   ) : (
-                    <p className="text-sm text-gray-500 text-center py-6">No projects assigned</p>
-                  )
-                )}
-              </div>
-            </div>
-
-            {/* Expenses Section */}
-            <div className="bg-white rounded-xl border border-gray-200">
-              <div className="p-4 border-b border-gray-100">
-                {isLoading ? (
-                  <>
-                    <SkeletonBox className="h-5 w-32 mb-1" />
-                    <SkeletonBox className="h-3 w-20" />
-                  </>
-                ) : (
-                  <>
-                    <h2 className="text-lg font-bold text-gray-900">
-                      {isAdmin ? 'Pending Expenses' : 'Recent Expenses'}
-                    </h2>
-                    <p className="text-sm text-gray-500 mt-0.5">
-                      {isAdmin ? 'Awaiting approval' : 'My recent expenses'}
-                    </p>
-                  </>
-                )}
-              </div>
-              <div className="p-4 space-y-3">
-                {isLoading ? (
-                  Array.from({ length: 2 }).map((_, index) => (
-                    <ListItemSkeleton key={index} />
-                  ))
-                ) : isAdmin ? (
-                  (dashboardData as AdminDashboardData)?.pending_expenses && 
-                  (dashboardData as AdminDashboardData).pending_expenses.length > 0 ? (
-                    (dashboardData as AdminDashboardData).pending_expenses.map((expense) => (
-                      <div key={expense.id} className="bg-white rounded-lg border border-gray-200 p-3">
-                        <div className="flex justify-between items-start">
-                          <div className="flex-1">
-                            <h3 className="text-sm font-semibold text-gray-900 mb-1">
-                              {expense.description}
-                            </h3>
-                            <p className="text-xs text-gray-500 mb-1">
-                              Amount: {formatCurrency(expense.amount)}
-                            </p>
-                            <p className="text-xs text-gray-500">
-                              Project: {expense.project_name}
-                            </p>
-                          </div>
-                          <span className={`px-2 py-1 text-xs font-medium rounded-lg ${getStatusColor(expense.status)}`}>
-                            {expense.status}
-                          </span>
-                        </div>
-                      </div>
-                    ))
-                  ) : (
-                    <p className="text-sm text-gray-500 text-center py-6">No pending expenses</p>
-                  )
-                ) : (
-                  (dashboardData as UserDashboardData)?.recent_expenses && 
-                  (dashboardData as UserDashboardData).recent_expenses.length > 0 ? (
-                    (dashboardData as UserDashboardData).recent_expenses.map((expense: any) => (
-                      <div key={expense.id} className="bg-white rounded-lg border border-gray-200 p-3">
-                        <div className="flex justify-between items-start">
-                          <div className="flex-1">
-                            <h3 className="text-sm font-semibold text-gray-900 mb-1">
-                              {expense.description}
-                            </h3>
-                            <p className="text-xs text-gray-500 mb-1">
-                              Amount: {formatCurrency(expense.amount)}
-                            </p>
-                            <p className="text-xs text-gray-500">
-                              Project: {expense.project_name}
-                            </p>
-                          </div>
-                          <span className={`px-2 py-1 text-xs font-medium rounded-lg ${getStatusColor(expense.status)}`}>
-                            {expense.status}
-                          </span>
-                        </div>
-                      </div>
-                    ))
-                  ) : (
-                    <p className="text-sm text-gray-500 text-center py-6">No recent expenses</p>
+                    <p className="text-xs text-gray-500 text-center py-6">No projects assigned</p>
                   )
                 )}
               </div>
@@ -858,7 +884,7 @@ function EnhancedDashboardContent({
                     <h2 className="text-lg font-bold text-gray-900">
                       Recent Allocations
                     </h2>
-                    <p className="text-sm text-gray-500 mt-0.5">
+                    <p className="text-xs text-gray-500 mt-0.5">
                       {isAdmin ? 'Latest money allocations' : 'My recent allocations'}
                     </p>
                   </>
@@ -876,7 +902,7 @@ function EnhancedDashboardContent({
                       <div key={allocation.id} className="bg-white rounded-lg border border-gray-200 p-3">
                         <div className="flex justify-between items-start">
                           <div className="flex-1">
-                            <h3 className="text-sm font-semibold text-gray-900 mb-1">
+                            <h3 className="text-xs font-semibold text-gray-900 mb-1">
                               {allocation.description}
                             </h3>
                             <p className="text-xs text-gray-500 mb-1">
@@ -898,7 +924,7 @@ function EnhancedDashboardContent({
                       </div>
                     ))
                   ) : (
-                    <p className="text-sm text-gray-500 text-center py-6">No allocations found</p>
+                    <p className="text-xs text-gray-500 text-center py-6">No allocations found</p>
                   )
                 )}
               </div>
@@ -915,7 +941,7 @@ function EnhancedDashboardContent({
                   <h2 className="text-lg font-bold text-gray-900">
                     Top Spending Users
                   </h2>
-                  <p className="text-sm text-gray-500 mt-0.5">
+                  <p className="text-xs text-gray-500 mt-0.5">
                     Highest expenses by user
                   </p>
                 </div>
@@ -923,11 +949,11 @@ function EnhancedDashboardContent({
                   {(dashboardData as AdminDashboardData).top_spending_users.map((user) => (
                     <div key={user.id} className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
                       <div>
-                        <p className="text-sm font-medium text-gray-900">
+                        <p className="text-xs font-medium text-gray-900">
                           {user.first_name} {user.last_name}
                         </p>
                       </div>
-                      <p className="text-sm font-semibold text-red-600">
+                      <p className="text-xs font-semibold text-red-600">
                         {formatCurrency(user.total_spent)}
                       </p>
                     </div>
@@ -944,7 +970,7 @@ function EnhancedDashboardContent({
                     <h2 className="text-lg font-bold text-gray-900">
                       Budget Utilization
                     </h2>
-                    <p className="text-sm text-gray-500 mt-0.5">
+                    <p className="text-xs text-gray-500 mt-0.5">
                       Overall budget usage
                     </p>
                   </div>
@@ -960,7 +986,7 @@ function EnhancedDashboardContent({
                       </div>
                     </div>
                     <div className="mt-4 text-center">
-                      <p className="text-sm text-gray-600">
+                      <p className="text-xs text-gray-600">
                         {formatCurrency((dashboardData as AdminDashboardData)?.stats.total_spent || 0)} spent of{' '}
                         {formatCurrency((dashboardData as AdminDashboardData)?.stats.total_deposits || 0)} deposited
                       </p>

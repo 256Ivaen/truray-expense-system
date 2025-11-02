@@ -17,13 +17,14 @@ import { get, post, put, del } from "../utils/service";
 import { toast } from "sonner";
 import { DataTable } from "../components/shared/DataTable";
 import { DeleteModal } from "../components/shared/Modals";
+import { StatCard } from "../components/shared/StatCard";
 
 interface Finance {
   id: string;
   project_id: string;
-  amount: number;
+  amount: string; // Changed from number to string to match API
   description?: string;
-  created_at: string;
+  deposited_at: string; // Changed from created_at to match API
   project_name?: string;
   project_code?: string;
 }
@@ -190,7 +191,7 @@ function EditFinanceModal({ isOpen, onClose, onSubmit, finance, projects, loadin
     if (finance) {
       setForm({
         project_id: finance.project_id,
-        amount: finance.amount,
+        amount: parseFloat(finance.amount), // Convert string to number
         description: finance.description || ""
       });
     }
@@ -439,16 +440,18 @@ const FinancesPage = () => {
     return matchesSearch && matchesProject;
   });
 
-  // Calculate finance statistics
+  // Calculate finance statistics - FIXED: Parse string amounts to numbers
   const financeStats = {
-    totalDeposits: finances.reduce((sum, finance) => sum + finance.amount, 0),
+    totalDeposits: finances.reduce((sum, finance) => sum + parseFloat(finance.amount), 0),
     totalTransactions: finances.length,
-    averageDeposit: finances.length > 0 ? finances.reduce((sum, finance) => sum + finance.amount, 0) / finances.length : 0,
+    averageDeposit: finances.length > 0 
+      ? finances.reduce((sum, finance) => sum + parseFloat(finance.amount), 0) / finances.length 
+      : 0,
     thisMonthDeposits: finances.filter(f => {
-      const financeDate = new Date(f.created_at);
+      const financeDate = new Date(f.deposited_at); // FIXED: Use deposited_at instead of created_at
       const now = new Date();
       return financeDate.getMonth() === now.getMonth() && financeDate.getFullYear() === now.getFullYear();
-    }).reduce((sum, finance) => sum + finance.amount, 0)
+    }).reduce((sum, finance) => sum + parseFloat(finance.amount), 0)
   };
 
   const formatCurrency = (amount: number) => {
@@ -457,6 +460,13 @@ const FinancesPage = () => {
       currency: 'USD',
     }).format(amount);
   };
+
+  // Transform finances for DataTable - FIXED: Convert amount to number and map deposited_at to created_at
+  const transformedFinances = filteredFinances.map(finance => ({
+    ...finance,
+    amount: parseFloat(finance.amount),
+    created_at: finance.deposited_at
+  }));
 
   return (
     <div className="min-h-screen bg-gray-50 p-4 sm:p-6">
@@ -478,48 +488,40 @@ const FinancesPage = () => {
           </div>
         </div>
 
-        {/* Finance Statistics */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-          <div className="bg-white rounded-lg border border-gray-200 p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs font-medium text-gray-600">Total Deposits</p>
-                <p className="text-2xl font-bold text-gray-900">{formatCurrency(financeStats.totalDeposits)}</p>
-              </div>
-              <DollarSign className="h-8 w-8 text-green-500" />
-            </div>
-          </div>
-          <div className="bg-white rounded-lg border border-gray-200 p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs font-medium text-gray-600">Total Transactions</p>
-                <p className="text-2xl font-bold text-gray-900">{financeStats.totalTransactions}</p>
-              </div>
-              <CreditCard className="h-8 w-8 text-blue-500" />
-            </div>
-          </div>
-          <div className="bg-white rounded-lg border border-gray-200 p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs font-medium text-gray-600">Average Deposit</p>
-                <p className="text-2xl font-bold text-gray-900">{formatCurrency(financeStats.averageDeposit)}</p>
-              </div>
-              <TrendingUp className="h-8 w-8 text-purple-500" />
-            </div>
-          </div>
-          <div className="bg-white rounded-lg border border-gray-200 p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs font-medium text-gray-600">This Month</p>
-                <p className="text-2xl font-bold text-gray-900">{formatCurrency(financeStats.thisMonthDeposits)}</p>
-              </div>
-              <Calendar className="h-8 w-8 text-orange-500" />
-            </div>
-          </div>
+        {/* Stats Cards */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <StatCard
+            title="Total Deposits"
+            value={formatCurrency(financeStats.totalDeposits)}
+            subtitle="All time deposits"
+            icon={DollarSign}
+            loading={loading}
+          />
+          <StatCard
+            title="Total Records"
+            value={financeStats.totalTransactions}
+            subtitle="Deposit entries"
+            icon={CreditCard}
+            loading={loading}
+          />
+          <StatCard
+            title="Average Deposit"
+            value={formatCurrency(financeStats.averageDeposit)}
+            subtitle="Per deposit"
+            icon={TrendingUp}
+            loading={loading}
+          />
+          <StatCard
+            title="This Month"
+            value={formatCurrency(financeStats.thisMonthDeposits)}
+            subtitle="Monthly deposits"
+            icon={Calendar}
+            loading={loading}
+          />
         </div>
 
         {/* Filters and Search */}
-        <div className="bg-white rounded-lg border border-gray-200 p-4 mb-6">
+        <div className="bg-white rounded-lg border border-gray-200 p-4 my-6">
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
             {/* Search */}
             <div className="lg:col-span-2">
@@ -570,11 +572,11 @@ const FinancesPage = () => {
 
           {/* Data Table Component */}
           <DataTable
-            data={filteredFinances}
+            data={transformedFinances}
             loading={loading}
             type="finances"
             onEdit={openEditModal}
-            onDelete={openDeleteModal}
+            actionLoading={actionLoading}
           />
         </div>
       </div>

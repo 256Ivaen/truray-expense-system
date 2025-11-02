@@ -18,18 +18,27 @@ import { get, post, put, del } from "../utils/service";
 import { toast } from "sonner";
 import { DataTable } from "../components/shared/DataTable";
 import { DeleteModal } from "../components/shared/Modals";
+import { StatCard } from "../components/shared/StatCard";
 
 interface Expense {
   id: string;
   project_id: string;
-  amount: number;
+  user_id: string;
+  allocation_id: string | null;
+  amount: string; // Changed from number to string to match API
   description: string;
   category?: string;
+  receipt_image: string | null;
+  spent_at: string; // Changed from created_at to spent_at
   status: 'pending' | 'approved' | 'rejected';
-  receipt_image?: string;
-  created_at: string;
-  project_name?: string;
+  approved_by: string | null;
+  approved_at: string | null;
+  deleted_at: string | null;
   project_code?: string;
+  project_name?: string;
+  first_name?: string;
+  last_name?: string;
+  email?: string;
 }
 
 interface Project {
@@ -54,6 +63,54 @@ interface UpdateExpenseData {
   category?: string;
   status?: 'pending' | 'approved' | 'rejected';
 }
+
+// Get current user role from localStorage
+const getCurrentUserRole = () => {
+  try {
+    const userStr = localStorage.getItem('truray_user');
+    if (userStr) {
+      const user = JSON.parse(userStr);
+      return user.role || 'user';
+    }
+  } catch (error) {
+    console.error('Error getting user role:', error);
+  }
+  return 'user';
+};
+
+const getCurrentUserId = () => {
+  try {
+    const userStr = localStorage.getItem('truray_user');
+    if (userStr) {
+      const user = JSON.parse(userStr);
+      return user.id;
+    }
+  } catch (error) {
+    console.error('Error getting user ID:', error);
+  }
+  return null;
+};
+
+// Skeleton Components
+const SkeletonBox = ({ className }: { className?: string }) => (
+  <div className={`animate-pulse bg-gray-200 rounded-lg ${className}`}></div>
+);
+
+const SearchSkeleton = () => (
+  <div className="bg-white rounded-lg border border-gray-200 p-4 mb-6">
+    <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
+      <div className="lg:col-span-2">
+        <SkeletonBox className="h-10 w-full rounded-lg" />
+      </div>
+      <div>
+        <SkeletonBox className="h-10 w-full rounded-lg" />
+      </div>
+      <div>
+        <SkeletonBox className="h-10 w-full rounded-lg" />
+      </div>
+    </div>
+  </div>
+);
 
 // Expense Modals Components
 interface CreateExpenseModalProps {
@@ -189,18 +246,17 @@ function CreateExpenseModal({ isOpen, onClose, onSubmit, projects, loading = fal
 
           <div>
             <label className="block text-xs font-medium text-gray-700 mb-1">
-              Receipt Image *
+              Receipt Image
             </label>
             <input
               type="file"
-              required
               accept="image/*"
               onChange={handleFileChange}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary text-xs"
               disabled={loading}
             />
             <p className="text-xs text-gray-500 mt-1">
-              Upload receipt or proof of expense
+              Upload receipt or proof of expense (optional)
             </p>
           </div>
 
@@ -215,7 +271,7 @@ function CreateExpenseModal({ isOpen, onClose, onSubmit, projects, loading = fal
             </button>
             <button
               type="submit"
-              disabled={loading || !form.receipt_image}
+              disabled={loading}
               className="flex-1 px-4 py-2 bg-primary text-black rounded-lg hover:bg-primary/90 transition-colors text-xs font-medium disabled:opacity-50"
             >
               {loading ? "Recording..." : "Record Expense"}
@@ -249,7 +305,7 @@ function EditExpenseModal({ isOpen, onClose, onSubmit, expense, projects, loadin
     if (expense) {
       setForm({
         project_id: expense.project_id,
-        amount: expense.amount,
+        amount: parseFloat(expense.amount), // Convert string to number
         description: expense.description,
         category: expense.category || "",
         status: expense.status
@@ -407,6 +463,10 @@ const ExpensesPage = () => {
   const [showEditModal, setShowEditModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [selectedExpense, setSelectedExpense] = useState<Expense | null>(null);
+
+  // Get current user info
+  const currentUserRole = getCurrentUserRole();
+  const currentUserId = getCurrentUserId();
 
   useEffect(() => {
     fetchExpenses();
@@ -586,13 +646,15 @@ const ExpensesPage = () => {
     return matchesSearch && matchesStatus && matchesProject;
   });
 
-  // Calculate expense statistics
+  // Calculate expense statistics - FIXED: Parse string amounts to numbers
   const expenseStats = {
-    totalExpenses: expenses.reduce((sum, expense) => sum + expense.amount, 0),
+    totalExpenses: expenses.reduce((sum, expense) => sum + parseFloat(expense.amount), 0),
     totalRecords: expenses.length,
     pendingExpenses: expenses.filter(e => e.status === 'pending').length,
     approvedExpenses: expenses.filter(e => e.status === 'approved').length,
-    averageExpense: expenses.length > 0 ? expenses.reduce((sum, expense) => sum + expense.amount, 0) / expenses.length : 0
+    averageExpense: expenses.length > 0 
+      ? expenses.reduce((sum, expense) => sum + parseFloat(expense.amount), 0) / expenses.length 
+      : 0
   };
 
   const formatCurrency = (amount: number) => {
@@ -602,16 +664,38 @@ const ExpensesPage = () => {
     }).format(amount);
   };
 
+  // Transform expenses for DataTable - FIXED: Convert amount to number and map spent_at to created_at
+  const transformedExpenses = filteredExpenses.map(expense => ({
+    ...expense,
+    amount: parseFloat(expense.amount),
+    created_at: expense.spent_at
+  }));
+
   return (
     <div className="min-h-screen bg-gray-50 p-4 sm:p-6">
-      <div className="max-w-7xl mx-auto">
+      <div className="max-w-7xl mx-auto space-y-6">
         {/* Header */}
-        <div className="mb-6 sm:mb-8">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Expense Management</h1>
-              <p className="text-xs text-gray-600 mt-1">Track and manage project expenses</p>
-            </div>
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            {loading ? (
+              <>
+                <SkeletonBox className="h-8 w-48 mb-1" />
+                <SkeletonBox className="h-4 w-32" />
+              </>
+            ) : (
+              <>
+                <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">
+                  Expense Management
+                </h1>
+                <p className="text-xs text-gray-600 mt-1">
+                  Track and manage project expenses
+                </p>
+              </>
+            )}
+          </div>
+          {loading ? (
+            <SkeletonBox className="h-10 w-32 rounded-lg" />
+          ) : (
             <button
               onClick={openCreateModal}
               className="mt-4 sm:mt-0 flex items-center gap-2 px-4 py-2 bg-primary text-black rounded-lg hover:bg-primary/90 transition-colors text-xs font-medium"
@@ -619,122 +703,128 @@ const ExpensesPage = () => {
               <Plus className="h-4 w-4" />
               New Expense
             </button>
-          </div>
+          )}
         </div>
 
-        {/* Expense Statistics */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-          <div className="bg-white rounded-lg border border-gray-200 p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs font-medium text-gray-600">Total Expenses</p>
-                <p className="text-2xl font-bold text-gray-900">{formatCurrency(expenseStats.totalExpenses)}</p>
-              </div>
-              <Receipt className="h-8 w-8 text-green-500" />
-            </div>
-          </div>
-          <div className="bg-white rounded-lg border border-gray-200 p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs font-medium text-gray-600">Total Records</p>
-                <p className="text-2xl font-bold text-gray-900">{expenseStats.totalRecords}</p>
-              </div>
-              <TrendingUp className="h-8 w-8 text-blue-500" />
-            </div>
-          </div>
-          <div className="bg-white rounded-lg border border-gray-200 p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs font-medium text-gray-600">Pending</p>
-                <p className="text-2xl font-bold text-gray-900">{expenseStats.pendingExpenses}</p>
-              </div>
-              <Clock className="h-8 w-8 text-yellow-500" />
-            </div>
-          </div>
-          <div className="bg-white rounded-lg border border-gray-200 p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs font-medium text-gray-600">Average</p>
-                <p className="text-2xl font-bold text-gray-900">{formatCurrency(expenseStats.averageExpense)}</p>
-              </div>
-              <DollarSign className="h-8 w-8 text-purple-500" />
-            </div>
-          </div>
+        {/* Stats Cards */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <StatCard
+            title="Total Expenses"
+            value={formatCurrency(expenseStats.totalExpenses)}
+            subtitle="All time total"
+            icon={Receipt}
+            loading={loading}
+          />
+          <StatCard
+            title="Total Records"
+            value={expenseStats.totalRecords}
+            subtitle="Expense entries"
+            icon={TrendingUp}
+            loading={loading}
+          />
+          <StatCard
+            title="Pending"
+            value={expenseStats.pendingExpenses}
+            subtitle="Awaiting approval"
+            icon={Clock}
+            loading={loading}
+          />
+          <StatCard
+            title="Average Expense"
+            value={formatCurrency(expenseStats.averageExpense)}
+            subtitle="Per expense"
+            icon={DollarSign}
+            loading={loading}
+          />
         </div>
 
         {/* Filters and Search */}
-        <div className="bg-white rounded-lg border border-gray-200 p-4 mb-6">
-          <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
-            {/* Search */}
-            <div className="lg:col-span-2">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-                <input
-                  type="text"
-                  placeholder="Search expenses by description, project, or category..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary text-xs"
-                />
+        {loading ? (
+          <SearchSkeleton />
+        ) : (
+          <div className="bg-white rounded-lg border border-gray-200 p-4 mb-6">
+            <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
+              {/* Search */}
+              <div className="lg:col-span-2">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                  <input
+                    type="text"
+                    placeholder="Search expenses by description, project, or category..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary text-xs"
+                  />
+                </div>
+              </div>
+
+              {/* Status Filter */}
+              <div>
+                <select
+                  value={statusFilter}
+                  onChange={(e) => setStatusFilter(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary text-xs"
+                >
+                  <option value="all">All Status</option>
+                  <option value="pending">Pending</option>
+                  <option value="approved">Approved</option>
+                  <option value="rejected">Rejected</option>
+                </select>
+              </div>
+
+              {/* Project Filter */}
+              <div>
+                <select
+                  value={projectFilter}
+                  onChange={(e) => setProjectFilter(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary text-xs"
+                >
+                  <option value="all">All Projects</option>
+                  {projects.map(project => (
+                    <option key={project.id} value={project.id}>
+                      {project.project_code} - {project.name}
+                    </option>
+                  ))}
+                </select>
               </div>
             </div>
-
-            {/* Status Filter */}
-            <div>
-              <select
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary text-xs"
-              >
-                <option value="all">All Status</option>
-                <option value="pending">Pending</option>
-                <option value="approved">Approved</option>
-                <option value="rejected">Rejected</option>
-              </select>
-            </div>
-
-            {/* Project Filter */}
-            <div>
-              <select
-                value={projectFilter}
-                onChange={(e) => setProjectFilter(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary text-xs"
-              >
-                <option value="all">All Projects</option>
-                {projects.map(project => (
-                  <option key={project.id} value={project.id}>
-                    {project.project_code} - {project.name}
-                  </option>
-                ))}
-              </select>
-            </div>
           </div>
-        </div>
+        )}
 
         {/* Expenses Table */}
         <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
           {/* Table Header */}
           <div className="px-4 sm:px-6 py-4 border-b border-gray-200 bg-gray-50">
-            <div className="flex items-center justify-between">
-              <h2 className="text-xs font-semibold text-gray-900">
-                Expenses ({filteredExpenses.length})
-              </h2>
-              <div className="flex items-center gap-2 text-xs text-gray-600">
-                <Filter className="h-4 w-4" />
-                <span>Filtered</span>
+            {loading ? (
+              <div className="flex items-center justify-between">
+                <SkeletonBox className="h-4 w-32" />
+                <SkeletonBox className="h-4 w-16" />
               </div>
-            </div>
+            ) : (
+              <div className="flex items-center justify-between">
+                <h2 className="text-xs font-semibold text-gray-900">
+                  Expenses ({filteredExpenses.length})
+                </h2>
+                <div className="flex items-center gap-2 text-xs text-gray-600">
+                  <Filter className="h-4 w-4" />
+                  <span>Filtered</span>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Data Table Component */}
           <DataTable
-            data={filteredExpenses}
+            data={transformedExpenses}
             loading={loading}
             type="expenses"
             onEdit={openEditModal}
             onDelete={openDeleteModal}
             onApprove={handleApproveExpense}
             onReject={handleRejectExpense}
+            currentUserRole={currentUserRole}
+            currentUserId={currentUserId}
+            actionLoading={actionLoading}
           />
         </div>
       </div>

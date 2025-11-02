@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   ChevronLeft,
   ChevronRight,
@@ -14,6 +14,10 @@ import {
   Clock,
   Folder,
   Eye,
+  MoreVertical,
+  Check,
+  X,
+  Loader2,
 } from "lucide-react";
 
 interface User {
@@ -72,13 +76,17 @@ interface Allocation {
   id: string;
   project_id: string;
   user_id: string;
-  amount: number;
+  amount: string;
   description?: string;
-  status: "active" | "completed" | "cancelled";
   proof_image?: string;
-  created_at: string;
-  user_name?: string;
+  allocated_by?: string;
+  allocated_at: string;
+  status: string;
+  project_code?: string;
   project_name?: string;
+  first_name?: string;
+  last_name?: string;
+  email?: string;
 }
 
 interface Finance {
@@ -97,7 +105,7 @@ interface DataTableProps {
   loading: boolean;
   type: "users" | "projects" | "expenses" | "allocations" | "finances";
   onEdit?: (item: TableData) => void;
-  onDelete?: (id: string) => void;
+  onDelete?: (item: TableData) => void;
   onApprove?: (id: string) => void;
   onReject?: (id: string) => void;
   onAssign?: (item: TableData) => void;
@@ -105,6 +113,17 @@ interface DataTableProps {
   showActions?: boolean;
   currentUserRole?: string;
   currentUserId?: string;
+  pagination?: {
+    current_page: number;
+    per_page: number;
+    total: number;
+    total_pages: number;
+    has_next_page: boolean;
+    has_previous_page: boolean;
+  };
+  onPageChange?: (page: number) => void;
+  onPerPageChange?: (perPage: number) => void;
+  actionLoading?: boolean;
 }
 
 // Get current user info from localStorage
@@ -134,6 +153,76 @@ const getCurrentUserId = () => {
   return null;
 };
 
+// Actions Dropdown Component
+interface ActionsDropdownProps {
+  isOpen: boolean;
+  onClose: () => void;
+  actions: Array<{
+    label: string;
+    icon: React.ReactNode;
+    onClick: () => void;
+    color?: string;
+  }>;
+  loading?: boolean;
+  position: { top: number; left: number };
+}
+
+function ActionsDropdown({ isOpen, onClose, actions, loading, position }: ActionsDropdownProps) {
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        onClose();
+      }
+    };
+
+    if (isOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isOpen, onClose]);
+
+  if (!isOpen) return null;
+
+  return (
+    <div
+      ref={dropdownRef}
+      className="fixed z-[100] bg-white rounded-lg shadow-xl border border-gray-200 py-1 min-w-[160px]"
+      style={{
+        top: `${position.top}px`,
+        left: `${position.left}px`,
+      }}
+    >
+      {loading ? (
+        <div className="px-4 py-3 flex items-center justify-center">
+          <Loader2 className="h-4 w-4 animate-spin text-primary" />
+          <span className="ml-2 text-xs text-gray-600">Processing...</span>
+        </div>
+      ) : (
+        actions.map((action, index) => (
+          <button
+            key={index}
+            onClick={() => {
+              action.onClick();
+              onClose();
+            }}
+            className={`w-full px-4 py-2 text-left text-xs flex items-center gap-2 hover:bg-gray-50 transition-colors ${
+              action.color || 'text-gray-700'
+            }`}
+          >
+            {action.icon}
+            {action.label}
+          </button>
+        ))
+      )}
+    </div>
+  );
+}
+
 export function DataTable({
   data,
   loading,
@@ -147,9 +236,13 @@ export function DataTable({
   showActions = true,
   currentUserRole,
   currentUserId,
+  pagination,
+  onPageChange,
+  onPerPageChange,
+  actionLoading = false,
 }: DataTableProps) {
-  const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage, setItemsPerPage] = useState(5);
+  const [openDropdownId, setOpenDropdownId] = useState<string | null>(null);
+  const [dropdownPosition, setDropdownPosition] = useState({ top: 0, left: 0 });
 
   // Get current user info if not provided
   const userRole = currentUserRole || getCurrentUserRole();
@@ -159,16 +252,226 @@ export function DataTable({
   const isFinanceManager = userRole === 'finance_manager';
   const isNormalUser = userRole === 'user';
 
-  // Calculate pagination
-  const totalPages = Math.ceil(data.length / itemsPerPage);
-  const startIndex = (currentPage - 1) * itemsPerPage;
-  const endIndex = startIndex + itemsPerPage;
-  const currentData = data.slice(startIndex, endIndex);
+  const handleOpenDropdown = (itemId: string, event: React.MouseEvent<HTMLButtonElement>) => {
+    event.stopPropagation(); // Prevent event bubbling
+    
+    const button = event.currentTarget;
+    const rect = button.getBoundingClientRect();
+    const tableContainer = button.closest('.overflow-x-auto');
+    const scrollLeft = tableContainer?.scrollLeft || 0;
+    
+    // Calculate position relative to viewport
+    const left = rect.left + window.scrollX - 120 + scrollLeft;
+    const top = rect.bottom + window.scrollY + 4;
+    
+    setDropdownPosition({
+      top: top,
+      left: left,
+    });
+    setOpenDropdownId(itemId);
+  };
 
-  // Reset to first page when data changes
+  const handleCloseDropdown = () => {
+    setOpenDropdownId(null);
+  };
+
+  // Close dropdown when clicking outside or scrolling
   useEffect(() => {
-    setCurrentPage(1);
-  }, [data.length]);
+    const handleScroll = () => {
+      if (openDropdownId) {
+        handleCloseDropdown();
+      }
+    };
+
+    window.addEventListener('scroll', handleScroll, true);
+    return () => {
+      window.removeEventListener('scroll', handleScroll, true);
+    };
+  }, [openDropdownId]);
+
+  // Generate page numbers for pagination
+  const getPageNumbers = () => {
+    if (!pagination) return [];
+    
+    const { current_page, total_pages } = pagination;
+    const pages: (number | string)[] = [];
+    const maxVisiblePages = 5;
+    
+    if (total_pages <= maxVisiblePages + 2) {
+      for (let i = 1; i <= total_pages; i++) {
+        pages.push(i);
+      }
+    } else {
+      pages.push(1);
+      
+      if (current_page > 3) {
+        pages.push('...');
+      }
+      
+      const start = Math.max(2, current_page - 1);
+      const end = Math.min(total_pages - 1, current_page + 1);
+      
+      for (let i = start; i <= end; i++) {
+        pages.push(i);
+      }
+      
+      if (current_page < total_pages - 2) {
+        pages.push('...');
+      }
+      
+      pages.push(total_pages);
+    }
+    
+    return pages;
+  };
+
+  // Get actions for each item
+  const getItemActions = (item: TableData) => {
+    const actions: Array<{
+      label: string;
+      icon: React.ReactNode;
+      onClick: () => void;
+      color?: string;
+    }> = [];
+
+    switch (type) {
+      case "users":
+        const user = item as User;
+        if (canView(user) && onView) {
+          actions.push({
+            label: 'View Details',
+            icon: <Eye className="h-4 w-4" />,
+            onClick: () => onView(user),
+            color: 'text-blue-600',
+          });
+        }
+        if (canEdit(user) && onEdit) {
+          actions.push({
+            label: 'Edit User',
+            icon: <Edit3 className="h-4 w-4" />,
+            onClick: () => onEdit(user),
+            color: 'text-primary',
+          });
+        }
+        if (canAssign(user) && onAssign) {
+          actions.push({
+            label: 'Assign Projects',
+            icon: <Folder className="h-4 w-4" />,
+            onClick: () => onAssign(user),
+            color: 'text-blue-600',
+          });
+        }
+        if (canDelete(user) && onDelete) {
+          actions.push({
+            label: 'Delete User',
+            icon: <Trash2 className="h-4 w-4" />,
+            onClick: () => onDelete(user),
+            color: 'text-red-600',
+          });
+        }
+        break;
+
+      case "projects":
+        const project = item as Project;
+        if (canView(project) && onView) {
+          actions.push({
+            label: 'View Details',
+            icon: <Eye className="h-4 w-4" />,
+            onClick: () => onView(project),
+            color: 'text-blue-600',
+          });
+        }
+        if (canEdit(project) && onEdit) {
+          actions.push({
+            label: 'Edit Project',
+            icon: <Edit3 className="h-4 w-4" />,
+            onClick: () => onEdit(project),
+            color: 'text-primary',
+          });
+        }
+        if (canDelete(project) && onDelete) {
+          actions.push({
+            label: 'Delete Project',
+            icon: <Trash2 className="h-4 w-4" />,
+            onClick: () => onDelete(project),
+            color: 'text-red-600',
+          });
+        }
+        break;
+
+      case "expenses":
+        const expense = item as Expense;
+        if (canApproveReject(expense)) {
+          if (onApprove) {
+            actions.push({
+              label: 'Approve',
+              icon: <Check className="h-4 w-4" />,
+              onClick: () => onApprove(expense.id),
+              color: 'text-green-600',
+            });
+          }
+          if (onReject) {
+            actions.push({
+              label: 'Reject',
+              icon: <X className="h-4 w-4" />,
+              onClick: () => onReject(expense.id),
+              color: 'text-red-600',
+            });
+          }
+        }
+        if (canEdit(expense) && onEdit) {
+          actions.push({
+            label: 'Edit Expense',
+            icon: <Edit3 className="h-4 w-4" />,
+            onClick: () => onEdit(expense),
+            color: 'text-primary',
+          });
+        }
+        if (canDelete(expense) && onDelete) {
+          actions.push({
+            label: 'Delete Expense',
+            icon: <Trash2 className="h-4 w-4" />,
+            onClick: () => onDelete(expense),
+            color: 'text-red-600',
+          });
+        }
+        break;
+
+      case "allocations":
+        const allocation = item as Allocation;
+        if (canEdit(allocation) && onEdit) {
+          actions.push({
+            label: 'Edit Allocation',
+            icon: <Edit3 className="h-4 w-4" />,
+            onClick: () => onEdit(allocation),
+            color: 'text-primary',
+          });
+        }
+        if (canDelete(allocation) && onDelete) {
+          actions.push({
+            label: 'Delete Allocation',
+            icon: <Trash2 className="h-4 w-4" />,
+            onClick: () => onDelete(allocation),
+            color: 'text-red-600',
+          });
+        }
+        break;
+
+      case "finances":
+        const finance = item as Finance;
+        if (canEdit(finance) && onEdit) {
+          actions.push({
+            label: 'Edit Finance',
+            icon: <Edit3 className="h-4 w-4" />,
+            onClick: () => onEdit(finance),
+            color: 'text-primary',
+          });
+        }
+        break;
+    }
+
+    return actions;
+  };
 
   // Check if user can perform actions based on type and role
   const canEdit = (item: TableData): boolean => {
@@ -176,21 +479,19 @@ export function DataTable({
     
     switch (type) {
       case "users":
-        return isAdmin; // Only admin can edit users
+        return isAdmin;
       case "projects":
-        return isAdmin || isFinanceManager; // Admin and finance managers can edit projects
+        return isAdmin || isFinanceManager;
       case "expenses":
         const expense = item as Expense;
-        // Users can only edit their own pending expenses
         if (isNormalUser && expense.user_id === userId && expense.status === 'pending') {
           return true;
         }
-        // Admin and finance managers can edit any expense
         return isAdmin || isFinanceManager;
       case "allocations":
-        return isAdmin || isFinanceManager; // Only admin/finance managers can edit allocations
+        return isAdmin || isFinanceManager;
       case "finances":
-        return isAdmin || isFinanceManager; // Only admin/finance managers can edit finances
+        return isAdmin || isFinanceManager;
       default:
         return false;
     }
@@ -201,21 +502,19 @@ export function DataTable({
     
     switch (type) {
       case "users":
-        return isAdmin; // Only admin can delete users
+        return isAdmin;
       case "projects":
-        return isAdmin; // Only admin can delete projects
+        return isAdmin;
       case "expenses":
         const expense = item as Expense;
-        // Users can only delete their own pending expenses
         if (isNormalUser && expense.user_id === userId && expense.status === 'pending') {
           return true;
         }
-        // Admin and finance managers can delete any expense
         return isAdmin || isFinanceManager;
       case "allocations":
-        return isAdmin || isFinanceManager; // Only admin/finance managers can delete allocations
+        return isAdmin || isFinanceManager;
       case "finances":
-        return isAdmin; // Only admin can delete finances
+        return isAdmin;
       default:
         return false;
     }
@@ -226,7 +525,6 @@ export function DataTable({
     
     switch (type) {
       case "expenses":
-        // Only admin and finance managers can approve/reject expenses
         return (isAdmin || isFinanceManager) && (item as Expense).status === 'pending';
       default:
         return false;
@@ -238,7 +536,6 @@ export function DataTable({
     
     switch (type) {
       case "users":
-        // Only admin and finance managers can assign users to projects
         return isAdmin || isFinanceManager;
       default:
         return false;
@@ -246,7 +543,6 @@ export function DataTable({
   };
 
   const canView = (item: TableData): boolean => {
-    // Everyone can view details
     return true;
   };
 
@@ -302,15 +598,20 @@ export function DataTable({
     }
   };
 
-  const formatCurrency = (amount: number) => {
+  const formatCurrency = (amount: number | string) => {
+    const numAmount = typeof amount === 'string' ? parseFloat(amount) : amount;
     return new Intl.NumberFormat("en-US", {
       style: "currency",
       currency: "USD",
-    }).format(amount);
+    }).format(numAmount);
   };
 
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString();
+    return new Date(dateString).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric'
+    });
   };
 
   // Render different columns based on data type
@@ -398,18 +699,16 @@ export function DataTable({
         return (
           <>
             <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-              Description
-            </th>
-            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
               Project
             </th>
-            {isAdmin || isFinanceManager ? (
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                User
-              </th>
-            ) : null}
+            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              User
+            </th>
             <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
               Amount
+            </th>
+            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              Description
             </th>
             <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
               Status
@@ -452,13 +751,16 @@ export function DataTable({
   };
 
   const renderTableRow = (item: TableData) => {
+    const actions = getItemActions(item);
+    const itemId = (item as any).id;
+
     switch (type) {
       case "users":
         const user = item as User;
         return (
           <tr
             key={user.id}
-            className="border-b border-gray-200 hover:bg-gray-50"
+            className="border-b border-gray-200 hover:bg-gray-50 transition-colors"
           >
             <td className="px-4 py-3 whitespace-nowrap">
               <div className="flex items-center">
@@ -508,37 +810,19 @@ export function DataTable({
             <td className="px-4 py-3 whitespace-nowrap text-xs text-gray-500">
               {formatDate(user.created_at)}
             </td>
-            {showActions && (
-              <td className="px-4 py-3 whitespace-nowrap text-xs">
-                <div className="flex items-center space-x-2">
-                  {canEdit(user) && (
-                    <button
-                      onClick={() => onEdit?.(user)}
-                      className="text-black hover:text-primary"
-                      title="Edit user"
-                    >
-                      <Edit3 className="h-4 w-4" />
-                    </button>
+            {showActions && actions.length > 0 && (
+              <td className="px-4 py-3 whitespace-nowrap text-xs relative">
+                <button
+                  onClick={(e) => handleOpenDropdown(itemId, e)}
+                  disabled={actionLoading}
+                  className="p-1 hover:bg-gray-100 rounded transition-colors disabled:opacity-50"
+                >
+                  {actionLoading && openDropdownId === itemId ? (
+                    <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                  ) : (
+                    <MoreVertical className="h-4 w-4 text-gray-600" />
                   )}
-                  {canAssign(user) && (
-                    <button
-                      onClick={() => onAssign?.(user)}
-                      className="text-blue-600 hover:text-blue-800"
-                      title="Assign to projects"
-                    >
-                      <Folder className="h-4 w-4" />
-                    </button>
-                  )}
-                  {canDelete(user) && (
-                    <button
-                      onClick={() => onDelete?.(user.id)}
-                      className="text-red-600 hover:text-red-900"
-                      title="Delete user"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </button>
-                  )}
-                </div>
+                </button>
               </td>
             )}
           </tr>
@@ -549,7 +833,7 @@ export function DataTable({
         return (
           <tr
             key={project.id}
-            className="border-b border-gray-200 hover:bg-gray-50"
+            className="border-b border-gray-200 hover:bg-gray-50 transition-colors"
           >
             <td className="px-4 py-3 whitespace-nowrap text-xs font-medium text-gray-900">
               {project.project_code}
@@ -557,7 +841,7 @@ export function DataTable({
             <td className="px-4 py-3 whitespace-nowrap text-xs text-gray-900">
               {project.name}
             </td>
-            <td className="px-4 py-3 text-xs text-gray-500">
+            <td className="px-4 py-3 text-xs text-gray-500 max-w-xs truncate">
               {project.description || "-"}
             </td>
             <td className="px-4 py-3 whitespace-nowrap">
@@ -573,37 +857,19 @@ export function DataTable({
             <td className="px-4 py-3 whitespace-nowrap text-xs text-gray-500">
               {project.start_date ? formatDate(project.start_date) : "-"}
             </td>
-            {showActions && (
-              <td className="px-4 py-3 whitespace-nowrap text-xs">
-                <div className="flex items-center space-x-2">
-                  {canView(project) && (
-                    <button
-                      onClick={() => onView?.(project)}
-                      className="text-blue-600 hover:text-blue-800"
-                      title="View details"
-                    >
-                      <Eye className="h-4 w-4" />
-                    </button>
+            {showActions && actions.length > 0 && (
+              <td className="px-4 py-3 whitespace-nowrap text-xs relative">
+                <button
+                  onClick={(e) => handleOpenDropdown(itemId, e)}
+                  disabled={actionLoading}
+                  className="p-1 hover:bg-gray-100 rounded transition-colors disabled:opacity-50"
+                >
+                  {actionLoading && openDropdownId === itemId ? (
+                    <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                  ) : (
+                    <MoreVertical className="h-4 w-4 text-gray-600" />
                   )}
-                  {canEdit(project) && (
-                    <button
-                      onClick={() => onEdit?.(project)}
-                      className="text-primary hover:text-primary"
-                      title="Edit project"
-                    >
-                      <Edit3 className="h-4 w-4" />
-                    </button>
-                  )}
-                  {canDelete(project) && (
-                    <button
-                      onClick={() => onDelete?.(project.id)}
-                      className="text-red-600 hover:text-red-900"
-                      title="Delete project"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </button>
-                  )}
-                </div>
+                </button>
               </td>
             )}
           </tr>
@@ -614,9 +880,9 @@ export function DataTable({
         return (
           <tr
             key={expense.id}
-            className="border-b border-gray-200 hover:bg-gray-50"
+            className="border-b border-gray-200 hover:bg-gray-50 transition-colors"
           >
-            <td className="px-4 py-3 text-xs text-gray-900">
+            <td className="px-4 py-3 text-xs text-gray-900 max-w-xs truncate">
               {expense.description}
             </td>
             <td className="px-4 py-3 whitespace-nowrap text-xs text-gray-500">
@@ -641,46 +907,19 @@ export function DataTable({
             <td className="px-4 py-3 whitespace-nowrap text-xs text-gray-500">
               {formatDate(expense.created_at)}
             </td>
-            {showActions && (
-              <td className="px-4 py-3 whitespace-nowrap text-xs">
-                <div className="flex items-center space-x-2">
-                  {canApproveReject(expense) && (
-                    <>
-                      <button
-                        onClick={() => onApprove?.(expense.id)}
-                        className="text-green-600 hover:text-green-900 text-xs"
-                        title="Approve expense"
-                      >
-                        Approve
-                      </button>
-                      <button
-                        onClick={() => onReject?.(expense.id)}
-                        className="text-red-600 hover:text-red-900 text-xs"
-                        title="Reject expense"
-                      >
-                        Reject
-                      </button>
-                    </>
+            {showActions && actions.length > 0 && (
+              <td className="px-4 py-3 whitespace-nowrap text-xs relative">
+                <button
+                  onClick={(e) => handleOpenDropdown(itemId, e)}
+                  disabled={actionLoading}
+                  className="p-1 hover:bg-gray-100 rounded transition-colors disabled:opacity-50"
+                >
+                  {actionLoading && openDropdownId === itemId ? (
+                    <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                  ) : (
+                    <MoreVertical className="h-4 w-4 text-gray-600" />
                   )}
-                  {canEdit(expense) && (
-                    <button
-                      onClick={() => onEdit?.(expense)}
-                      className="text-primary hover:text-primary"
-                      title="Edit expense"
-                    >
-                      <Edit3 className="h-4 w-4" />
-                    </button>
-                  )}
-                  {canDelete(expense) && (
-                    <button
-                      onClick={() => onDelete?.(expense.id)}
-                      className="text-red-600 hover:text-red-900"
-                      title="Delete expense"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </button>
-                  )}
-                </div>
+                </button>
               </td>
             )}
           </tr>
@@ -691,21 +930,27 @@ export function DataTable({
         return (
           <tr
             key={allocation.id}
-            className="border-b border-gray-200 hover:bg-gray-50"
+            className="border-b border-gray-200 hover:bg-gray-50 transition-colors"
           >
-            <td className="px-4 py-3 text-xs text-gray-900">
-              {allocation.description || "-"}
+            <td className="px-4 py-3 whitespace-nowrap text-xs text-gray-900">
+              <div className="flex flex-col">
+                <span className="font-medium">{allocation.project_code || "-"}</span>
+                <span className="text-gray-500">{allocation.project_name || "-"}</span>
+              </div>
             </td>
-            <td className="px-4 py-3 whitespace-nowrap text-xs text-gray-500">
-              {allocation.project_name || "-"}
+            <td className="px-4 py-3 whitespace-nowrap text-xs text-gray-900">
+              <div className="flex flex-col">
+                <span className="font-medium">
+                  {allocation.first_name} {allocation.last_name}
+                </span>
+                <span className="text-gray-500">{allocation.email || "-"}</span>
+              </div>
             </td>
-            {(isAdmin || isFinanceManager) && (
-              <td className="px-4 py-3 whitespace-nowrap text-xs text-gray-500">
-                {allocation.user_name || "-"}
-              </td>
-            )}
             <td className="px-4 py-3 whitespace-nowrap text-xs font-medium text-gray-900">
               {formatCurrency(allocation.amount)}
+            </td>
+            <td className="px-4 py-3 text-xs text-gray-500 max-w-xs truncate">
+              {allocation.description || "-"}
             </td>
             <td className="px-4 py-3 whitespace-nowrap">
               <div
@@ -718,30 +963,21 @@ export function DataTable({
               </div>
             </td>
             <td className="px-4 py-3 whitespace-nowrap text-xs text-gray-500">
-              {formatDate(allocation.created_at)}
+              {formatDate(allocation.allocated_at)}
             </td>
-            {showActions && (
-              <td className="px-4 py-3 whitespace-nowrap text-xs">
-                <div className="flex items-center space-x-2">
-                  {canEdit(allocation) && (
-                    <button
-                      onClick={() => onEdit?.(allocation)}
-                      className="text-primary hover:text-primary"
-                      title="Edit allocation"
-                    >
-                      <Edit3 className="h-4 w-4" />
-                    </button>
+            {showActions && actions.length > 0 && (
+              <td className="px-4 py-3 whitespace-nowrap text-xs relative">
+                <button
+                  onClick={(e) => handleOpenDropdown(itemId, e)}
+                  disabled={actionLoading}
+                  className="p-1 hover:bg-gray-100 rounded transition-colors disabled:opacity-50"
+                >
+                  {actionLoading && openDropdownId === itemId ? (
+                    <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                  ) : (
+                    <MoreVertical className="h-4 w-4 text-gray-600" />
                   )}
-                  {canDelete(allocation) && (
-                    <button
-                      onClick={() => onDelete?.(allocation.id)}
-                      className="text-red-600 hover:text-red-900"
-                      title="Delete allocation"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </button>
-                  )}
-                </div>
+                </button>
               </td>
             )}
           </tr>
@@ -752,7 +988,7 @@ export function DataTable({
         return (
           <tr
             key={finance.id}
-            className="border-b border-gray-200 hover:bg-gray-50"
+            className="border-b border-gray-200 hover:bg-gray-50 transition-colors"
           >
             <td className="px-4 py-3 text-xs text-gray-900">
               {finance.description || "Deposit"}
@@ -766,19 +1002,19 @@ export function DataTable({
             <td className="px-4 py-3 whitespace-nowrap text-xs text-gray-500">
               {formatDate(finance.created_at)}
             </td>
-            {showActions && (isAdmin || isFinanceManager) && (
-              <td className="px-4 py-3 whitespace-nowrap text-xs">
-                <div className="flex items-center space-x-2">
-                  {canEdit(finance) && (
-                    <button
-                      onClick={() => onEdit?.(finance)}
-                      className="text-primary hover:text-primary"
-                      title="Edit finance"
-                    >
-                      <Edit3 className="h-4 w-4" />
-                    </button>
+            {showActions && (isAdmin || isFinanceManager) && actions.length > 0 && (
+              <td className="px-4 py-3 whitespace-nowrap text-xs relative">
+                <button
+                  onClick={(e) => handleOpenDropdown(itemId, e)}
+                  disabled={actionLoading}
+                  className="p-1 hover:bg-gray-100 rounded transition-colors disabled:opacity-50"
+                >
+                  {actionLoading && openDropdownId === itemId ? (
+                    <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                  ) : (
+                    <MoreVertical className="h-4 w-4 text-gray-600" />
                   )}
-                </div>
+                </button>
               </td>
             )}
           </tr>
@@ -793,15 +1029,15 @@ export function DataTable({
     const getSkeletonCols = () => {
       switch (type) {
         case "users":
-          return 6;
+          return showActions ? 6 : 5;
         case "projects":
-          return 6;
+          return showActions ? 6 : 5;
         case "expenses":
-          return 7;
+          return showActions ? 7 : 6;
         case "allocations":
-          return (isAdmin || isFinanceManager) ? 7 : 6;
+          return showActions ? 7 : 6;
         case "finances":
-          return (isAdmin || isFinanceManager) ? 5 : 4;
+          return showActions && (isAdmin || isFinanceManager) ? 5 : 4;
         default:
           return 6;
       }
@@ -819,10 +1055,32 @@ export function DataTable({
   };
 
   return (
-    <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+    <div className="bg-white overflow-hidden">
+      {/* Global Loading Overlay */}
+      {actionLoading && (
+        <div className="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 flex flex-col items-center gap-3 shadow-xl">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            <p className="text-sm font-medium text-gray-900">Processing...</p>
+            <p className="text-xs text-gray-500">Please wait</p>
+          </div>
+        </div>
+      )}
+
+      {/* Actions Dropdown */}
+      {openDropdownId && (
+        <ActionsDropdown
+          isOpen={!!openDropdownId}
+          onClose={handleCloseDropdown}
+          actions={getItemActions(data.find((item: any) => item.id === openDropdownId)!)}
+          loading={actionLoading}
+          position={dropdownPosition}
+        />
+      )}
+
       {/* Table */}
       <div className="overflow-x-auto">
-        <table className="min-w-full divide-y divide-gray-200 text-xs">
+        <table className="min-w-full divide-y divide-gray-200">
           <thead className="bg-gray-50">
             <tr>{renderTableHeaders()}</tr>
           </thead>
@@ -831,8 +1089,8 @@ export function DataTable({
               Array.from({ length: 5 }).map((_, index) => (
                 <SkeletonRow key={index} />
               ))
-            ) : currentData.length > 0 ? (
-              currentData.map((item) => renderTableRow(item))
+            ) : data.length > 0 ? (
+              data.map((item) => renderTableRow(item))
             ) : (
               <tr>
                 <td 
@@ -840,27 +1098,32 @@ export function DataTable({
                     type === "users" ? (showActions ? 6 : 5) :
                     type === "projects" ? (showActions ? 6 : 5) :
                     type === "expenses" ? (showActions ? 7 : 6) :
-                    type === "allocations" ? ((isAdmin || isFinanceManager) ? (showActions ? 7 : 6) : (showActions ? 6 : 5)) :
-                    type === "finances" ? ((isAdmin || isFinanceManager) ? (showActions ? 5 : 4) : 4) :
+                    type === "allocations" ? (showActions ? 7 : 6) :
+                    type === "finances" ? (showActions && (isAdmin || isFinanceManager) ? 5 : 4) :
                     6
                   } 
-                  className="px-4 py-8 text-center"
+                  className="px-4 py-12 text-center"
                 >
-                  <div className="flex flex-col items-center justify-center space-y-2">
-                    <svg
-                      className="w-8 h-8 text-gray-400"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={1.5}
-                        d="M8 14v3m4-3v3m4-3v3M3 21h18M3 10h18M3 7l9-4 9 4M4 10h16v11H4V10z"
-                      />
-                    </svg>
-                    <span className="text-xs text-gray-500">No data found</span>
+                  <div className="flex flex-col items-center justify-center space-y-3">
+                    <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center">
+                      <svg
+                        className="w-8 h-8 text-gray-400"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={1.5}
+                          d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"
+                        />
+                      </svg>
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-gray-900">No data found</p>
+                      <p className="text-xs text-gray-500 mt-1">There are no records to display</p>
+                    </div>
                   </div>
                 </td>
               </tr>
@@ -869,60 +1132,109 @@ export function DataTable({
         </table>
       </div>
 
-      {/* Pagination */}
-      {data.length > 0 && (
-        <div className="bg-white px-4 py-3 flex items-center justify-between border-t border-gray-200 sm:px-6">
-          <div className="flex items-center space-x-4">
-            <span className="text-xs text-gray-700">
-              Showing {startIndex + 1} to {Math.min(endIndex, data.length)} of{" "}
-              {data.length} results
-            </span>
-            <select
-              value={itemsPerPage}
-              onChange={(e) => setItemsPerPage(Number(e.target.value))}
-              className="border border-gray-300 rounded px-2 py-1 text-xs"
-            >
-              <option value={5}>5 per page</option>
-              <option value={10}>10 per page</option>
-              <option value={25}>25 per page</option>
-              <option value={50}>50 per page</option>
-            </select>
-          </div>
+      {/* Professional Pagination */}
+      {pagination && pagination.total > 0 && (
+        <div className="bg-white px-4 py-4 border-t border-gray-200">
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+            {/* Results Info */}
+            <div className="flex items-center gap-4">
+              <span className="text-xs text-gray-700">
+                Showing <span className="font-medium">{((pagination.current_page - 1) * pagination.per_page) + 1}</span> to{' '}
+                <span className="font-medium">
+                  {Math.min(pagination.current_page * pagination.per_page, pagination.total)}
+                </span>{' '}
+                of <span className="font-medium">{pagination.total}</span> results
+              </span>
+              
+              {/* Per Page Selector */}
+              {onPerPageChange && (
+                <select
+                  value={pagination.per_page}
+                  onChange={(e) => onPerPageChange(Number(e.target.value))}
+                  className="border border-gray-300 rounded-md px-3 py-1.5 text-xs focus:ring-2 focus:ring-primary focus:border-primary"
+                  disabled={loading || actionLoading}
+                >
+                  <option value={5}>5 per page</option>
+                  <option value={10}>10 per page</option>
+                  <option value={20}>20 per page</option>
+                  <option value={50}>50 per page</option>
+                </select>
+              )}
+            </div>
 
-          <div className="flex items-center space-x-1">
-            <button
-              onClick={() => setCurrentPage(1)}
-              disabled={currentPage === 1}
-              className="relative inline-flex items-center px-2 py-1 rounded-l-md border border-gray-300 bg-white text-xs font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              <ChevronsLeft className="h-3 w-3" />
-            </button>
-            <button
-              onClick={() => setCurrentPage(currentPage - 1)}
-              disabled={currentPage === 1}
-              className="relative inline-flex items-center px-2 py-1 border border-gray-300 bg-white text-xs font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              <ChevronLeft className="h-3 w-3" />
-            </button>
+            {/* Pagination Controls */}
+            {onPageChange && (
+              <div className="flex items-center gap-1">
+                {/* First Page */}
+                <button
+                  onClick={() => onPageChange(1)}
+                  disabled={!pagination.has_previous_page || loading || actionLoading}
+                  className="p-2 rounded-md border border-gray-300 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  title="First page"
+                >
+                  <ChevronsLeft className="h-4 w-4 text-gray-600" />
+                </button>
 
-            <span className="relative inline-flex items-center px-3 py-1 border border-gray-300 bg-white text-xs font-medium text-gray-700">
-              Page {currentPage} of {totalPages}
-            </span>
+                {/* Previous Page */}
+                <button
+                  onClick={() => onPageChange(pagination.current_page - 1)}
+                  disabled={!pagination.has_previous_page || loading || actionLoading}
+                  className="p-2 rounded-md border border-gray-300 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  title="Previous page"
+                >
+                  <ChevronLeft className="h-4 w-4 text-gray-600" />
+                </button>
 
-            <button
-              onClick={() => setCurrentPage(currentPage + 1)}
-              disabled={currentPage === totalPages}
-              className="relative inline-flex items-center px-2 py-1 border border-gray-300 bg-white text-xs font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              <ChevronRight className="h-3 w-3" />
-            </button>
-            <button
-              onClick={() => setCurrentPage(totalPages)}
-              disabled={currentPage === totalPages}
-              className="relative inline-flex items-center px-2 py-1 rounded-r-md border border-gray-300 bg-white text-xs font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              <ChevronsRight className="h-3 w-3" />
-            </button>
+                {/* Page Numbers */}
+                <div className="hidden sm:flex items-center gap-1">
+                  {getPageNumbers().map((page, index) => (
+                    page === '...' ? (
+                      <span key={`ellipsis-${index}`} className="px-3 py-1.5 text-xs text-gray-500">
+                        ...
+                      </span>
+                    ) : (
+                      <button
+                        key={page}
+                        onClick={() => onPageChange(page as number)}
+                        disabled={loading || actionLoading}
+                        className={`min-w-[32px] px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
+                          page === pagination.current_page
+                            ? 'bg-primary text-black border border-primary'
+                            : 'border border-gray-300 bg-white hover:bg-gray-50 text-gray-700'
+                        } disabled:opacity-50 disabled:cursor-not-allowed`}
+                      >
+                        {page}
+                      </button>
+                    )
+                  ))}
+                </div>
+
+                {/* Mobile Page Info */}
+                <div className="sm:hidden px-3 py-1.5 border border-gray-300 rounded-md bg-white text-xs font-medium">
+                  {pagination.current_page} / {pagination.total_pages}
+                </div>
+
+                {/* Next Page */}
+                <button
+                  onClick={() => onPageChange(pagination.current_page + 1)}
+                  disabled={!pagination.has_next_page || loading || actionLoading}
+                  className="p-2 rounded-md border border-gray-300 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  title="Next page"
+                >
+                  <ChevronRight className="h-4 w-4 text-gray-600" />
+                </button>
+
+                {/* Last Page */}
+                <button
+                  onClick={() => onPageChange(pagination.total_pages)}
+                  disabled={!pagination.has_next_page || loading || actionLoading}
+                  className="p-2 rounded-md border border-gray-300 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  title="Last page"
+                >
+                  <ChevronsRight className="h-4 w-4 text-gray-600" />
+                </button>
+              </div>
+            )}
           </div>
         </div>
       )}

@@ -8,12 +8,16 @@ import {
   UserPlus,
   X,
   Folder,
-  UserMinus
+  UserMinus,
+  UserCheck,
+  UserX
 } from "lucide-react";
 import { get, post, put, del } from "../utils/service";
 import { toast } from "sonner";
 import { DataTable } from "../components/shared/DataTable";
 import { DeleteModal } from "../components/shared/Modals";
+import { StatCard } from "../components/shared/StatCard";
+import { Loader2 } from "lucide-react";
 
 interface User {
   id: string;
@@ -53,7 +57,7 @@ interface UpdateUserData {
   status?: 'active' | 'inactive' | 'suspended';
 }
 
-// User Modals Components
+// User Modals Components - Using same approach as Projects page
 interface CreateUserModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -90,7 +94,7 @@ function CreateUserModal({ isOpen, onClose, onSubmit, loading = false }: CreateU
 
   return (
     <div 
-      className={`fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50 ${isOpen ? 'block' : 'hidden'}`}
+      className={`fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm flex items-center justify-center p-4 z-50 ${isOpen ? 'block' : 'hidden'}`}
       onClick={onClose}
     >
       <div 
@@ -98,12 +102,12 @@ function CreateUserModal({ isOpen, onClose, onSubmit, loading = false }: CreateU
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between p-6 border-b border-gray-200">
-          <h2 className="text-xs font-semibold text-gray-900">Create New User</h2>
+          <h2 className="text-lg font-semibold text-gray-900">Create New User</h2>
           <button
             onClick={onClose}
             className="text-gray-400 hover:text-gray-600 transition-colors"
           >
-            <X className="h-4 w-4" />
+            <X className="h-5 w-5" />
           </button>
         </div>
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
@@ -202,15 +206,16 @@ function CreateUserModal({ isOpen, onClose, onSubmit, loading = false }: CreateU
               type="button"
               onClick={handleClose}
               disabled={loading}
-              className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors text-xs font-medium disabled:opacity-50"
+              className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors text-xs font-medium disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={loading}
-              className="flex-1 px-4 py-2 bg-primary text-black rounded-lg hover:bg-primary/90 transition-colors text-xs font-medium disabled:opacity-50"
+              className="flex-1 px-4 py-2 bg-primary text-secondary rounded-lg hover:bg-primary/90 transition-colors text-xs font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
             >
+              {loading && <Loader2 className="w-4 h-4 animate-spin" />}
               {loading ? "Creating..." : "Create User"}
             </button>
           </div>
@@ -264,7 +269,7 @@ function EditUserModal({ isOpen, onClose, onSubmit, user, loading = false }: Edi
 
   return (
     <div 
-      className={`fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50 ${isOpen ? 'block' : 'hidden'}`}
+      className={`fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm flex items-center justify-center p-4 z-50 ${isOpen ? 'block' : 'hidden'}`}
       onClick={onClose}
     >
       <div 
@@ -272,12 +277,12 @@ function EditUserModal({ isOpen, onClose, onSubmit, user, loading = false }: Edi
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between p-6 border-b border-gray-200">
-          <h2 className="text-xs font-semibold text-gray-900">Edit User</h2>
+          <h2 className="text-lg font-semibold text-gray-900">Edit User</h2>
           <button
             onClick={onClose}
             className="text-gray-400 hover:text-gray-600 transition-colors"
           >
-            <X className="h-4 w-4" />
+            <X className="h-5 w-5" />
           </button>
         </div>
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
@@ -372,15 +377,16 @@ function EditUserModal({ isOpen, onClose, onSubmit, user, loading = false }: Edi
               type="button"
               onClick={handleClose}
               disabled={loading}
-              className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors text-xs font-medium disabled:opacity-50"
+              className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors text-xs font-medium disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={loading}
-              className="flex-1 px-4 py-2 bg-primary text-black rounded-lg hover:bg-primary/90 transition-colors text-xs font-medium disabled:opacity-50"
+              className="flex-1 px-4 py-2 bg-primary text-secondary rounded-lg hover:bg-primary/90 transition-colors text-xs font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
             >
+              {loading && <Loader2 className="w-4 h-4 animate-spin" />}
               {loading ? "Updating..." : "Update User"}
             </button>
           </div>
@@ -422,25 +428,24 @@ function AssignProjectModal({ isOpen, onClose, onAssign, onRemove, user, project
 
   return (
     <div 
-      className={`fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50 ${isOpen ? 'block' : 'hidden'}`}
+      className={`fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm flex items-center justify-center p-4 z-50 ${isOpen ? 'block' : 'hidden'}`}
       onClick={onClose}
     >
       <div 
-        className="bg-white rounded-lg max-w-md w-full max-h-[90vh] overflow-y-auto"
+        className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between p-6 border-b border-gray-200">
-          <h2 className="text-xs font-semibold text-gray-900">
+          <h2 className="text-lg font-semibold text-gray-900">
             Manage Projects for {user.first_name} {user.last_name}
           </h2>
           <button
             onClick={onClose}
             className="text-gray-400 hover:text-gray-600 transition-colors"
           >
-            <X className="h-4 w-4" />
+            <X className="h-5 w-5" />
           </button>
         </div>
-        
         <div className="p-6 space-y-4">
           {/* Assign Project Section */}
           <div>
@@ -464,9 +469,10 @@ function AssignProjectModal({ isOpen, onClose, onAssign, onRemove, user, project
               <button
                 onClick={handleAssign}
                 disabled={!selectedProject || loading}
-                className="px-4 py-2 bg-primary text-black rounded-lg hover:bg-primary/90 transition-colors text-xs font-medium disabled:opacity-50"
+                className="px-4 py-2 bg-primary text-secondary rounded-lg hover:bg-primary/90 transition-colors text-xs font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
               >
-                Assign
+                {loading && <Loader2 className="w-4 h-4 animate-spin" />}
+                {loading ? "Assigning..." : "Assign"}
               </button>
             </div>
           </div>
@@ -488,9 +494,9 @@ function AssignProjectModal({ isOpen, onClose, onAssign, onRemove, user, project
                   <button
                     onClick={() => onRemove(project.id)}
                     disabled={loading}
-                    className="text-red-600 hover:text-red-800 transition-colors text-xs font-medium disabled:opacity-50"
+                    className="text-red-600 hover:text-red-800 transition-colors text-xs font-medium disabled:opacity-50 disabled:cursor-not-allowed p-1"
                   >
-                    <UserMinus className="h-4 w-4" />
+                    {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <UserMinus className="h-4 w-4" />}
                   </button>
                 </div>
               ))}
@@ -506,7 +512,7 @@ function AssignProjectModal({ isOpen, onClose, onAssign, onRemove, user, project
             <button
               onClick={handleClose}
               disabled={loading}
-              className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors text-xs font-medium disabled:opacity-50"
+              className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors text-xs font-medium disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Close
             </button>
@@ -517,6 +523,7 @@ function AssignProjectModal({ isOpen, onClose, onAssign, onRemove, user, project
   );
 }
 
+// The rest of your UsersPage component remains exactly the same...
 const UsersPage = () => {
   const [users, setUsers] = useState<User[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
@@ -533,17 +540,40 @@ const UsersPage = () => {
   const [showAssignModal, setShowAssignModal] = useState(false);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
 
-  useEffect(() => {
-    fetchUsers();
-    fetchProjects();
-  }, []);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [perPage, setPerPage] = useState(10);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalItems, setTotalItems] = useState(0);
 
-  const fetchUsers = async () => {
+  useEffect(() => {
+    fetchUsers(currentPage, perPage);
+    fetchProjects();
+  }, [currentPage, perPage]);
+
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
+  };
+
+  const handlePerPageChange = (newPerPage: number) => {
+    setPerPage(newPerPage);
+    setCurrentPage(1);
+  };
+
+  const fetchUsers = async (page = currentPage, pageSize = perPage) => {
     setLoading(true);
     try {
-      const response = await get('/users');
+      const response: any = await get('/users', { page, per_page: pageSize });
       if (response.success) {
-        setUsers(response.data);
+        // Handle paginated response
+        if (response.pagination) {
+          setUsers(response.data || []);
+          setTotalItems(response.pagination.total || 0);
+          setTotalPages(response.pagination.total_pages || 1);
+          setCurrentPage(response.pagination.current_page || 1);
+        } else {
+          // Fallback for non-paginated response
+          setUsers(response.data || []);
+        }
       } else {
         toast.error('Failed to fetch users');
       }
@@ -709,28 +739,64 @@ const UsersPage = () => {
     return matchesSearch && matchesRole && matchesStatus;
   });
 
+  // Calculate stats
+  const totalUsers = users.length;
+  const activeUsers = users.filter(u => u.status === 'active').length;
+  const adminUsers = users.filter(u => u.role === 'admin').length;
+  const regularUsers = users.filter(u => u.role === 'user').length;
+
   return (
     <div className="min-h-screen bg-gray-50 p-4 sm:p-6">
-      <div className="max-w-7xl mx-auto">
+      <div className="max-w-7xl mx-auto space-y-6">
         {/* Header */}
-        <div className="mb-6 sm:mb-8">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Users Management</h1>
-              <p className="text-xs text-gray-600 mt-1">Manage system users and their project assignments</p>
-            </div>
-            <button
-              onClick={openCreateModal}
-              className="mt-4 sm:mt-0 flex items-center gap-2 px-4 py-2 bg-primary text-black rounded-lg hover:bg-primary/90 transition-colors text-xs font-medium"
-            >
-              <UserPlus className="h-4 w-4" />
-              Add User
-            </button>
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Users Management</h1>
+            <p className="text-xs text-gray-600 mt-1">Manage system users and their project assignments</p>
           </div>
+          <button
+            onClick={openCreateModal}
+            className="mt-4 sm:mt-0 flex items-center gap-2 px-4 py-2 bg-primary text-black rounded-lg hover:bg-primary/90 transition-colors text-xs font-medium"
+          >
+            <UserPlus className="h-4 w-4" />
+            Add User
+          </button>
+        </div>
+
+        {/* Stats Cards */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <StatCard
+            title="Total Users"
+            value={totalUsers}
+            subtitle="All registered users"
+            icon={Users}
+            loading={loading}
+          />
+          <StatCard
+            title="Active Users"
+            value={activeUsers}
+            subtitle="Currently active"
+            icon={UserCheck}
+            loading={loading}
+          />
+          <StatCard
+            title="Admins"
+            value={adminUsers}
+            subtitle="Administrators"
+            icon={Users}
+            loading={loading}
+          />
+          <StatCard
+            title="Regular Users"
+            value={regularUsers}
+            subtitle="Standard users"
+            icon={UserX}
+            loading={loading}
+          />
         </div>
 
         {/* Filters and Search */}
-        <div className="bg-white rounded-lg border border-gray-200 p-4 mb-6">
+        <div className="bg-white rounded-lg border border-gray-200 p-4">
           <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
             {/* Search */}
             <div className="lg:col-span-2">
@@ -793,12 +859,21 @@ const UsersPage = () => {
 
           {/* Data Table Component */}
           <DataTable
-            data={filteredUsers}
+            data={users}
             loading={loading}
             type="users"
             onEdit={openEditModal}
             onDelete={openDeleteModal}
             onAssign={openAssignModal}
+            useServerPagination={true}
+            pagination={{
+              currentPage,
+              totalPages,
+              totalItems,
+              perPage,
+              onPageChange: handlePageChange,
+              onPerPageChange: handlePerPageChange,
+            }}
           />
         </div>
       </div>

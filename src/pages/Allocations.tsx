@@ -11,47 +11,58 @@ import {
   Building,
   TrendingUp,
   X,
-  Upload
+  Upload,
+  Wallet,
+  CreditCard
 } from "lucide-react";
 import { get, post, put, del } from "../utils/service";
 import { toast } from "sonner";
 import { DataTable } from "../components/shared/DataTable";
 import { DeleteModal } from "../components/shared/Modals";
+import { StatCard } from "../components/shared/StatCard";
 
 interface Allocation {
   id: string;
   project_id: string;
   user_id: string;
-  amount: number;
+  amount: string;
   description?: string;
-  status: 'active' | 'completed' | 'cancelled';
+  status: string;
   proof_image?: string;
-  created_at: string;
-  user_name?: string;
-  project_name?: string;
+  allocated_at: string;
   project_code?: string;
+  project_name?: string;
+  first_name?: string;
+  last_name?: string;
+  email?: string;
+}
+
+interface ProjectBalance {
+  id: string;
+  project_code: string;
+  name: string;
+  status: string;
+  total_deposits: string;
+  total_allocated: string;
+  total_spent: string;
+  unallocated_balance: string;
+  allocated_balance: string;
+  remaining_balance: number;
 }
 
 interface Project {
   id: string;
   project_code: string;
   name: string;
+  description: string;
+  start_date: string;
+  end_date: string;
   status: 'planning' | 'active' | 'completed' | 'cancelled' | 'closed';
-  balance?: {
-    unallocated_balance: string;
-    total_deposits: string;
-    total_allocated: string;
-    total_spent: string;
-    allocated_balance: string;
-  };
-  users?: Array<{
-    id: string;
-    first_name: string;
-    last_name: string;
-    email: string;
-    role: string;
-    assigned_at: string;
-  }>;
+  created_at: string;
+  updated_at: string;
+  created_by: string;
+  deleted_at: string | null;
+  balance?: ProjectBalance;
 }
 
 interface User {
@@ -75,7 +86,7 @@ interface UpdateAllocationData {
   user_id?: string;
   amount?: number;
   description?: string;
-  status?: 'active' | 'completed' | 'cancelled';
+  status?: string;
 }
 
 // Allocation Modals Components
@@ -290,7 +301,7 @@ function EditAllocationModal({ isOpen, onClose, onSubmit, allocation, projects, 
     user_id: "",
     amount: 0,
     description: "",
-    status: "active"
+    status: "approved"
   });
 
   useEffect(() => {
@@ -298,7 +309,7 @@ function EditAllocationModal({ isOpen, onClose, onSubmit, allocation, projects, 
       setForm({
         project_id: allocation.project_id,
         user_id: allocation.user_id,
-        amount: allocation.amount,
+        amount: parseFloat(allocation.amount),
         description: allocation.description || "",
         status: allocation.status
       });
@@ -407,13 +418,13 @@ function EditAllocationModal({ isOpen, onClose, onSubmit, allocation, projects, 
             </label>
             <select
               value={form.status}
-              onChange={(e) => setForm({ ...form, status: e.target.value as any })}
+              onChange={(e) => setForm({ ...form, status: e.target.value })}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary text-xs"
               disabled={loading}
             >
-              <option value="active">Active</option>
-              <option value="completed">Completed</option>
-              <option value="cancelled">Cancelled</option>
+              <option value="approved">Approved</option>
+              <option value="pending">Pending</option>
+              <option value="rejected">Rejected</option>
             </select>
           </div>
 
@@ -457,35 +468,28 @@ const AllocationsPage = () => {
   const [selectedAllocation, setSelectedAllocation] = useState<Allocation | null>(null);
 
   useEffect(() => {
-    fetchProjects();
-    fetchUsers();
+    fetchInitialData();
   }, []);
 
-  useEffect(() => {
-    if (projects.length > 0) {
-      fetchAllocations();
-    }
-  }, [selectedProjectId, projects]);
-
-  const fetchAllocations = async () => {
+  const fetchInitialData = async () => {
     setLoading(true);
     try {
-      let response;
-      if (selectedProjectId === "all") {
-        response = await get('/allocations');
-      } else {
-        // Fetch allocations for specific project
-        response = await get(`/projects/${selectedProjectId}`);
-        if (response.success && response.data) {
-          // Transform project data to allocations format if needed
-          // This depends on your API response structure for project-specific allocations
-          const projectAllocations = response.data.allocations || [];
-          setAllocations(projectAllocations);
-          setLoading(false);
-          return;
-        }
-      }
-      
+      await Promise.all([
+        fetchProjects(),
+        fetchUsers(),
+        fetchAllocations()
+      ]);
+    } catch (error) {
+      console.error('Error fetching initial data:', error);
+      toast.error('Error loading data');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchAllocations = async () => {
+    try {
+      const response = await get('/allocations');
       if (response.success) {
         setAllocations(response.data);
       } else {
@@ -494,8 +498,6 @@ const AllocationsPage = () => {
     } catch (error) {
       console.error('Error fetching allocations:', error);
       toast.error('Error loading allocations');
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -503,21 +505,7 @@ const AllocationsPage = () => {
     try {
       const response = await get('/projects');
       if (response.success) {
-        const projectsWithDetails = await Promise.all(
-          response.data.map(async (project: Project) => {
-            try {
-              // Fetch detailed project info including balance
-              const projectDetail = await get(`/projects/${project.id}`);
-              if (projectDetail.success) {
-                return projectDetail.data;
-              }
-            } catch (error) {
-              console.error(`Error fetching details for project ${project.id}:`, error);
-            }
-            return project;
-          })
-        );
-        setProjects(projectsWithDetails);
+        setProjects(response.data);
       }
     } catch (error) {
       console.error('Error fetching projects:', error);
@@ -545,11 +533,7 @@ const AllocationsPage = () => {
       if (data.description) formData.append('description', data.description);
       if (data.proof_image) formData.append('proof_image', data.proof_image);
 
-      const response = await post('/allocations', formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
-      });
+      const response = await post('/allocations', formData);
       
       if (response.success) {
         toast.success('Allocation created successfully');
@@ -638,8 +622,10 @@ const AllocationsPage = () => {
   const filteredAllocations = allocations.filter(allocation => {
     const matchesSearch = 
       allocation.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      allocation.user_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      allocation.project_name?.toLowerCase().includes(searchTerm.toLowerCase());
+      allocation.first_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      allocation.last_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      allocation.project_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      allocation.project_code?.toLowerCase().includes(searchTerm.toLowerCase());
     
     const matchesStatus = statusFilter === "all" || allocation.status === statusFilter;
     const matchesProject = selectedProjectId === "all" || allocation.project_id === selectedProjectId;
@@ -654,11 +640,11 @@ const AllocationsPage = () => {
 
   // Calculate allocation statistics
   const allocationStats = {
-    totalAllocated: filteredAllocations.reduce((sum, allocation) => sum + allocation.amount, 0),
+    totalAllocated: filteredAllocations.reduce((sum, allocation) => sum + parseFloat(allocation.amount), 0),
     totalAllocations: filteredAllocations.length,
-    activeAllocations: filteredAllocations.filter(a => a.status === 'active').length,
+    activeAllocations: filteredAllocations.filter(a => a.status === 'approved').length,
     averageAllocation: filteredAllocations.length > 0 ? 
-      filteredAllocations.reduce((sum, allocation) => sum + allocation.amount, 0) / filteredAllocations.length : 0,
+      filteredAllocations.reduce((sum, allocation) => sum + parseFloat(allocation.amount), 0) / filteredAllocations.length : 0,
     availableBalance: currentProject?.balance?.unallocated_balance 
       ? parseFloat(currentProject.balance.unallocated_balance) 
       : projects.reduce((sum, project) => sum + parseFloat(project.balance?.unallocated_balance || "0"), 0)
@@ -725,44 +711,36 @@ const AllocationsPage = () => {
           </div>
         </div>
 
-        {/* Allocation Statistics */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-          <div className="bg-white rounded-lg border border-gray-200 p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs font-medium text-gray-600">Total Allocated</p>
-                <p className="text-2xl font-bold text-gray-900">{formatCurrency(allocationStats.totalAllocated)}</p>
-              </div>
-              <DollarSign className="h-8 w-8 text-green-500" />
-            </div>
-          </div>
-          <div className="bg-white rounded-lg border border-gray-200 p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs font-medium text-gray-600">Available Balance</p>
-                <p className="text-2xl font-bold text-gray-900">{formatCurrency(allocationStats.availableBalance)}</p>
-              </div>
-              <Building className="h-8 w-8 text-blue-500" />
-            </div>
-          </div>
-          <div className="bg-white rounded-lg border border-gray-200 p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs font-medium text-gray-600">Total Allocations</p>
-                <p className="text-2xl font-bold text-gray-900">{allocationStats.totalAllocations}</p>
-              </div>
-              <Share2 className="h-8 w-8 text-purple-500" />
-            </div>
-          </div>
-          <div className="bg-white rounded-lg border border-gray-200 p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs font-medium text-gray-600">Active</p>
-                <p className="text-2xl font-bold text-gray-900">{allocationStats.activeAllocations}</p>
-              </div>
-              <Users className="h-8 w-8 text-orange-500" />
-            </div>
-          </div>
+        {/* Stats Cards */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+          <StatCard
+            title="Total Allocated"
+            value={formatCurrency(allocationStats.totalAllocated)}
+            subtitle="Total allocated funds"
+            icon={DollarSign}
+            loading={loading}
+          />
+          <StatCard
+            title="Available Balance"
+            value={formatCurrency(allocationStats.availableBalance)}
+            subtitle="Remaining balance"
+            icon={Wallet}
+            loading={loading}
+          />
+          <StatCard
+            title="Total Allocations"
+            value={allocationStats.totalAllocations}
+            subtitle="Allocation records"
+            icon={Share2}
+            loading={loading}
+          />
+          <StatCard
+            title="Active"
+            value={allocationStats.activeAllocations}
+            subtitle="Active allocations"
+            icon={CreditCard}
+            loading={loading}
+          />
         </div>
 
         {/* Filters and Search */}
@@ -790,9 +768,9 @@ const AllocationsPage = () => {
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary text-xs"
               >
                 <option value="all">All Status</option>
-                <option value="active">Active</option>
-                <option value="completed">Completed</option>
-                <option value="cancelled">Cancelled</option>
+                <option value="approved">Approved</option>
+                <option value="pending">Pending</option>
+                <option value="rejected">Rejected</option>
               </select>
             </div>
           </div>
