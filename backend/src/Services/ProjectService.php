@@ -231,8 +231,9 @@ class ProjectService
     
     public function getBalance($projectId)
     {
+        // Fixed: Use 'id' column instead of 'project_id'
         return $this->db->queryOne(
-            "SELECT * FROM project_balances WHERE project_id = ?",
+            "SELECT * FROM project_balances WHERE id = ?",
             [$projectId]
         );
     }

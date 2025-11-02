@@ -108,8 +108,9 @@ class AllocationService
             }
             
             // Get current project balance with FOR UPDATE to lock the row
+            // Fixed: Use 'id' column instead of 'project_id'
             $balance = $this->db->queryOne(
-                "SELECT * FROM project_balances WHERE project_id = ? FOR UPDATE",
+                "SELECT * FROM project_balances WHERE id = ? FOR UPDATE",
                 [$data['project_id']]
             );
             
@@ -152,12 +153,13 @@ class AllocationService
             );
             
             // Update project balance - deduct from unallocated, add to allocated
+            // Fixed: Use 'id' column instead of 'project_id'
             $this->db->execute(
                 "UPDATE project_balances 
                  SET unallocated_balance = unallocated_balance - ?,
                      allocated_balance = allocated_balance + ?,
                      updated_at = NOW()
-                 WHERE project_id = ?",
+                 WHERE id = ?",
                 [$data['amount'], $data['amount'], $data['project_id']]
             );
             
@@ -224,8 +226,9 @@ class AllocationService
                 if ($amountDifference != 0) {
                     // Check if there's enough unallocated balance for increase
                     if ($amountDifference > 0) {
+                        // Fixed: Use 'id' column instead of 'project_id'
                         $balance = $this->db->queryOne(
-                            "SELECT unallocated_balance FROM project_balances WHERE project_id = ? FOR UPDATE",
+                            "SELECT unallocated_balance FROM project_balances WHERE id = ? FOR UPDATE",
                             [$allocation['project_id']]
                         );
                         
@@ -236,12 +239,13 @@ class AllocationService
                     }
                     
                     // Update project balance
+                    // Fixed: Use 'id' column instead of 'project_id'
                     $this->db->execute(
                         "UPDATE project_balances 
                          SET unallocated_balance = unallocated_balance - ?,
                              allocated_balance = allocated_balance + ?,
                              updated_at = NOW()
-                         WHERE project_id = ?",
+                         WHERE id = ?",
                         [$amountDifference, $amountDifference, $allocation['project_id']]
                     );
                     

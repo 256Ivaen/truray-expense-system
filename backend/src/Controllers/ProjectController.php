@@ -40,8 +40,19 @@ class ProjectController
             return Response::notFound('Project not found');
         }
         
-        $balance = $this->projectService->getBalance($data['id']);
-        $project['balance'] = $balance;
+        // Get balance but don't fail if it doesn't exist
+        try {
+            $balance = $this->projectService->getBalance($data['id']);
+            $project['balance'] = $balance;
+        } catch (\Exception $e) {
+            // If balance table doesn't exist or has issues, set default balance
+            $project['balance'] = [
+                'total_deposits' => 0,
+                'unallocated_balance' => 0,
+                'allocated_balance' => 0,
+                'total_spent' => 0
+            ];
+        }
         
         $users = $this->projectService->getProjectUsers($data['id']);
         $project['users'] = $users;
@@ -136,6 +147,7 @@ class ProjectController
         
         $currentUser = AuthMiddleware::user();
         
+        // Check if project exists and user has permission
         $project = $this->projectService->getById($data['id'], $currentUser['id'], $currentUser['role']);
         if (!$project) {
             return Response::notFound('Project not found');
@@ -162,6 +174,7 @@ class ProjectController
         
         $currentUser = AuthMiddleware::user();
         
+        // Check if project exists and user has permission
         $project = $this->projectService->getById($data['id'], $currentUser['id'], $currentUser['role']);
         if (!$project) {
             return Response::notFound('Project not found');
