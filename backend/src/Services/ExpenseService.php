@@ -223,10 +223,10 @@ class ExpenseService
                 return ['success' => false, 'message' => 'Expense already approved'];
             }
             
-            // Check user balance with row locking
+            // Check user balance WITHOUT FOR UPDATE
             $userBalance = $this->db->queryOne(
                 "SELECT * FROM user_allocation_balances 
-                 WHERE user_id = ? AND project_id = ? FOR UPDATE",
+                 WHERE user_id = ? AND project_id = ?",
                 [$expense['user_id'], $expense['project_id']]
             );
             
@@ -245,15 +245,14 @@ class ExpenseService
             $this->db->execute(
                 "UPDATE user_allocation_balances 
                  SET total_spent = total_spent + ?,
-                     remaining_balance = remaining_balance - ?,
-                     updated_at = NOW()
+                     remaining_balance = remaining_balance - ?
                  WHERE user_id = ? AND project_id = ?",
                 [$expense['amount'], $expense['amount'], $expense['user_id'], $expense['project_id']]
             );
             
             // Update project balance - deduct from allocated, add to spent
             $projectBalance = $this->db->queryOne(
-                "SELECT * FROM project_balances WHERE id = ? FOR UPDATE",
+                "SELECT * FROM project_balances WHERE id = ?",
                 [$expense['project_id']]
             );
             
@@ -261,8 +260,7 @@ class ExpenseService
                 $this->db->execute(
                     "UPDATE project_balances 
                      SET allocated_balance = allocated_balance - ?,
-                         total_spent = total_spent + ?,
-                         updated_at = NOW()
+                         total_spent = total_spent + ?
                      WHERE id = ?",
                     [$expense['amount'], $expense['amount'], $expense['project_id']]
                 );
