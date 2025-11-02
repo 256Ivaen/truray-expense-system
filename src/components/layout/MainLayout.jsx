@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useNavigate } from 'react-router-dom'
 import Sidebar from './Sidebar'
@@ -10,8 +10,7 @@ import {
   Menu,
   LogOut
 } from 'lucide-react'
-import { mockNotifications } from '../../assets/mock.js'
-import { getCurrentUser, logout } from '../../utils/service.js'
+import { getCurrentUser, logout, getAuthToken, get, post, BASE_URL } from '../../utils/service.js'
 
 const MainLayout = ({ 
   children,
@@ -29,12 +28,17 @@ const MainLayout = ({
   const [showUserMenu, setShowUserMenu] = useState(false)
   const [showNotifications, setShowNotifications] = useState(false)
   const [isMobile, setIsMobile] = useState(false)
-  const [notifications, setNotifications] = useState(mockNotifications)
+  const [notifications, setNotifications] = useState([])
   const [user, setUser] = useState({
     name: '',
     email: '',
     initials: 'U'
   })
+  const wsRef = useRef(null)
+  const reconnectTimeoutRef = useRef(null)
+  const isConnectingRef = useRef(false)
+  const reconnectAttemptsRef = useRef(0)
+  const maxReconnectAttempts = 10
 
   // Get user data from localStorage using service function
   useEffect(() => {
@@ -91,12 +95,276 @@ const MainLayout = ({
     logout()
   }
 
-  const markNotificationAsRead = (id) => {
-    setNotifications(prev => 
-      prev.map(notif => 
-        notif.id === id ? { ...notif, unread: false } : notif
+  // Fetch notifications from API
+  const fetchNotifications = async () => {
+    try {
+      const response = await get('/notifications', { page: 1, per_page: 50 })
+      if (response && response.data) {
+        const formattedNotifications = response.data.map(notif => ({
+          id: notif.id,
+          title: notif.title,
+          message: notif.message,
+          time: new Date(notif.created_at).toLocaleString(),
+          unread: !notif.is_read,
+          type: notif.type
+        }))
+        setNotifications(formattedNotifications)
+      }
+    } catch (error) {
+      console.error('Error fetching notifications:', error)
+    }
+  }
+
+  // Get WebSocket URL - optimized for Hostinger hosting
+  const getWebSocketUrl = () => {
+    // Extract hostname from BASE_URL
+    try {
+      const url = new URL(BASE_URL)
+      const host = url.hostname
+      
+      // For Hostinger/production, always use wss:// (secure WebSocket) when on HTTPS
+      const protocol = url.protocol === 'https:' ? 'wss:' : 'ws:'
+      
+      // Try port 8080 first (standard WebSocket port)
+      // If that doesn't work, Hostinger might require using the same port as HTTPS
+      // or a WebSocket endpoint path
+      const port = url.protocol === 'https:' ? '' : ':8080'
+      
+      // For secure connections on Hostinger, try same port first
+      // Some hosting providers require WebSocket on same port as HTTP(S)
+      if (url.protocol === 'https:') {
+        // Option 1: Try WebSocket on same domain with standard port
+        // Option 2: Try WebSocket on port 8080
+        // We'll use port 8080 as primary since that's what backend expects
+        return `wss://${host}:8080`
+      } else {
+        return `ws://${host}:8080`
+      }
+    } catch (error) {
+      // Fallback to using window location
+      const host = window.location.hostname
+      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
+      const port = window.location.protocol === 'https:' ? '' : ':8080'
+      
+      if (window.location.protocol === 'https:') {
+        return `wss://${host}:8080`
+      } else {
+        return `ws://${host}:8080`
+      }
+    }
+  }
+
+  // Connect to WebSocket with exponential backoff retry
+  const connectWebSocket = () => {
+    if (isConnectingRef.current || !getAuthToken()) {
+      return
+    }
+
+    // Don't attempt reconnect if we've exceeded max attempts
+    if (reconnectAttemptsRef.current >= maxReconnectAttempts) {
+      console.warn('Max WebSocket reconnect attempts reached. Falling back to polling.')
+      // Fall back to periodic API polling instead
+      startPolling()
+      return
+    }
+
+    isConnectingRef.current = true
+    const token = getAuthToken()
+    
+    if (!token) {
+      isConnectingRef.current = false
+      return
+    }
+
+    try {
+      const wsUrl = getWebSocketUrl()
+      console.log('Attempting to connect to WebSocket:', wsUrl)
+      const ws = new WebSocket(wsUrl)
+      
+      // Set connection timeout
+      const connectionTimeout = setTimeout(() => {
+        if (ws.readyState === WebSocket.CONNECTING) {
+          console.warn('WebSocket connection timeout')
+          ws.close()
+          handleReconnect()
+        }
+      }, 10000) // 10 second timeout
+      
+      ws.onopen = () => {
+        clearTimeout(connectionTimeout)
+        console.log('WebSocket connected successfully')
+        isConnectingRef.current = false
+        reconnectAttemptsRef.current = 0 // Reset on successful connection
+        
+        // Authenticate with token
+        try {
+          ws.send(JSON.stringify({
+            type: 'authenticate',
+            token: token
+          }))
+        } catch (error) {
+          console.error('Error sending authentication:', error)
+        }
+      }
+
+      ws.onmessage = (event) => {
+        try {
+          const message = JSON.parse(event.data)
+          
+          if (message.type === 'authenticated') {
+            console.log('WebSocket authenticated successfully')
+          } else if (message.type === 'notifications') {
+            // Initial notifications batch
+            const formattedNotifications = message.data.map(notif => ({
+              id: notif.id,
+              title: notif.title,
+              message: notif.message,
+              time: new Date(notif.created_at).toLocaleString(),
+              unread: !notif.is_read,
+              type: notif.type
+            }))
+            setNotifications(formattedNotifications)
+          } else if (message.type === 'notification') {
+            // New notification received
+            const newNotification = {
+              id: message.data.id,
+              title: message.data.title,
+              message: message.data.message,
+              time: new Date(message.data.created_at).toLocaleString(),
+              unread: !message.data.is_read,
+              type: message.data.type
+            }
+            setNotifications(prev => {
+              // Avoid duplicates
+              const exists = prev.find(n => n.id === newNotification.id)
+              if (exists) return prev
+              return [newNotification, ...prev]
+            })
+          } else if (message.type === 'error') {
+            console.error('WebSocket error message:', message.message)
+          }
+        } catch (error) {
+          console.error('Error parsing WebSocket message:', error)
+        }
+      }
+
+      ws.onerror = (error) => {
+        clearTimeout(connectionTimeout)
+        console.error('WebSocket error:', error)
+        isConnectingRef.current = false
+        // Don't reconnect immediately on error, let onclose handle it
+      }
+
+      ws.onclose = (event) => {
+        clearTimeout(connectionTimeout)
+        const wasConnected = reconnectAttemptsRef.current === 0
+        
+        if (wasConnected) {
+          console.log('WebSocket disconnected. Code:', event.code, 'Reason:', event.reason)
+        } else {
+          console.log('WebSocket connection failed. Attempt:', reconnectAttemptsRef.current + 1)
+        }
+        
+        isConnectingRef.current = false
+        wsRef.current = null
+        
+        // Only attempt reconnect if we still have auth token
+        if (getAuthToken() && reconnectAttemptsRef.current < maxReconnectAttempts) {
+          handleReconnect()
+        } else if (reconnectAttemptsRef.current >= maxReconnectAttempts) {
+          console.warn('WebSocket connection failed after max attempts. Using API polling fallback.')
+          startPolling()
+        }
+      }
+
+      wsRef.current = ws
+    } catch (error) {
+      console.error('Error creating WebSocket connection:', error)
+      isConnectingRef.current = false
+      handleReconnect()
+    }
+  }
+
+  // Handle reconnection with exponential backoff
+  const handleReconnect = () => {
+    reconnectAttemptsRef.current++
+    
+    // Exponential backoff: 3s, 6s, 12s, 24s, etc. (max 60s)
+    const delay = Math.min(3000 * Math.pow(2, reconnectAttemptsRef.current - 1), 60000)
+    
+    console.log(`Reconnecting WebSocket in ${delay / 1000} seconds (attempt ${reconnectAttemptsRef.current})`)
+    
+    reconnectTimeoutRef.current = setTimeout(() => {
+      connectWebSocket()
+    }, delay)
+  }
+
+  // Fallback polling when WebSocket fails
+  const pollingIntervalRef = useRef(null)
+  const startPolling = () => {
+    // Only start polling if not already polling
+    if (pollingIntervalRef.current) {
+      return
+    }
+    
+    console.log('Starting notification polling as WebSocket fallback')
+    
+    // Poll every 10 seconds for new notifications
+    pollingIntervalRef.current = setInterval(() => {
+      fetchNotifications()
+    }, 10000)
+  }
+
+  const stopPolling = () => {
+    if (pollingIntervalRef.current) {
+      clearInterval(pollingIntervalRef.current)
+      pollingIntervalRef.current = null
+    }
+  }
+
+  // Initialize WebSocket and fetch notifications
+  useEffect(() => {
+    const token = getAuthToken()
+    if (!token) {
+      return
+    }
+
+    // Fetch initial notifications
+    fetchNotifications()
+
+    // Connect WebSocket
+    connectWebSocket()
+
+    // Cleanup on unmount
+    return () => {
+      if (reconnectTimeoutRef.current) {
+        clearTimeout(reconnectTimeoutRef.current)
+      }
+      if (wsRef.current) {
+        wsRef.current.close()
+        wsRef.current = null
+      }
+      stopPolling()
+    }
+  }, [])
+
+  const markNotificationAsRead = async (id) => {
+    try {
+      await post(`/notifications/${id}/read`, {})
+      setNotifications(prev => 
+        prev.map(notif => 
+          notif.id === id ? { ...notif, unread: false } : notif
+        )
       )
-    )
+    } catch (error) {
+      console.error('Error marking notification as read:', error)
+      // Still update UI optimistically
+      setNotifications(prev => 
+        prev.map(notif => 
+          notif.id === id ? { ...notif, unread: false } : notif
+        )
+      )
+    }
   }
 
   const unreadCount = notifications.filter(n => n.unread).length
@@ -171,26 +439,36 @@ const MainLayout = ({
                         <h3 className="text-sm font-semibold text-gray-900">Notifications</h3>
                       </div>
                       <div className="max-h-64 overflow-y-auto">
-                        {notifications.map((notification) => (
-                          <div 
-                            key={notification.id}
-                            onClick={() => markNotificationAsRead(notification.id)}
-                            className={`p-4 border-b border-gray-100 hover:bg-gray-50 cursor-pointer transition-colors ${
-                              notification.unread ? 'bg-primary/50' : ''
-                            }`}
-                          >
-                            <div className="flex justify-between items-start">
-                              <div className="flex-1">
-                                <h4 className="text-xs font-medium text-gray-900">{notification.title}</h4>
-                                <p className="text-xs text-gray-600 mt-1">{notification.message}</p>
-                                <p className="text-xs text-gray-400 mt-1">{notification.time}</p>
-                              </div>
-                              {notification.unread && (
-                                <div className="w-2 h-2 bg-primary rounded-full"></div>
-                              )}
-                            </div>
+                        {notifications.length === 0 ? (
+                          <div className="p-4 text-center text-xs text-gray-500">
+                            No notifications
                           </div>
-                        ))}
+                        ) : (
+                          notifications.map((notification) => (
+                            <div 
+                              key={notification.id}
+                              onClick={() => {
+                                if (notification.unread) {
+                                  markNotificationAsRead(notification.id)
+                                }
+                              }}
+                              className={`p-4 border-b border-gray-100 hover:bg-gray-50 cursor-pointer transition-colors ${
+                                notification.unread ? 'bg-primary/50' : ''
+                              }`}
+                            >
+                              <div className="flex justify-between items-start">
+                                <div className="flex-1">
+                                  <h4 className="text-xs font-medium text-gray-900">{notification.title}</h4>
+                                  <p className="text-xs text-gray-600 mt-1">{notification.message}</p>
+                                  <p className="text-xs text-gray-400 mt-1">{notification.time}</p>
+                                </div>
+                                {notification.unread && (
+                                  <div className="w-2 h-2 bg-primary rounded-full"></div>
+                                )}
+                              </div>
+                            </div>
+                          ))
+                        )}
                       </div>
                     </motion.div>
                   )}

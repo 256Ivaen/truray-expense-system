@@ -10,11 +10,13 @@ class ProjectService
 {
     private $projectModel;
     private $db;
+    private $notificationService;
     
     public function __construct()
     {
         $this->projectModel = new Project();
         $this->db = Database::getInstance();
+        $this->notificationService = new NotificationService();
     }
     
     public function getAll($userId = null, $role = null, $page = 1, $perPage = 5)
@@ -236,6 +238,22 @@ class ProjectService
         $this->db->execute(
             "INSERT INTO project_users (id, project_id, user_id, assigned_by) VALUES (?, ?, ?, ?)",
             [$id, $projectId, $userId, $assignedBy]
+        );
+        
+        // Get user details for notification
+        $assignedUser = $this->db->queryOne(
+            "SELECT first_name, last_name FROM users WHERE id = ?",
+            [$userId]
+        );
+        
+        // Create notification for the assigned user
+        $this->notificationService->create(
+            $userId,
+            'project_assignment',
+            'Assigned to Project',
+            "You have been assigned to the project: {$project['name']}",
+            'project',
+            $projectId
         );
         
         return ['success' => true, 'message' => 'User assigned to project successfully'];

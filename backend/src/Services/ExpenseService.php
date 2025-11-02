@@ -12,12 +12,14 @@ class ExpenseService
     private $expenseModel;
     private $db;
     private $fileUploader;
+    private $notificationService;
     
     public function __construct()
     {
         $this->expenseModel = new Expense();
         $this->db = Database::getInstance();
         $this->fileUploader = new FileUploader();
+        $this->notificationService = new NotificationService();
     }
     
     public function getAll($filters = [], $page = 1, $perPage = 5)
@@ -284,6 +286,19 @@ class ExpenseService
             
             $this->db->commit();
             
+            // Get expense details for notification
+            $expenseDetails = $this->getById($id);
+            
+            // Create notification for the expense owner
+            $this->notificationService->create(
+                $expense['user_id'],
+                'expense_approved',
+                'Expense Approved',
+                "Your expense of {$expenseDetails['amount']} for {$expenseDetails['description']} has been approved.",
+                'expense',
+                $id
+            );
+            
             $updatedExpense = $this->getById($id);
             return ['success' => true, 'data' => $updatedExpense];
             
@@ -310,6 +325,17 @@ class ExpenseService
         );
         
         $updatedExpense = $this->getById($id);
+        
+        // Create notification for the expense owner
+        $this->notificationService->create(
+            $expense['user_id'],
+            'expense_rejected',
+            'Expense Rejected',
+            "Your expense of {$updatedExpense['amount']} for {$updatedExpense['description']} has been rejected.",
+            'expense',
+            $id
+        );
+        
         return ['success' => true, 'data' => $updatedExpense];
     }
     
