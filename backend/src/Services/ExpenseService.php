@@ -73,8 +73,8 @@ class ExpenseService
             return ['success' => false, 'message' => 'Project not found'];
         }
         
-        if ($project['status'] === 'closed' || $project['status'] === 'cancelled') {
-            return ['success' => false, 'message' => 'Cannot add expense to closed or cancelled project'];
+        if ($project['status'] === 'closed' || $project['status'] === 'cancelled' || $project['status'] === 'completed') {
+            return ['success' => false, 'message' => 'Cannot add expense to closed, cancelled or completed project'];
         }
         
         $projectUser = $this->db->queryOne(
@@ -267,16 +267,19 @@ class ExpenseService
                     [$expense['amount'], $expense['amount'], $expense['project_id']]
                 );
                 
-                // Check if project should be closed (all allocated money spent)
+                // Check if project should be completed (all allocated money spent AND had allocated funds initially)
                 $updatedProjectBalance = $this->db->queryOne(
-                    "SELECT allocated_balance FROM project_balances WHERE id = ?",
+                    "SELECT allocated_balance, total_spent FROM project_balances WHERE id = ?",
                     [$expense['project_id']]
                 );
                 
-                if ($updatedProjectBalance && $updatedProjectBalance['allocated_balance'] <= 0) {
+                if ($updatedProjectBalance && 
+                    $updatedProjectBalance['allocated_balance'] <= 0 && 
+                    $updatedProjectBalance['total_spent'] > 0) {
+                    // Only complete if project had allocated funds and now they're all spent
                     $this->db->execute(
-                        "UPDATE projects SET status = ? WHERE id = ?",
-                        ['closed', $expense['project_id']]
+                        "UPDATE projects SET status = 'completed', updated_at = NOW() WHERE id = ? AND status != 'completed'",
+                        [$expense['project_id']]
                     );
                 }
             }

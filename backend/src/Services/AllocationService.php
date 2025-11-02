@@ -77,9 +77,9 @@ class AllocationService
                 return ['success' => false, 'message' => 'Project not found'];
             }
             
-            if ($project['status'] === 'closed' || $project['status'] === 'cancelled') {
+            if ($project['status'] === 'closed' || $project['status'] === 'cancelled' || $project['status'] === 'completed') {
                 $this->db->rollback();
-                return ['success' => false, 'message' => 'Cannot allocate to closed or cancelled project'];
+                return ['success' => false, 'message' => 'Cannot allocate to closed, cancelled or completed project'];
             }
             
             $user = $this->db->queryOne(
@@ -108,7 +108,6 @@ class AllocationService
             }
             
             // Get current project balance with FOR UPDATE to lock the row
-            // Fixed: Use 'id' column instead of 'project_id'
             $balance = $this->db->queryOne(
                 "SELECT * FROM project_balances WHERE id = ? FOR UPDATE",
                 [$data['project_id']]
@@ -153,7 +152,6 @@ class AllocationService
             );
             
             // Update project balance - deduct from unallocated, add to allocated
-            // Fixed: Use 'id' column instead of 'project_id'
             $this->db->execute(
                 "UPDATE project_balances 
                  SET unallocated_balance = unallocated_balance - ?,
@@ -186,6 +184,14 @@ class AllocationService
                     "INSERT INTO user_allocation_balances (user_id, project_id, total_allocated, total_spent, remaining_balance)
                      VALUES (?, ?, ?, 0, ?)",
                     [$data['user_id'], $data['project_id'], $data['amount'], $data['amount']]
+                );
+            }
+            
+            // If project was completed but now has new allocations, reopen it
+            if ($project['status'] === 'completed') {
+                $this->db->execute(
+                    "UPDATE projects SET status = 'active', updated_at = NOW() WHERE id = ?",
+                    [$data['project_id']]
                 );
             }
             
@@ -226,7 +232,6 @@ class AllocationService
                 if ($amountDifference != 0) {
                     // Check if there's enough unallocated balance for increase
                     if ($amountDifference > 0) {
-                        // Fixed: Use 'id' column instead of 'project_id'
                         $balance = $this->db->queryOne(
                             "SELECT unallocated_balance FROM project_balances WHERE id = ? FOR UPDATE",
                             [$allocation['project_id']]
@@ -239,7 +244,6 @@ class AllocationService
                     }
                     
                     // Update project balance
-                    // Fixed: Use 'id' column instead of 'project_id'
                     $this->db->execute(
                         "UPDATE project_balances 
                          SET unallocated_balance = unallocated_balance - ?,

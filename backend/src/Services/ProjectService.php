@@ -91,6 +91,13 @@ class ProjectService
             ]
         );
         
+        // Create initial project balance record
+        $this->db->execute(
+            "INSERT INTO project_balances (id, total_deposits, unallocated_balance, allocated_balance, total_spent) 
+             VALUES (?, 0, 0, 0, 0)",
+            [$projectId]
+        );
+        
         $project = $this->projectModel->find($projectId);
         return ['success' => true, 'data' => $this->enhanceProjectWithBalance($project)];
     }
@@ -235,7 +242,6 @@ class ProjectService
     
     public function getBalance($projectId)
     {
-        // Fixed: Use 'id' column instead of 'project_id'
         return $this->db->queryOne(
             "SELECT * FROM project_balances WHERE id = ?",
             [$projectId]
