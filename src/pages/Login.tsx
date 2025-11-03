@@ -4,9 +4,6 @@ import { useState } from "react";
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { Lock, Mail, EyeOff, Eye, X } from "lucide-react";
-import { FaInstagram, FaXTwitter } from "react-icons/fa6";
-import { PiTiktokLogoLight } from "react-icons/pi";
-import { PiYoutubeLogo } from "react-icons/pi";
 import { assets } from "../assets/assets";
 import { post, saveAuthData } from "../utils/service";
 
@@ -87,17 +84,17 @@ const ForgotPasswordModal = ({ isOpen, onClose, onComplete }) => {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4" role="dialog" aria-labelledby="forgot-password-title">
-      <div className="fixed inset-0 bg-black bg-opacity-50" onClick={handleClose} />
-      <div className="relative z-50 w-full max-w-md max-h-[90vh] overflow-y-auto bg-white/95 backdrop-blur-lg rounded-lg shadow-lg border border-white/20">
-        <div className="flex items-center justify-between p-6 border-b border-white/20">
-          <h2 id="forgot-password-title" className="text-xl font-semibold">
+      <div className="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm" onClick={handleClose} />
+      <div className="relative z-50 w-full max-w-md max-h-[90vh] overflow-y-auto bg-white rounded-lg shadow-xl border border-gray-200">
+        <div className="flex items-center justify-between p-6 border-b border-gray-200">
+          <h2 id="forgot-password-title" className="text-lg font-semibold text-gray-900">
             {step === 1 ? "Reset Password" : "Enter Reset Code"}
           </h2>
           <button
             onClick={handleClose}
-            className="p-1 hover:bg-gray-100 rounded"
+            className="p-1 hover:bg-gray-100 rounded-lg transition-colors"
           >
-            <X className="h-5 w-5" />
+            <X className="h-5 w-5 text-gray-600" />
           </button>
         </div>
         <div className="p-6">
@@ -121,7 +118,7 @@ const ForgotPasswordModal = ({ isOpen, onClose, onComplete }) => {
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="w-full pl-10 pr-3 py-3 rounded-lg border-0 outline-0 bg-gray-200 focus:bg-white focus:border focus:border-primary text-black text-xs transition-all"
+                  className="w-full pl-10 pr-3 py-3 rounded-lg border border-gray-300 bg-white focus:border-primary focus:ring-2 focus:ring-primary/20 text-gray-900 text-xs transition-all outline-none"
                   placeholder="Enter your email"
                   disabled={loading}
                   required
@@ -131,7 +128,7 @@ const ForgotPasswordModal = ({ isOpen, onClose, onComplete }) => {
                 <button
                   type="button"
                   onClick={handleClose}
-                  className="flex-1 bg-gray-200 text-gray-700 font-medium py-3 rounded-lg hover:bg-gray-300 transition text-xs"
+                  className="flex-1 bg-gray-100 text-gray-700 font-medium py-3 rounded-lg hover:bg-gray-200 transition-colors text-xs disabled:opacity-50"
                   disabled={loading}
                 >
                   Cancel
@@ -139,7 +136,7 @@ const ForgotPasswordModal = ({ isOpen, onClose, onComplete }) => {
                 <button
                   type="submit"
                   disabled={loading}
-                  className="flex-1 bg-primary text-secondary font-medium py-3 rounded-lg transition disabled:opacity-50 text-xs"
+                  className="flex-1 bg-primary text-secondary font-medium py-3 rounded-lg hover:bg-primary/90 transition-colors text-xs disabled:opacity-50"
                 >
                   {loading ? 'Sending...' : 'Send Code'}
                 </button>
@@ -152,7 +149,7 @@ const ForgotPasswordModal = ({ isOpen, onClose, onComplete }) => {
                   type="text"
                   value={otp}
                   onChange={(e) => setOtp(e.target.value.replace(/\D/g, ''))}
-                  className="w-full px-3 py-3 rounded-lg border-0 outline-0 bg-gray-200 focus:bg-white focus:border focus:border-primary text-black text-xs text-center tracking-widest transition-all"
+                  className="w-full px-3 py-3 rounded-lg border border-gray-300 bg-white focus:border-primary focus:ring-2 focus:ring-primary/20 text-gray-900 text-xs text-center tracking-widest transition-all outline-none"
                   placeholder="Enter 4-digit code"
                   maxLength="4"
                   disabled={loading}
@@ -165,7 +162,7 @@ const ForgotPasswordModal = ({ isOpen, onClose, onComplete }) => {
                   type={showPassword ? "text" : "password"}
                   value={newPassword}
                   onChange={(e) => setNewPassword(e.target.value)}
-                  className="w-full pl-10 pr-10 py-3 rounded-lg border-0 outline-0 bg-gray-200 focus:bg-white focus:border focus:border-primary text-black text-xs transition-all"
+                  className="w-full pl-10 pr-10 py-3 rounded-lg border border-gray-300 bg-white focus:border-primary focus:ring-2 focus:ring-primary/20 text-gray-900 text-xs transition-all outline-none"
                   placeholder="New Password"
                   disabled={loading}
                   required
@@ -173,7 +170,7 @@ const ForgotPasswordModal = ({ isOpen, onClose, onComplete }) => {
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
                 >
                   {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                 </button>
@@ -184,7 +181,7 @@ const ForgotPasswordModal = ({ isOpen, onClose, onComplete }) => {
                   type={showConfirmPassword ? "text" : "password"}
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
-                  className="w-full pl-10 pr-10 py-3 rounded-lg border-0 outline-0 bg-gray-200 focus:bg-white focus:border focus:border-primary text-black text-xs transition-all"
+                  className="w-full pl-10 pr-10 py-3 rounded-lg border border-gray-300 bg-white focus:border-primary focus:ring-2 focus:ring-primary/20 text-gray-900 text-xs transition-all outline-none"
                   placeholder="Confirm New Password"
                   disabled={loading}
                   required
@@ -192,7 +189,7 @@ const ForgotPasswordModal = ({ isOpen, onClose, onComplete }) => {
                 <button
                   type="button"
                   onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
                 >
                   {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                 </button>
@@ -201,7 +198,7 @@ const ForgotPasswordModal = ({ isOpen, onClose, onComplete }) => {
                 <button
                   type="button"
                   onClick={() => setStep(1)}
-                  className="flex-1 bg-gray-200 text-gray-700 font-medium py-3 rounded-lg hover:bg-gray-300 transition text-xs"
+                  className="flex-1 bg-gray-100 text-gray-700 font-medium py-3 rounded-lg hover:bg-gray-200 transition-colors text-xs disabled:opacity-50"
                   disabled={loading}
                 >
                   Back
@@ -209,7 +206,7 @@ const ForgotPasswordModal = ({ isOpen, onClose, onComplete }) => {
                 <button
                   type="submit"
                   disabled={loading}
-                  className="flex-1 bg-primary text-secondary font-medium py-3 rounded-lg transition disabled:opacity-50 text-xs"
+                  className="flex-1 bg-primary text-secondary font-medium py-3 rounded-lg hover:bg-primary/90 transition-colors text-xs disabled:opacity-50"
                 >
                   {loading ? 'Resetting...' : 'Reset Password'}
                 </button>
@@ -309,360 +306,325 @@ const Login = () => {
         }
       `}</style>
 
-      <div className="min-h-screen w-full hidden xl:flex items-center justify-center bg-gray-100">
-        <div className="h-screen w-screen flex overflow-hidden bg-white">
-          
-          <div className="w-1/2 relative overflow-hidden">
-            <div 
-              className="absolute inset-0 bg-cover bg-center bg-no-repeat"
-              style={{ backgroundImage: `url(${assets.banner})` }}
-            />
-            
-            <div className="absolute inset-0 bg-black/40"></div>
-          </div>
-
-          <div className="w-1/2 bg-white flex flex-col h-full">
-            <div className="flex-1 flex items-center justify-center">
-              <div className="w-full max-w-sm px-8">
-                <div className="flex-shrink-0 mb-8">
-                  <div className="flex justify-center mb-6">
-                    <img
-                      src={assets.MainLogo}
-                      alt="Social Gems"
-                      className="h-12 w-fit object-contain"
-                    />
-                  </div>
-                  
-                  <div className="text-center">
-                    <h1 className="text-2xl font-semibold text-gray-900 mb-2">
-                      Welcome Back
-                    </h1>
-                    <p className="text-gray-600 text-xs">
-                      Sign in to your account
-                    </p>
-                  </div>
+      {/* Desktop Layout */}
+      <div className="h-[100dvh] flex flex-col md:flex-row w-[100dvw] bg-white">
+        {/* Left column: sign-in form */}
+        <section className="flex-1 flex items-center justify-center p-8">
+          <div className="w-full max-w-sm">
+            <div className="flex flex-col gap-6">
+              {/* Header */}
+              <div className="text-center mb-2">
+                <div className="flex justify-center mb-6">
+                  <img
+                    src={assets.MainLogo}
+                    alt="Social Gems"
+                    className="h-12 w-fit object-contain"
+                  />
                 </div>
+                <h1 className="text-2xl font-semibold text-gray-900 mb-2">
+                  Welcome Back
+                </h1>
+                <p className="text-xs text-gray-600">
+                  Sign in to your account
+                </p>
+              </div>
 
-                <form
-                  className="flex flex-col gap-5"
-                  onSubmit={handleLogin}
-                  noValidate
-                >
-                  <div>
-                    <label htmlFor="email" className="block text-xs font-medium text-gray-700 mb-2">
-                      Email address
-                    </label>
+              {/* Login Form */}
+              <form className="space-y-4" onSubmit={handleLogin} noValidate>
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-2">
+                    Email Address
+                  </label>
+                  <div className="relative">
+                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
                     <input
                       type="email"
-                      id="email"
                       placeholder="agency@socialgems.me"
-                      className={`w-full px-4 py-3 rounded-lg border-0 outline-0 bg-gray-200 focus:bg-white focus:border focus:border-primary text-black text-xs transition-all ${
-                        emailError ? "border-red-500" : ""
+                      className={`w-full pl-10 pr-3 py-3 rounded-xl border border-gray-300 bg-white focus:border-primary focus:ring-2 focus:ring-primary/20 text-gray-900 text-xs transition-all outline-none ${
+                        emailError ? "border-red-500 focus:border-red-500 focus:ring-red-500/20" : ""
                       }`}
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
-                      aria-invalid={!!emailError}
-                      aria-describedby="email-error"
                       disabled={loading}
                     />
-                    {emailError && (
-                      <p id="email-error" className="text-red-500 text-xs mt-1">
-                        {emailError}
-                      </p>
-                    )}
                   </div>
+                  {emailError && (
+                    <p className="text-red-500 text-xs mt-1">
+                      {emailError}
+                    </p>
+                  )}
+                </div>
 
-                  <div>
-                    <label htmlFor="password" className="block text-xs font-medium text-gray-700 mb-2">
-                      Password
-                    </label>
-                    <div className="relative">
-                      <input
-                        type={showPassword ? "text" : "password"}
-                        id="password"
-                        placeholder="Enter your password"
-                        className={`w-full pr-10 py-3 px-4 rounded-lg border-0 outline-0 bg-gray-200 focus:bg-white focus:border focus:border-primary text-black text-xs transition-all ${
-                          passwordError ? "border-red-500" : ""
-                        }`}
-                        value={password}
-                        onChange={(e) => setPassword(e.target.value)}
-                        aria-invalid={!!passwordError}
-                        aria-describedby="password-error"
-                        disabled={loading}
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setShowPassword(!showPassword)}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                      >
-                        {showPassword ? (
-                          <EyeOff className="w-4 h-4" />
-                        ) : (
-                          <Eye className="w-4 h-4" />
-                        )}
-                      </button>
-                    </div>
-                    {passwordError && (
-                      <p id="password-error" className="text-red-500 text-xs mt-1">
-                        {passwordError}
-                      </p>
-                    )}
-                  </div>
-
-                  <div className="flex justify-end">
-                    <button 
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-2">
+                    Password
+                  </label>
+                  <div className="relative">
+                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
+                    <input
+                      type={showPassword ? "text" : "password"}
+                      placeholder="Enter your password"
+                      className={`w-full pl-10 pr-10 py-3 rounded-xl border border-gray-300 bg-white focus:border-primary focus:ring-2 focus:ring-primary/20 text-gray-900 text-xs transition-all outline-none ${
+                        passwordError ? "border-red-500 focus:border-red-500 focus:ring-red-500/20" : ""
+                      }`}
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      disabled={loading}
+                    />
+                    <button
                       type="button"
-                      className="text-xs text-secondary hover:underline font-medium"
-                      onClick={() => setShowForgotPassword(true)}
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
                     >
-                      Forgot password?
+                      {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                     </button>
                   </div>
+                  {passwordError && (
+                    <p className="text-red-500 text-xs mt-1">
+                      {passwordError}
+                    </p>
+                  )}
+                </div>
 
-                  <button
-                    type="submit"
-                    disabled={loading}
-                    className="w-full bg-primary text-secondary font-medium py-3 rounded-lg transition disabled:opacity-50 text-xs hover:bg-primary"
+                <div className="flex justify-end">
+                  <button 
+                    type="button"
+                    className="text-xs text-primary hover:underline font-medium transition-colors"
+                    onClick={() => setShowForgotPassword(true)}
                   >
-                    {loading ? 'Signing in...' : 'Sign in'}
+                    Forgot password?
                   </button>
-                </form>
-              </div>
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="w-full bg-primary text-secondary font-medium py-3 rounded-xl hover:bg-primary/90 transition-colors text-xs disabled:opacity-50"
+                >
+                  {loading ? 'Signing in...' : 'Sign in'}
+                </button>
+              </form>
             </div>
           </div>
-        </div>
+        </section>
+
+        {/* Right column: hero image */}
+        <section className="hidden md:block flex-1 relative p-4">
+          <div 
+            className="absolute inset-4 rounded-3xl bg-cover bg-center bg-no-repeat"
+            style={{ backgroundImage: `url(${assets.banner})` }}
+          />
+          <div className="absolute inset-4 rounded-3xl bg-black/10"></div>
+        </section>
       </div>
 
-      <div className="min-h-screen w-full lg:flex hidden xl:hidden bg-gray-50">
-        <div className="w-full h-screen flex shadow-xl">
-          
-          <div className="w-1/2 relative overflow-hidden">
-            <div 
-              className="absolute inset-0 bg-cover bg-center bg-no-repeat"
-              style={{ backgroundImage: `url(${assets.banner})` }}
-            />
+      {/* Tablet Layout */}
+      <div className="h-[100dvh] flex flex-col md:hidden bg-white">
+        <div className="flex-1 flex flex-col">
+          <div className="flex-shrink-0 p-6 pb-4">
+            <div className="flex justify-center mb-4">
+              <img
+                src={assets.LogoIcon}
+                alt="Social Gems"
+                className="h-10 w-10 object-contain"
+              />
+            </div>
             
-            <div className="absolute inset-0 bg-black/20"></div>
+            <div className="text-center">
+              <h1 className="text-xl font-semibold text-gray-900 mb-2">
+                Welcome Back
+              </h1>
+              <p className="text-xs text-gray-600">
+                Sign in to your account
+              </p>
+            </div>
           </div>
 
-          <div className="w-1/2 bg-white flex flex-col h-full">
-            <div className="flex-shrink-0 p-6 pb-4">
-              <div className="flex justify-center mb-4">
-                <img
-                  src={assets.LogoIcon}
-                  alt="Social Gems"
-                  className="h-10 w-10 object-contain"
-                />
-              </div>
-              
-              <div className="text-center">
-                <h1 className="text-xl font-semibold text-gray-900 mb-2">
-                  Welcome Back
-                </h1>
-                <p className="text-gray-600 text-xs">
-                  Sign in to your account
-                </p>
-              </div>
-            </div>
-
-            <div className="flex-1 overflow-y-auto px-6 scrollbar-none">
-              <form
-                className="flex flex-col gap-4"
-                onSubmit={handleLogin}
-                noValidate
-              >
-                <div>
-                  <label htmlFor="email-tablet" className="block text-xs font-medium text-gray-700 mb-2">
-                    Email address
-                  </label>
+          <div className="flex-1 overflow-y-auto px-6 scrollbar-none">
+            <form className="flex flex-col gap-4" onSubmit={handleLogin} noValidate>
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-2">
+                  Email Address
+                </label>
+                <div className="relative">
+                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
                   <input
                     type="email"
-                    id="email-tablet"
                     placeholder="agency@socialgems.me"
-                    className={`w-full px-4 py-3 rounded-lg border-0 outline-0 bg-gray-200 focus:bg-white focus:border focus:border-primary text-black text-xs transition-all ${
-                      emailError ? "border-red-500" : ""
+                    className={`w-full pl-10 pr-3 py-3 rounded-xl border border-gray-300 bg-white focus:border-primary focus:ring-2 focus:ring-primary/20 text-gray-900 text-xs transition-all outline-none ${
+                      emailError ? "border-red-500 focus:border-red-500 focus:ring-red-500/20" : ""
                     }`}
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    aria-invalid={!!emailError}
-                    aria-describedby="email-error-tablet"
                     disabled={loading}
                   />
-                  {emailError && (
-                    <p id="email-error-tablet" className="text-red-500 text-xs mt-1">
-                      {emailError}
-                    </p>
-                  )}
                 </div>
+                {emailError && (
+                  <p className="text-red-500 text-xs mt-1">
+                    {emailError}
+                  </p>
+                )}
+              </div>
 
-                <div>
-                  <label htmlFor="password-tablet" className="block text-xs font-medium text-gray-700 mb-2">
-                    Password
-                  </label>
-                  <div className="relative">
-                    <input
-                      type={showPassword ? "text" : "password"}
-                      id="password-tablet"
-                      placeholder="Enter your password"
-                      className={`w-full pr-10 py-3 px-4 rounded-lg border-0 outline-0 bg-gray-200 focus:bg-white focus:border focus:border-primary text-black text-xs transition-all ${
-                        passwordError ? "border-red-500" : ""
-                      }`}
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      aria-invalid={!!passwordError}
-                      aria-describedby="password-error-tablet"
-                      disabled={loading}
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowPassword(!showPassword)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                    >
-                      {showPassword ? (
-                        <EyeOff className="w-4 h-4" />
-                      ) : (
-                        <Eye className="w-4 h-4" />
-                      )}
-                    </button>
-                  </div>
-                  {passwordError && (
-                    <p id="password-error-tablet" className="text-red-500 text-xs mt-1">
-                      {passwordError}
-                    </p>
-                  )}
-                </div>
-
-                <div className="flex justify-end">
-                  <button 
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-2">
+                  Password
+                </label>
+                <div className="relative">
+                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
+                  <input
+                    type={showPassword ? "text" : "password"}
+                    placeholder="Enter your password"
+                    className={`w-full pl-10 pr-10 py-3 rounded-xl border border-gray-300 bg-white focus:border-primary focus:ring-2 focus:ring-primary/20 text-gray-900 text-xs transition-all outline-none ${
+                      passwordError ? "border-red-500 focus:border-red-500 focus:ring-red-500/20" : ""
+                    }`}
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    disabled={loading}
+                  />
+                  <button
                     type="button"
-                    className="text-xs text-primary hover:underline font-medium"
-                    onClick={() => setShowForgotPassword(true)}
-                    >
-                    Forgot password?
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+                  >
+                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                   </button>
                 </div>
+                {passwordError && (
+                  <p className="text-red-500 text-xs mt-1">
+                    {passwordError}
+                  </p>
+                )}
+              </div>
 
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="w-full bg-primary text-secondary font-medium py-3 rounded-lg transition disabled:opacity-50 text-xs hover:bg-primary"
+              <div className="flex justify-end">
+                <button 
+                  type="button"
+                  className="text-xs text-primary hover:underline font-medium transition-colors"
+                  onClick={() => setShowForgotPassword(true)}
                 >
-                  {loading ? 'Signing in...' : 'Sign in'}
+                  Forgot password?
                 </button>
-              </form>
-            </div>
+              </div>
+
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full bg-primary text-secondary font-medium py-3 rounded-xl hover:bg-primary/90 transition-colors text-xs disabled:opacity-50"
+              >
+                {loading ? 'Signing in...' : 'Sign in'}
+              </button>
+            </form>
           </div>
+        </div>
+
+        {/* Hero Image for Tablet */}
+        <div className="flex-1 relative min-h-[40vh]">
+          <div 
+            className="absolute inset-0 bg-cover bg-center bg-no-repeat"
+            style={{ backgroundImage: `url(${assets.banner})` }}
+          />
+          <div className="absolute inset-0 bg-black/10"></div>
         </div>
       </div>
 
-      <div className="min-h-screen w-full flex flex-col lg:hidden bg-gray-50">
-        <div className="w-full h-screen flex flex-col">
-          <div className="flex-shrink-0 bg-primary py-8 px-4 text-center">
-            <img
-              src={assets.MainLogo}
-              alt="Social Gems Logo"
-              className="h-16 w-auto object-contain mx-auto"
-            />
+      {/* Mobile Layout */}
+      <div className="min-h-screen w-full flex flex-col md:hidden bg-white">
+        <div className="flex-shrink-0 bg-primary py-8 px-4 text-center">
+          <img
+            src={assets.MainLogo}
+            alt="Social Gems Logo"
+            className="h-16 w-auto object-contain mx-auto"
+          />
+        </div>
+
+        <div className="flex-1 bg-white overflow-hidden flex flex-col">
+          <div className="flex-shrink-0 p-6 pb-4">
+            <div className="text-center">
+              <h2 className="text-xl font-semibold text-gray-900 mb-2">
+                Welcome Back
+              </h2>
+              <p className="text-xs text-gray-600">
+                Sign in to your account
+              </p>
+            </div>
           </div>
 
-          <div className="flex-1 bg-white overflow-hidden flex flex-col">
-            <div className="flex-shrink-0 p-6 pb-4">
-              <div className="text-center">
-                <h2 className="text-xl font-semibold text-gray-900 mb-2">
-                  Welcome Back
-                </h2>
-                <p className="text-gray-600 text-xs">
-                  Sign in to your account
-                </p>
-              </div>
-            </div>
-
-            <div className="flex-1 overflow-y-auto px-6 pb-6 scrollbar-none">
-              <form
-                className="flex flex-col gap-5 mb-8"
-                onSubmit={handleLogin}
-                noValidate
-              >
-                <div>
-                  <label htmlFor="email-mobile" className="block text-xs font-medium text-gray-700 mb-2">
-                    Email address
-                  </label>
+          <div className="flex-1 overflow-y-auto px-6 pb-6 scrollbar-none">
+            <form className="flex flex-col gap-5 mb-8" onSubmit={handleLogin} noValidate>
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-2">
+                  Email Address
+                </label>
+                <div className="relative">
+                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
                   <input
                     type="email"
-                    id="email-mobile"
                     placeholder="agency@socialgems.me"
-                    className={`w-full px-4 py-3 rounded-lg border-0 outline-0 bg-gray-200 focus:bg-white focus:border focus:border-primary text-black text-xs transition-all ${
-                      emailError ? "border-red-500" : ""
+                    className={`w-full pl-10 pr-3 py-3 rounded-xl border border-gray-300 bg-white focus:border-primary focus:ring-2 focus:ring-primary/20 text-gray-900 text-xs transition-all outline-none ${
+                      emailError ? "border-red-500 focus:border-red-500 focus:ring-red-500/20" : ""
                     }`}
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    aria-invalid={!!emailError}
-                    aria-describedby="email-error-mobile"
                     disabled={loading}
                   />
-                  {emailError && (
-                    <p id="email-error-mobile" className="text-red-500 text-xs mt-1">
-                      {emailError}
-                    </p>
-                  )}
                 </div>
+                {emailError && (
+                  <p className="text-red-500 text-xs mt-1">
+                    {emailError}
+                  </p>
+                )}
+              </div>
 
-                <div>
-                  <label htmlFor="password-mobile" className="block text-xs font-medium text-gray-700 mb-2">
-                    Password
-                  </label>
-                  <div className="relative">
-                    <input
-                      type={showPassword ? "text" : "password"}
-                      id="password-mobile"
-                      placeholder="Enter your password"
-                      className={`w-full pr-10 py-3 px-4 rounded-lg border-0 outline-0 bg-gray-200 focus:bg-white focus:border focus:border-primary text-black text-xs transition-all ${
-                        passwordError ? "border-red-500" : ""
-                      }`}
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      aria-invalid={!!passwordError}
-                      aria-describedby="password-error-mobile"
-                      disabled={loading}
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowPassword(!showPassword)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                    >
-                      {showPassword ? (
-                        <EyeOff className="w-4 h-4" />
-                      ) : (
-                        <Eye className="w-4 h-4" />
-                      )}
-                    </button>
-                  </div>
-                  {passwordError && (
-                    <p id="password-error-mobile" className="text-red-500 text-xs mt-1">
-                      {passwordError}
-                    </p>
-                  )}
-                </div>
-
-                <div className="flex justify-end">
-                  <button 
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-2">
+                  Password
+                </label>
+                <div className="relative">
+                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
+                  <input
+                    type={showPassword ? "text" : "password"}
+                    placeholder="Enter your password"
+                    className={`w-full pl-10 pr-10 py-3 rounded-xl border border-gray-300 bg-white focus:border-primary focus:ring-2 focus:ring-primary/20 text-gray-900 text-xs transition-all outline-none ${
+                      passwordError ? "border-red-500 focus:border-red-500 focus:ring-red-500/20" : ""
+                    }`}
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    disabled={loading}
+                  />
+                  <button
                     type="button"
-                    className="text-xs text-primary hover:underline font-medium"
-                    onClick={() => setShowForgotPassword(true)}
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
                   >
-                    Forgot password?
+                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                   </button>
                 </div>
+                {passwordError && (
+                  <p className="text-red-500 text-xs mt-1">
+                    {passwordError}
+                  </p>
+                )}
+              </div>
 
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="w-full bg-primary text-secondary font-medium py-3 rounded-lg transition disabled:opacity-50 text-xs"
+              <div className="flex justify-end">
+                <button 
+                  type="button"
+                  className="text-xs text-primary hover:underline font-medium transition-colors"
+                  onClick={() => setShowForgotPassword(true)}
                 >
-                  {loading ? 'Signing in...' : 'Sign in'}
+                  Forgot password?
                 </button>
-              </form>
-            </div>
+              </div>
+
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full bg-primary text-secondary font-medium py-3 rounded-xl hover:bg-primary/90 transition-colors text-xs disabled:opacity-50"
+              >
+                {loading ? 'Signing in...' : 'Sign in'}
+              </button>
+            </form>
           </div>
         </div>
       </div>

@@ -5,7 +5,7 @@ import Logo from './logo.svg';
 // Default avatar
 import DefaultAvatar from './logo.svg';
 
-import banner from './sg-login.jpg'
+import banner from './login.jpg'
 
 export const assets = {
   MainLogo,
