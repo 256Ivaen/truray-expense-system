@@ -4,13 +4,13 @@ import { useState, useEffect } from "react";
 import { 
   FileText, 
   TrendingUp,
-  DollarSign,
   Users,
   Folder,
   BarChart3,
   RefreshCw,
   Download
 } from "lucide-react";
+import { MdOutlineAttachMoney } from "react-icons/md";
 import { get } from "../utils/service";
 import { toast } from "sonner";
 import { StatCard } from "../components/shared/StatCard";
@@ -219,7 +219,7 @@ const ReportsPage = () => {
                   { id: 'summary', label: 'Financial Overview', icon: BarChart3 },
                   { id: 'projects', label: 'Project Summary', icon: Folder },
                   { id: 'users', label: 'User Spending', icon: Users },
-                  { id: 'financial', label: 'Financial Details', icon: DollarSign },
+                  { id: 'financial', label: 'Financial Details', icon: MdOutlineAttachMoney },
                 ].map((tab) => (
                   <button
                     key={tab.id}
@@ -247,7 +247,7 @@ const ReportsPage = () => {
                   {loading ? (
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                       {Array.from({ length: 6 }).map((_, i) => (
-                        <StatCard key={i} title="" value="" subtitle="" icon={DollarSign} loading />
+                        <StatCard key={i} title="" value="" subtitle="" icon={MdOutlineAttachMoney} loading />
                       ))}
                     </div>
                   ) : financialOverview ? (
@@ -257,7 +257,7 @@ const ReportsPage = () => {
                           title="Total Deposits"
                           value={formatCurrency(financialOverview.total_deposits)}
                           subtitle="All time deposits"
-                          icon={DollarSign}
+                          icon={MdOutlineAttachMoney}
                         />
                         <StatCard
                           title="Total Allocated"
@@ -281,7 +281,7 @@ const ReportsPage = () => {
                           title="Allocated Balance"
                           value={formatCurrency(financialOverview.allocated_balance)}
                           subtitle="Remaining from allocations"
-                          icon={DollarSign}
+                          icon={MdOutlineAttachMoney}
                         />
                       </div>
 

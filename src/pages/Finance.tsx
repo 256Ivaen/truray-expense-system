@@ -2,17 +2,15 @@
 
 import { useState, useEffect } from "react";
 import { 
-  DollarSign, 
   Search, 
   Filter,
   Plus,
   TrendingUp,
-  Wallet,
   CreditCard,
-  PiggyBank,
   X,
   Calendar
 } from "lucide-react";
+import { MdOutlineAttachMoney } from "react-icons/md";
 import { get, post, put, del } from "../utils/service";
 import { toast } from "sonner";
 import { DataTable } from "../components/shared/DataTable";
@@ -494,7 +492,7 @@ const FinancesPage = () => {
             title="Total Deposits"
             value={formatCurrency(financeStats.totalDeposits)}
             subtitle="All time deposits"
-            icon={DollarSign}
+            icon={MdOutlineAttachMoney}
             loading={loading}
           />
           <StatCard

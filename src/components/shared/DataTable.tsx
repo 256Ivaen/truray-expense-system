@@ -191,7 +191,7 @@ function ActionsDropdown({ isOpen, onClose, actions, loading, position }: Action
   return (
     <div
       ref={dropdownRef}
-      className="fixed z-[100] bg-white rounded-lg shadow-xl border border-gray-200 py-1 min-w-[160px]"
+      className="fixed z-[100] bg-white rounded-lg shadow-xl border border-secondary py-1 min-w-[160px]"
       style={{
         top: `${position.top}px`,
         left: `${position.left}px`,
@@ -726,20 +726,20 @@ export function DataTable({
       case "finances":
         return (
           <>
-            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            <th className="px-4 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">
               Description
             </th>
-            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            <th className="px-4 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">
               Project
             </th>
-            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            <th className="px-4 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">
               Amount
             </th>
-            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            <th className="px-4 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">
               Date
             </th>
             {showActions && (isAdmin || isFinanceManager) && (
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th className="px-4 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">
                 Actions
               </th>
             )}
@@ -760,7 +760,7 @@ export function DataTable({
         return (
           <tr
             key={user.id}
-            className="border-b border-gray-200 hover:bg-gray-50 transition-colors"
+            className="border-b border-secondary hover:bg-gray-50 transition-colors"
           >
             <td className="px-4 py-3 whitespace-nowrap">
               <div className="flex items-center">
@@ -833,7 +833,7 @@ export function DataTable({
         return (
           <tr
             key={project.id}
-            className="border-b border-gray-200 hover:bg-gray-50 transition-colors"
+            className="border-b border-secondary hover:bg-gray-50 transition-colors"
           >
             <td className="px-4 py-3 whitespace-nowrap text-xs font-medium text-gray-900">
               {project.project_code}
@@ -880,7 +880,7 @@ export function DataTable({
         return (
           <tr
             key={expense.id}
-            className="border-b border-gray-200 hover:bg-gray-50 transition-colors"
+            className="border-b border-secondary hover:bg-gray-50 transition-colors"
           >
             <td className="px-4 py-3 text-xs text-gray-900 max-w-xs truncate">
               {expense.description}
@@ -930,7 +930,7 @@ export function DataTable({
         return (
           <tr
             key={allocation.id}
-            className="border-b border-gray-200 hover:bg-gray-50 transition-colors"
+            className="border-b border-secondary hover:bg-gray-50 transition-colors"
           >
             <td className="px-4 py-3 whitespace-nowrap text-xs text-gray-900">
               <div className="flex flex-col">
@@ -988,7 +988,7 @@ export function DataTable({
         return (
           <tr
             key={finance.id}
-            className="border-b border-gray-200 hover:bg-gray-50 transition-colors"
+            className="border-b border-secondary hover:bg-gray-50 transition-colors"
           >
             <td className="px-4 py-3 text-xs text-gray-900">
               {finance.description || "Deposit"}
@@ -1044,7 +1044,7 @@ export function DataTable({
     };
 
     return (
-      <tr className="border-b border-gray-200">
+      <tr className="border-b border-secondary">
         {Array.from({ length: getSkeletonCols() }).map((_, index) => (
           <td key={index} className="px-4 py-3">
             <div className="animate-pulse bg-gray-200 rounded h-4"></div>
@@ -1081,7 +1081,7 @@ export function DataTable({
       {/* Table */}
       <div className="overflow-x-auto">
         <table className="min-w-full divide-y divide-gray-200">
-          <thead className="bg-gray-50">
+          <thead className="bg-secondary">
             <tr>{renderTableHeaders()}</tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
@@ -1134,7 +1134,7 @@ export function DataTable({
 
       {/* Professional Pagination */}
       {pagination && pagination.total > 0 && (
-        <div className="bg-white px-4 py-4 border-t border-gray-200">
+        <div className="bg-white px-4 py-4 border-t border-secondary">
           <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
             {/* Results Info */}
             <div className="flex items-center gap-4">
@@ -1151,7 +1151,7 @@ export function DataTable({
                 <select
                   value={pagination.per_page}
                   onChange={(e) => onPerPageChange(Number(e.target.value))}
-                  className="border border-gray-300 rounded-md px-3 py-1.5 text-xs focus:ring-2 focus:ring-primary focus:border-primary"
+                  className="border border-secondary rounded-md px-3 py-1.5 text-xs focus:ring-2 focus:ring-primary focus:border-primary"
                   disabled={loading || actionLoading}
                 >
                   <option value={5}>5 per page</option>
@@ -1169,7 +1169,7 @@ export function DataTable({
                 <button
                   onClick={() => onPageChange(1)}
                   disabled={!pagination.has_previous_page || loading || actionLoading}
-                  className="p-2 rounded-md border border-gray-300 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  className="p-2 rounded-md border border-secondary bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                   title="First page"
                 >
                   <ChevronsLeft className="h-4 w-4 text-gray-600" />
@@ -1179,7 +1179,7 @@ export function DataTable({
                 <button
                   onClick={() => onPageChange(pagination.current_page - 1)}
                   disabled={!pagination.has_previous_page || loading || actionLoading}
-                  className="p-2 rounded-md border border-gray-300 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  className="p-2 rounded-md border border-secondary bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                   title="Previous page"
                 >
                   <ChevronLeft className="h-4 w-4 text-gray-600" />
@@ -1200,7 +1200,7 @@ export function DataTable({
                         className={`min-w-[32px] px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
                           page === pagination.current_page
                             ? 'bg-primary text-black border border-primary'
-                            : 'border border-gray-300 bg-white hover:bg-gray-50 text-gray-700'
+                            : 'border border-secondary bg-white hover:bg-gray-50 text-gray-700'
                         } disabled:opacity-50 disabled:cursor-not-allowed`}
                       >
                         {page}
@@ -1210,7 +1210,7 @@ export function DataTable({
                 </div>
 
                 {/* Mobile Page Info */}
-                <div className="sm:hidden px-3 py-1.5 border border-gray-300 rounded-md bg-white text-xs font-medium">
+                <div className="sm:hidden px-3 py-1.5 border border-secondary rounded-md bg-white text-xs font-medium">
                   {pagination.current_page} / {pagination.total_pages}
                 </div>
 
@@ -1218,7 +1218,7 @@ export function DataTable({
                 <button
                   onClick={() => onPageChange(pagination.current_page + 1)}
                   disabled={!pagination.has_next_page || loading || actionLoading}
-                  className="p-2 rounded-md border border-gray-300 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  className="p-2 rounded-md border border-secondary bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                   title="Next page"
                 >
                   <ChevronRight className="h-4 w-4 text-gray-600" />
@@ -1228,7 +1228,7 @@ export function DataTable({
                 <button
                   onClick={() => onPageChange(pagination.total_pages)}
                   disabled={!pagination.has_next_page || loading || actionLoading}
-                  className="p-2 rounded-md border border-gray-300 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  className="p-2 rounded-md border border-secondary bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                   title="Last page"
                 >
                   <ChevronsRight className="h-4 w-4 text-gray-600" />

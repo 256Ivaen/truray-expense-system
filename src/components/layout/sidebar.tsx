@@ -9,8 +9,12 @@ import {
   FiSettings,
 } from 'react-icons/fi'
 import { ChevronLeft, X, LogOut } from 'react-feather'
-import { Building2, BarChart3, Megaphone, DollarSign, PieChart, Wallet, User } from "lucide-react"
+import { Building2, User } from "lucide-react"
+import { TbReportAnalytics } from "react-icons/tb";
+import { GiMoneyStack } from "react-icons/gi";
 import { LuLayoutDashboard } from "react-icons/lu"
+import { TbSubtask } from "react-icons/tb";
+import { MdOutlineAttachMoney } from "react-icons/md";
 import { logout, getCurrentUser } from '../../utils/service.js'
 
 const Sidebar = ({ 
@@ -86,27 +90,25 @@ const Sidebar = ({
         title: 'Finance',
         path: '/finance',
         section: 'finance',
-        icon: <DollarSign className="h-4 w-4" />,
+        icon: <MdOutlineAttachMoney className="h-4 w-4" />,
         roles: ['admin', 'finance_manager']
       })
     }
 
-    if (currentUserRole === 'admin') {
       baseNav.push({
         title: 'Allocations',
         path: '/allocations',
         section: 'allocations',
-        icon: <PieChart className="h-4 w-4" />,
+        icon: <TbSubtask className="h-4 w-4" />,
         roles: ['admin', 'finance_manager', 'user']
       })
-    }
 
     // Expenses section - All roles can access
     baseNav.push({
       title: 'Expenses',
       path: '/expenses',
       section: 'expenses',
-      icon: <Wallet className="h-4 w-4" />,
+      icon: <GiMoneyStack className="h-4 w-4" />,
       roles: ['admin', 'finance_manager', 'user']
     })
 
@@ -116,7 +118,7 @@ const Sidebar = ({
         title: 'Reports',
         path: '/reports',
         section: 'reports',
-        icon: <BarChart3 className="h-4 w-4" />,
+        icon: <TbReportAnalytics className="h-4 w-4" />,
         roles: ['admin', 'finance_manager']
       })
     }
@@ -193,7 +195,7 @@ const Sidebar = ({
 
   return (
     <aside className={`
-      bg-white text-gray-700 fixed left-0 top-0 bottom-0 
+      bg-secondary text-gray-700 fixed left-0 top-0 bottom-0 
       ${isOpen ? 'w-64' : (isMobile ? '-translate-x-full w-64' : 'w-16')} 
       transition-all duration-300 shadow-lg border-r border-gray-200 flex flex-col z-40
       ${isMobile ? 'md:translate-x-0' : ''}
@@ -209,8 +211,8 @@ const Sidebar = ({
               className="flex items-center gap-3"
             >
               <div className="flex items-center gap-2">
-                <User className="h-5 w-5 text-gray-700" />
-                <span className="text-sm font-medium text-gray-900">
+                <User className="h-5 w-5 text-primary" />
+                <span className="text-sm font-medium text-white">
                   Hello {currentUser.firstName}
                 </span>
               </div>
@@ -223,7 +225,7 @@ const Sidebar = ({
               exit={{ opacity: 0, scale: 0.8 }}
               className="flex items-center justify-center"
             >
-              <User className="h-5 w-5 text-gray-700" />
+              <User className="h-5 w-5 text-primary" />
             </motion.div>
           )}
         </AnimatePresence>
@@ -231,14 +233,14 @@ const Sidebar = ({
         {isOpen && (
           <button
             onClick={() => toggleSidebar(false, true)}
-            className="p-2 rounded-lg text-gray-500 hover:bg-gray-100 transition-colors"
+            className="p-2 rounded-lg text-primary hover:bg-primary/10 transition-colors"
           >
             {isMobile ? <X size={16} /> : <ChevronLeft size={16} />}
           </button>
         )}
       </div>
 
-      <nav className="flex-1 py-4 px-3 space-y-1 overflow-y-auto">
+      <nav className="flex-1 py-4 px-3 space-y-1 overflow-y-auto bg-secondary">
         {filteredNavData.map((item, index) => (
           <div key={item.title} className="space-y-1">
             <div className="relative group">
@@ -246,10 +248,10 @@ const Sidebar = ({
                 onClick={() => handleNavClick(item)}
                 className={`w-full flex items-center ${isOpen ? 'px-3' : 'justify-center px-2'} py-2.5 rounded-lg transition-all text-xs ${
                   isActiveRoute(item.path, item.section)
-                    ? 'bg-secondary text-white font-medium'
+                    ? 'bg-primary text-secondary font-medium'
                     : isParentActive(item)
                     ? 'bg-gray-100 text-gray-900'
-                    : 'text-gray-600 hover:bg-gray-50'
+                    : 'text-white hover:text-secondary hover:bg-primary'
                 }`}
               >
                 <span className="flex-shrink-0">{item.icon}</span>
@@ -280,12 +282,12 @@ const Sidebar = ({
       </nav>
 
       {/* Logout Button in Footer */}
-      <div className="border-t border-gray-200 p-3">
+      <div className="border-t border-primary p-3 bg-secondary">
         <button
           onClick={handleLogout}
           className={`w-full flex items-center ${
             isOpen ? 'px-3 justify-start' : 'justify-center px-2'
-          } py-2.5 rounded-lg text-xs text-red-600 hover:bg-red-50 transition-all`}
+          } py-2.5 rounded-lg text-xs text-primary hover:bg-red-50 transition-all`}
         >
           <LogOut size={16} className="flex-shrink-0" />
           {isOpen && <span className="ml-3 font-medium">Sign Out</span>}

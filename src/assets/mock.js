@@ -336,7 +336,7 @@ export const influencerCountries = [
 ];
 
 export const mockAuthUser = {
-  email: "agency@socialgems.me",
+  email: "email@truray.com",
   password: "agency@2025",
   username: "Agency Admin",
   role: "agency"
@@ -481,7 +481,7 @@ export const mockGroupMembers = {
       user_id: "user_1",
       first_name: "Agency",
       last_name: "Admin",
-      email: "agency@socialgems.me",
+      email: "email@truray.com",
       profile_pic: null,
       role: "admin",
       joined_at: "2024-01-15T10:30:00Z"
@@ -501,7 +501,7 @@ export const mockGroupMembers = {
       user_id: "user_1",
       first_name: "Agency",
       last_name: "Admin",
-      email: "agency@socialgems.me",
+      email: "email@truray.com",
       profile_pic: null,
       role: "member",
       joined_at: "2024-02-20T14:15:00Z"
@@ -521,7 +521,7 @@ export const mockGroupMembers = {
       user_id: "user_1",
       first_name: "Agency",
       last_name: "Admin",
-      email: "agency@socialgems.me",
+      email: "email@truray.com",
       profile_pic: null,
       role: "admin",
       joined_at: "2024-03-10T09:00:00Z"

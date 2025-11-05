@@ -121,7 +121,7 @@ const SettingsPage = () => {
       }
 
       // Note: Adjust this endpoint based on your backend API
-      const response = await post('/auth/change-password', {
+      const response = await post('/auth/reset-password', {
         current_password: passwordData.current_password,
         new_password: passwordData.new_password,
       });
@@ -201,7 +201,7 @@ const SettingsPage = () => {
                 {[
                   { id: 'profile', label: 'Profile', icon: User },
                   { id: 'security', label: 'Security', icon: Lock },
-                  { id: 'notifications', label: 'Notifications', icon: Bell },
+                  // { id: 'notifications', label: 'Notifications', icon: Bell },
                   { id: 'system', label: 'System', icon: SettingsIcon },
                 ].map((tab) => (
                   <button
@@ -226,7 +226,7 @@ const SettingsPage = () => {
             <div className="p-6">
               {/* Profile Tab */}
               {activeTab === 'profile' && (
-                <form onSubmit={handleProfileUpdate} className="space-y-6 max-w-2xl">
+                <form onSubmit={handleProfileUpdate} className="space-y-6 max-w-7xl">
                   <div>
                     <h3 className="text-sm font-semibold text-gray-900 mb-4">Personal Information</h3>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -292,7 +292,7 @@ const SettingsPage = () => {
 
               {/* Security Tab */}
               {activeTab === 'security' && (
-                <form onSubmit={handlePasswordUpdate} className="space-y-6 max-w-2xl">
+                <form onSubmit={handlePasswordUpdate} className="space-y-6 max-w-7xl">
                   <div>
                     <h3 className="text-sm font-semibold text-gray-900 mb-4">Change Password</h3>
                     <div className="space-y-4">
@@ -373,8 +373,8 @@ const SettingsPage = () => {
               )}
 
               {/* Notifications Tab */}
-              {activeTab === 'notifications' && (
-                <div className="space-y-6 max-w-2xl">
+              {/* {activeTab === 'notifications' && (
+                <div className="space-y-6 max-w-7xl">
                   <div>
                     <h3 className="text-sm font-semibold text-gray-900 mb-4">Notification Preferences</h3>
                     <div className="space-y-4">
@@ -410,11 +410,11 @@ const SettingsPage = () => {
                     {saving ? 'Saving...' : 'Save Preferences'}
                   </button>
                 </div>
-              )}
+              )} */}
 
               {/* System Tab */}
               {activeTab === 'system' && (
-                <div className="space-y-6 max-w-2xl">
+                <div className="space-y-6 max-w-7xl">
                   <div>
                     <h3 className="text-sm font-semibold text-gray-900 mb-4">System Information</h3>
                     <div className="space-y-3">

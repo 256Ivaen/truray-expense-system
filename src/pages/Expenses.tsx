@@ -6,14 +6,11 @@ import {
   Search, 
   Filter,
   Plus,
-  CheckCircle,
-  XCircle,
-  DollarSign,
   Clock,
   TrendingUp,
   X,
-  Upload
 } from "lucide-react";
+import { MdOutlineAttachMoney } from "react-icons/md";
 import { get, post, put, del } from "../utils/service";
 import { toast } from "sonner";
 import { DataTable } from "../components/shared/DataTable";
@@ -733,7 +730,7 @@ const ExpensesPage = () => {
             title="Average Expense"
             value={formatCurrency(expenseStats.averageExpense)}
             subtitle="Per expense"
-            icon={DollarSign}
+            icon={MdOutlineAttachMoney}
             loading={loading}
           />
         </div>

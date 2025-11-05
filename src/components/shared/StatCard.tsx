@@ -23,23 +23,23 @@ export const StatCard = ({
   loading = false 
 }: StatCardProps) => {
   const cardClasses = color === "lime" 
-    ? "bg-lime-50 dark:bg-lime-900/30 border-lime-200 dark:border-lime-800"
-    : "bg-white border-gray-200";
+    ? "bg-secondary dark:bg-lime-900/30 border-lime-200 dark:border-lime-800"
+    : "bg-secondary border-gray-200";
 
   const textClasses = color === "lime"
     ? "text-lime-900 dark:text-lime-200"
-    : "text-gray-500";
+    : "text-white";
 
   const valueClasses = color === "lime"
     ? "text-lime-950 dark:text-lime-50"
-    : "text-gray-900";
+    : "text-primary";
 
   const iconClasses = color === "lime"
     ? "text-lime-900 dark:text-lime-200"
-    : "text-gray-400";
+    : "text-primary";
 
   return (
-    <div className={`rounded-xl border p-4 h-full overflow-hidden ${cardClasses}`}>
+    <div className={`rounded-xl border border-secondary/50 p-4 h-full overflow-hidden ${cardClasses}`}>
       <div className="p-2">
         <div className="flex items-center justify-between mb-4">
           <p className={`font-medium text-xs ${textClasses}`}>

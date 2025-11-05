@@ -5,23 +5,24 @@ import {
   TrendingUp, 
   Users, 
   Building2, 
-  DollarSign,
   PieChart,
   Wallet,
   AlertTriangle,
   RefreshCw,
   FolderOpen,
   CreditCard,
-  ArrowRight,
-  Zap
+  ArrowUp,
+  ArrowDown,
+  MoreVertical,
+  Receipt,
+  Calendar
 } from "lucide-react";
+import { MdOutlineAttachMoney } from "react-icons/md";
 import { get, getCurrentUser } from "../../utils/service.js";
-import {
-  ChartContainer,
-  ChartTooltip,
-  ChartTooltipContent,
-} from "@/components/ui/chart";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer } from "recharts";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer, LineChart, Line, Tooltip } from "recharts";
+import * as React from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import { cn } from "@/lib/utils";
 
 interface DashboardProps {
   activeSection: string;
@@ -56,13 +57,7 @@ interface AdminDashboardData {
     created_at: string;
     updated_at: string;
   }>;
-  pending_expenses: Array<{
-    id: string;
-    amount: number;
-    description: string;
-    status: string;
-    project_name: string;
-  }>;
+  pending_expenses: Array<any>;
   recent_allocations: Array<{
     id: string;
     amount: string;
@@ -79,12 +74,14 @@ interface AdminDashboardData {
     id: string;
     first_name: string;
     last_name: string;
-    total_spent: number;
+    email: string;
+    total_spent: string;
+    expense_count: number;
   }>;
   monthly_spending: Array<{
     month: string;
     month_name: string;
-    total: number;
+    total: string;
   }>;
 }
 
@@ -106,7 +103,15 @@ interface UserDashboardData {
     end_date: string;
     assigned_at: string;
   }>;
-  recent_expenses: Array<any>;
+  recent_expenses: Array<{
+    id: string;
+    amount: string;
+    description: string;
+    status: string;
+    spent_at: string;
+    project_name: string;
+    project_code: string;
+  }>;
   recent_allocations: Array<{
     id: string;
     amount: string;
@@ -119,11 +124,182 @@ interface UserDashboardData {
   monthly_expenses: Array<{
     month: string;
     month_name: string;
-    total: number;
+    total: string;
   }>;
 }
 
 type DashboardData = AdminDashboardData | UserDashboardData | null;
+
+// Donut Chart Component
+export interface DonutChartSegment {
+  value: number;
+  color: string;
+  label: string;
+  [key: string]: any;
+}
+
+interface DonutChartProps extends React.HTMLAttributes<HTMLDivElement> {
+  data: DonutChartSegment[];
+  totalValue?: number;
+  size?: number;
+  strokeWidth?: number;
+  animationDuration?: number;
+  animationDelayPerSegment?: number;
+  highlightOnHover?: boolean;
+  centerContent?: React.ReactNode;
+  onSegmentHover?: (segment: DonutChartSegment | null) => void;
+}
+
+const DonutChart = React.forwardRef<HTMLDivElement, DonutChartProps>(
+  (
+    {
+      data,
+      totalValue: propTotalValue,
+      size = 200,
+      strokeWidth = 20,
+      animationDuration = 1,
+      animationDelayPerSegment = 0.05,
+      highlightOnHover = true,
+      centerContent,
+      onSegmentHover,
+      className,
+      ...props
+    },
+    ref
+  ) => {
+    const [hoveredSegment, setHoveredSegment] =
+      React.useState<DonutChartSegment | null>(null);
+
+    const internalTotalValue = React.useMemo(
+      () =>
+        propTotalValue || data.reduce((sum, segment) => sum + segment.value, 0),
+      [data, propTotalValue]
+    );
+
+    const radius = size / 2 - strokeWidth / 2;
+    const circumference = 2 * Math.PI * radius;
+    let cumulativePercentage = 0;
+
+    React.useEffect(() => {
+      onSegmentHover?.(hoveredSegment);
+    }, [hoveredSegment, onSegmentHover]);
+
+    const handleMouseLeave = () => {
+      setHoveredSegment(null);
+    };
+
+    return (
+      <div
+        ref={ref}
+        className={cn("relative flex items-center justify-center", className)}
+        style={{ width: size, height: size }}
+        onMouseLeave={handleMouseLeave}
+        {...props}
+      >
+        <svg
+          width={size}
+          height={size}
+          viewBox={`0 0 ${size} ${size}`}
+          className="overflow-visible -rotate-90"
+        >
+          <circle
+            cx={size / 2}
+            cy={size / 2}
+            r={radius}
+            fill="transparent"
+            stroke="#f1f5f9"
+            strokeWidth={strokeWidth}
+          />
+          
+          <AnimatePresence>
+            {data.map((segment, index) => {
+              if (segment.value === 0) return null;
+
+              const percentage =
+                internalTotalValue === 0
+                  ? 0
+                  : (segment.value / internalTotalValue) * 100;
+              
+              const strokeDasharray = `${(percentage / 100) * circumference} ${circumference}`;
+              const strokeDashoffset = (cumulativePercentage / 100) * circumference;
+              
+              const isActive = hoveredSegment?.label === segment.label;
+              
+              cumulativePercentage += percentage;
+
+              return (
+                <motion.circle
+                  key={segment.label || index}
+                  cx={size / 2}
+                  cy={size / 2}
+                  r={radius}
+                  fill="transparent"
+                  stroke={segment.color}
+                  strokeWidth={strokeWidth}
+                  strokeDasharray={strokeDasharray}
+                  strokeDashoffset={-strokeDashoffset}
+                  strokeLinecap="round"
+                  initial={{ opacity: 0, strokeDashoffset: circumference }}
+                  animate={{ 
+                    opacity: 1, 
+                    strokeDashoffset: -strokeDashoffset,
+                  }}
+                  transition={{
+                    opacity: { duration: 0.3, delay: index * animationDelayPerSegment },
+                    strokeDashoffset: {
+                      duration: animationDuration,
+                      delay: index * animationDelayPerSegment,
+                      ease: "easeOut",
+                    },
+                  }}
+                  className={cn(
+                    "origin-center transition-transform duration-200",
+                    highlightOnHover && "cursor-pointer"
+                  )}
+                  style={{
+                    filter: isActive
+                      ? `drop-shadow(0px 0px 6px ${segment.color}) brightness(1.1)`
+                      : 'none',
+                    transform: isActive ? 'scale(1.03)' : 'scale(1)',
+                    transition: "filter 0.2s ease-out, transform 0.2s ease-out",
+                  }}
+                  onMouseEnter={() => setHoveredSegment(segment)}
+                />
+              );
+            })}
+          </AnimatePresence>
+        </svg>
+
+        {centerContent && (
+          <div
+            className="absolute flex flex-col items-center justify-center pointer-events-none"
+            style={{
+              width: size - strokeWidth * 2.5,
+              height: size - strokeWidth * 2.5,
+            }}
+          >
+            {centerContent}
+          </div>
+        )}
+      </div>
+    );
+  }
+);
+
+DonutChart.displayName = "DonutChart";
+
+// Custom Tooltip Component
+const CustomTooltip = ({ active, payload }: any) => {
+  if (active && payload && payload.length) {
+    return (
+      <div className="bg-gray-900 text-white px-3 py-2 rounded-lg shadow-lg text-xs">
+        <p className="font-semibold">{payload[0].payload.month_name}</p>
+        <p className="text-primary">${(payload[0].value / 1000).toFixed(1)}k</p>
+      </div>
+    );
+  }
+  return null;
+};
 
 // Get current user role from localStorage
 const getCurrentUserRole = () => {
@@ -144,252 +320,6 @@ const SkeletonBox = ({ className }: { className?: string }) => (
   <div className={`animate-pulse bg-gray-200 rounded-lg ${className}`}></div>
 );
 
-// New Card Components with Marketing Dashboard Design
-const StatCard = ({ 
-  title, 
-  value, 
-  subtitle, 
-  icon: Icon, 
-  color = "default",
-  loading = false 
-}: { 
-  title: string;
-  value: string | number;
-  subtitle: string;
-  icon: any;
-  color?: "default" | "lime";
-  loading?: boolean;
-}) => {
-  const cardClasses = color === "lime" 
-    ? "bg-lime-50 dark:bg-lime-900/30 border-lime-200 dark:border-lime-800"
-    : "bg-white border-gray-200";
-
-  const textClasses = color === "lime"
-    ? "text-lime-900 dark:text-lime-200"
-    : "text-gray-500";
-
-  const valueClasses = color === "lime"
-    ? "text-lime-950 dark:text-lime-50"
-    : "text-gray-900";
-
-  const iconClasses = color === "lime"
-    ? "text-lime-900 dark:text-lime-200"
-    : "text-gray-400";
-
-  return (
-    <div className={`rounded-xl border p-4 h-full overflow-hidden ${cardClasses}`}>
-      <div className="p-2">
-        <div className="flex items-center justify-between mb-4">
-          <p className={`font-medium text-xs ${textClasses}`}>
-            {loading ? <SkeletonBox className="h-3 w-16" /> : title}
-          </p>
-          {loading ? (
-            <SkeletonBox className="h-4 w-4 rounded-full" />
-          ) : (
-            <Icon className={`w-4 h-4 ${iconClasses}`} />
-          )}
-        </div>
-        <div className="mb-2">
-          {loading ? (
-            <SkeletonBox className="h-6 w-12 mb-1" />
-          ) : (
-            <span className={`text-xl font-bold ${valueClasses}`}>
-              {value}
-            </span>
-          )}
-        </div>
-        {loading ? (
-          <SkeletonBox className="h-3 w-20" />
-        ) : (
-          <p className={`text-xs ${textClasses}`}>
-            {subtitle}
-          </p>
-        )}
-      </div>
-    </div>
-  );
-};
-
-const ProgressCard = ({ 
-  title, 
-  total, 
-  unit, 
-  stats, 
-  icon: Icon, 
-  loading = false 
-}: { 
-  title: string;
-  total: string | number;
-  unit: string;
-  stats: Array<{ label: string; value: number; color: string }>;
-  icon: any;
-  loading?: boolean;
-}) => {
-  return (
-    <div className="rounded-xl border border-gray-200 bg-white p-4 h-full overflow-hidden">
-      <div className="p-2">
-        <div className="flex items-center justify-between mb-4">
-          <p className="font-medium text-xs text-gray-500">
-            {loading ? <SkeletonBox className="h-3 w-16" /> : title}
-          </p>
-          {loading ? (
-            <SkeletonBox className="h-4 w-4 rounded-full" />
-          ) : (
-            <Icon className="w-4 h-4 text-gray-400" />
-          )}
-        </div>
-        <div className="mb-4">
-          {loading ? (
-            <SkeletonBox className="h-6 w-12 mb-1" />
-          ) : (
-            <span className="text-xl font-bold text-gray-900">
-              {total}
-            </span>
-          )}
-          {loading ? (
-            <SkeletonBox className="h-3 w-8 ml-1" />
-          ) : (
-            <span className="ml-1 text-xs text-gray-500">{unit}</span>
-          )}
-        </div>
-        
-        {/* Progress Bar */}
-        {loading ? (
-          <SkeletonBox className="w-full h-2 mb-2 rounded-full" />
-        ) : (
-          <div className="w-full h-2 mb-2 overflow-hidden rounded-full bg-gray-100 flex">
-            {stats.map((stat, index) => (
-              <div
-                key={index}
-                className={`h-full ${stat.color}`}
-                style={{ width: `${stat.value}%` }}
-              />
-            ))}
-          </div>
-        )}
-        
-        {/* Legend */}
-        <div className="flex items-center justify-between text-xs text-gray-500">
-          {loading ? (
-            Array.from({ length: 4 }).map((_, index) => (
-              <div key={index} className="flex items-center gap-1.5">
-                <SkeletonBox className="w-2 h-2 rounded-full" />
-                <SkeletonBox className="h-3 w-8" />
-              </div>
-            ))
-          ) : (
-            stats.map((stat) => (
-              <div key={stat.label} className="flex items-center gap-1.5">
-                <span className={`w-2 h-2 rounded-full ${stat.color}`}></span>
-                <span>{stat.label}</span>
-              </div>
-            ))
-          )}
-        </div>
-      </div>
-    </div>
-  );
-};
-
-const CTABanner = ({ 
-  text, 
-  buttonText, 
-  onButtonClick, 
-  loading = false 
-}: { 
-  text: string;
-  buttonText: string;
-  onButtonClick: () => void;
-  loading?: boolean;
-}) => {
-  return (
-    <div className="flex items-center justify-between p-4 rounded-xl bg-gray-50/60 border border-gray-200">
-      <div className="flex items-center gap-3">
-        <div className="p-2 rounded-full bg-white border border-gray-200">
-          <Zap className="w-4 h-4 text-gray-700" />
-        </div>
-        {loading ? (
-          <SkeletonBox className="h-4 w-48" />
-        ) : (
-          <p className="text-xs font-medium text-gray-600">{text}</p>
-        )}
-      </div>
-      {loading ? (
-        <SkeletonBox className="h-8 w-20 rounded-md" />
-      ) : (
-        <button 
-          onClick={onButtonClick}
-          className="shrink-0 flex items-center gap-2 px-3 py-2 bg-primary text-black text-xs font-medium rounded-lg hover:bg-primary/90 transition-colors"
-        >
-          {buttonText}
-          <ArrowRight className="w-3 h-3" />
-        </button>
-      )}
-    </div>
-  );
-};
-
-// Welcome Card Component
-const WelcomeCard = ({ userName, loading = false }: { userName: string; loading?: boolean }) => {
-  const getGreeting = () => {
-    const hour = new Date().getHours();
-    if (hour < 12) return "Good morning";
-    if (hour < 18) return "Good afternoon";
-    return "Good evening";
-  };
-
-  return (
-    <div className="rounded-xl border border-gray-200 bg-secondary p-6">
-      {loading ? (
-        <>
-          <SkeletonBox className="h-8 w-64 mb-2" />
-          <SkeletonBox className="h-4 w-48" />
-        </>
-      ) : (
-        <>
-          <h1 className="text-2xl sm:text-3xl font-bold text-white mb-2">
-            {getGreeting()}, {userName}
-          </h1>
-          <p className="text-xs text-white">
-            Here's what's happening with your projects today
-          </p>
-        </>
-      )}
-    </div>
-  );
-};
-
-// Skeleton components for different sections
-const ListItemSkeleton = () => (
-  <div className="bg-white rounded-lg border border-gray-200 p-3">
-    <div className="flex justify-between items-start">
-      <div className="flex-1">
-        <SkeletonBox className="h-4 w-3/4 mb-2" />
-        <SkeletonBox className="h-3 w-1/2 mb-1" />
-        <SkeletonBox className="h-3 w-2/3" />
-      </div>
-      <SkeletonBox className="h-6 w-16 rounded-lg" />
-    </div>
-  </div>
-);
-
-const BudgetUtilizationSkeleton = () => (
-  <div className="bg-white rounded-xl border border-gray-200 p-4">
-    <div className="border-b border-gray-100 pb-3 mb-4">
-      <SkeletonBox className="h-4 w-32 mb-1" />
-      <SkeletonBox className="h-3 w-24" />
-    </div>
-    <div className="p-2">
-      <div className="flex items-center justify-center">
-        <SkeletonBox className="h-16 w-16 rounded-full" />
-      </div>
-      <div className="mt-4 text-center">
-        <SkeletonBox className="h-3 w-40 mx-auto" />
-      </div>
-    </div>
-  </div>
-);
-
 function EnhancedDashboardContent({
   loading,
   onRefresh,
@@ -398,12 +328,12 @@ function EnhancedDashboardContent({
   const [dataLoading, setDataLoading] = useState(true);
   const [userRole, setUserRole] = useState<'admin' | 'finance_manager' | 'user'>('user');
   const [userName, setUserName] = useState<string>('User');
+  const [hoveredSegment, setHoveredSegment] = useState<string | null>(null);
 
   useEffect(() => {
     const role = getCurrentUserRole();
     setUserRole(role);
     
-    // Get user name
     const user = getCurrentUser();
     if (user && user.first_name) {
       setUserName(user.first_name);
@@ -431,31 +361,6 @@ function EnhancedDashboardContent({
     onRefresh?.();
   };
 
-  const handleCTAClick = () => {
-    // Navigate to appropriate page based on user role
-    if (userRole === 'user') {
-      window.location.href = '/projects';
-    } else {
-      window.location.href = '/reports';
-    }
-  };
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case "active":
-      case "approved":
-        return "bg-green-100 text-green-800";
-      case "completed":
-        return "bg-primary/20 text-primary";
-      case "pending":
-        return "bg-yellow-100 text-yellow-800";
-      case "planning":
-        return "bg-gray-100 text-gray-800";
-      default:
-        return "bg-gray-100 text-gray-800";
-    }
-  };
-
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
@@ -466,22 +371,45 @@ function EnhancedDashboardContent({
   };
 
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric'
-    });
+    const date = new Date(dateString);
+    const day = date.getDate();
+    const suffix = day === 1 ? 'st' : day === 2 ? 'nd' : day === 3 ? 'rd' : 'th';
+    return date.toLocaleDateString('en-US', {
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric'
+    }).replace(/\d+/, `${day}${suffix}`);
   };
 
   const isLoading = loading || dataLoading;
   const isAdmin = userRole === 'admin' || userRole === 'finance_manager';
 
-  // Chart config
-  const chartConfig = {
-    total: {
-      label: "Monthly Spend",
-      color: "#10b981",
-    },
+  // Calculate percentage changes based on monthly data
+  const calculatePercentageChange = (type: 'deposits' | 'spent' | 'allocated' | 'projects') => {
+    if (!dashboardData) return { percentage: 0, isPositive: true };
+
+    const monthlyData = isAdmin 
+      ? (dashboardData as AdminDashboardData)?.monthly_spending || []
+      : (dashboardData as UserDashboardData)?.monthly_expenses || [];
+
+    if (monthlyData.length < 2) return { percentage: 0, isPositive: true };
+
+    // Get current month and previous month
+    const sortedData = [...monthlyData].sort((a, b) => a.month.localeCompare(b.month));
+    const currentMonth = sortedData[sortedData.length - 1];
+    const previousMonth = sortedData[sortedData.length - 2];
+
+    const currentValue = parseFloat(currentMonth.total);
+    const previousValue = parseFloat(previousMonth.total);
+
+    if (previousValue === 0) return { percentage: 0, isPositive: true };
+
+    const change = ((currentValue - previousValue) / previousValue) * 100;
+    
+    return {
+      percentage: Math.abs(Math.round(change)),
+      isPositive: change > 0
+    };
   };
 
   // Prepare chart data
@@ -490,512 +418,482 @@ function EnhancedDashboardContent({
       ? (dashboardData as AdminDashboardData)?.monthly_spending || []
       : (dashboardData as UserDashboardData)?.monthly_expenses || [];
     
-    // Get last 4 months of data
-    return rawData.slice(-4);
-  };
-
-  // Admin Stats Grid
-  const renderAdminStats = () => {
-    const data = dashboardData as AdminDashboardData;
+    const now = new Date();
+    const currentMonth = now.getMonth();
+    const currentYear = now.getFullYear();
     
-    if (isLoading) {
-      return (
-        <>
-          <StatCard
-            title="Total Projects"
-            value="0"
-            subtitle="0 active"
-            icon={Building2}
-            loading={true}
-          />
-          <StatCard
-            title="Total Users"
-            value="0"
-            subtitle="System users"
-            icon={Users}
-            loading={true}
-          />
-          <StatCard
-            title="Total Deposits"
-            value="$0"
-            subtitle="Money deposited"
-            icon={DollarSign}
-            loading={true}
-          />
-          <StatCard
-            title="Total Allocated"
-            value="$0"
-            subtitle="Money allocated"
-            icon={TrendingUp}
-            loading={true}
-          />
-          <StatCard
-            title="Total Spent"
-            value="$0"
-            subtitle="Expenses paid"
-            icon={Wallet}
-            loading={true}
-          />
-          <StatCard
-            title="Pending Approvals"
-            value="0"
-            subtitle="Awaiting review"
-            icon={AlertTriangle}
-            loading={true}
-          />
-        </>
-      );
-    }
-
-    return (
-      <>
-        <StatCard
-          title="Total Projects"
-          value={data?.stats.total_projects || 0}
-          subtitle={`${data?.stats.active_projects || 0} active`}
-          icon={Building2}
-        />
-        <StatCard
-          title="Total Users"
-          value={data?.stats.total_users || 0}
-          subtitle="System users"
-          icon={Users}
-        />
-        <StatCard
-          title="Total Deposits"
-          value={formatCurrency(data?.stats.total_deposits || 0)}
-          subtitle="Money deposited"
-          icon={DollarSign}
-        />
-        <StatCard
-          title="Total Allocated"
-          value={formatCurrency(data?.stats.total_allocated || 0)}
-          subtitle="Money allocated"
-          icon={TrendingUp}
-        />
-        <StatCard
-          title="Total Spent"
-          value={formatCurrency(data?.stats.total_spent || 0)}
-          subtitle="Expenses paid"
-          icon={Wallet}
-        />
-        <StatCard
-          title="Pending Approvals"
-          value={data?.stats.pending_expenses || 0}
-          subtitle="Awaiting review"
-          icon={AlertTriangle}
-        />
-      </>
-    );
-  };
-
-  // User Stats Grid
-  const renderUserStats = () => {
-    const data = dashboardData as UserDashboardData;
+    const startDate = new Date(currentYear, currentMonth - 5, 1);
     
-    if (isLoading) {
-      return (
-        <>
-          <StatCard
-            title="My Projects"
-            value="0"
-            subtitle="Assigned to me"
-            icon={FolderOpen}
-            loading={true}
-          />
-          <StatCard
-            title="Total Allocated"
-            value="$0"
-            subtitle="My budget"
-            icon={CreditCard}
-            loading={true}
-          />
-          <StatCard
-            title="Total Spent"
-            value="$0"
-            subtitle="My expenses"
-            icon={Wallet}
-            loading={true}
-          />
-          <StatCard
-            title="Remaining Balance"
-            value="$0"
-            subtitle="Available to spend"
-            icon={DollarSign}
-            loading={true}
-          />
-          <StatCard
-            title="Pending Expenses"
-            value="0"
-            subtitle="Awaiting approval"
-            icon={AlertTriangle}
-            loading={true}
-          />
-          <ProgressCard
-            title="Budget Used"
-            total="0%"
-            unit=""
-            stats={[
-              { label: "Used", value: 0, color: "bg-secondary" },
-              { label: "Available", value: 100, color: "bg-gray-200" }
-            ]}
-            icon={PieChart}
-            loading={true}
-          />
-        </>
-      );
+    const filteredData = rawData.filter((item) => {
+      const [year, month] = item.month.split('-').map(Number);
+      const itemDate = new Date(year, month - 1, 1);
+      return itemDate >= startDate && itemDate <= now;
+    });
+    
+    if (filteredData.length < 6) {
+      const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      const paddedData = [];
+      
+      for (let i = 5; i >= 0; i--) {
+        const targetDate = new Date(currentYear, currentMonth - i, 1);
+        const targetYear = targetDate.getFullYear();
+        const targetMonth = targetDate.getMonth() + 1;
+        const targetMonthKey = `${targetYear}-${String(targetMonth).padStart(2, '0')}`;
+        
+        const existingData = filteredData.find(item => item.month === targetMonthKey);
+        
+        if (existingData) {
+          paddedData.push({
+            ...existingData,
+            total: parseFloat(existingData.total)
+          });
+        } else {
+          paddedData.push({
+            month: targetMonthKey,
+            month_name: monthNames[targetDate.getMonth()],
+            total: 0
+          });
+        }
+      }
+      
+      return paddedData;
     }
-
-    const budgetUsed = data?.stats.total_allocated ? 
-      Math.round((data.stats.total_spent / data.stats.total_allocated) * 100) : 0;
-    const budgetAvailable = 100 - budgetUsed;
-
-    return (
-      <>
-        <StatCard
-          title="My Projects"
-          value={data?.stats.my_projects || 0}
-          subtitle="Assigned to me"
-          icon={FolderOpen}
-        />
-        <StatCard
-          title="Total Allocated"
-          value={formatCurrency(data?.stats.total_allocated || 0)}
-          subtitle="My budget"
-          icon={CreditCard}
-        />
-        <StatCard
-          title="Total Spent"
-          value={formatCurrency(data?.stats.total_spent || 0)}
-          subtitle="My expenses"
-          icon={Wallet}
-        />
-        <StatCard
-          title="Remaining Balance"
-          value={formatCurrency(data?.stats.remaining_balance || 0)}
-          subtitle="Available to spend"
-          icon={DollarSign}
-        />
-        <StatCard
-          title="Pending Expenses"
-          value={data?.stats.pending_expenses || 0}
-          subtitle="Awaiting approval"
-          icon={AlertTriangle}
-        />
-        <ProgressCard
-          title="Budget Used"
-          total={`${budgetUsed}%`}
-          unit=""
-          stats={[
-            { label: "Used", value: budgetUsed, color: "bg-secondary" },
-            { label: "Available", value: budgetAvailable, color: "bg-gray-200" }
-          ]}
-          icon={PieChart}
-        />
-      </>
-    );
+    
+    return filteredData.slice(-6).map(item => ({
+      ...item,
+      total: parseFloat(item.total)
+    }));
   };
+
+  // Prepare donut chart data with DISTINCT colors
+  const financialData = React.useMemo(() => {
+    if (!dashboardData) return [];
+    
+    if (isAdmin) {
+      const data = dashboardData as AdminDashboardData;
+      const Total_Deposits = data.stats.total_deposits;
+      const expense = data.stats.total_spent;
+      const Balance = data.stats.total_allocated - data.stats.total_spent;
+
+      return [
+        { value: Total_Deposits, color: "#10b981", label: "Total Deposits" },
+        { value: expense, color: "#1e293b", label: "Expense" },
+        { value: Math.max(Balance, 0), color: "#22c55e", label: "Balance" },
+      ];
+    } else {
+      const data = dashboardData as UserDashboardData;
+      const allocated = data.stats.total_allocated;
+      const spent = data.stats.total_spent;
+      const remaining = data.stats.remaining_balance;
+
+      return [
+        { value: allocated, color: "#10b981", label: "Allocated" },
+        { value: spent, color: "#1e293b", label: "Spent" },
+        { value: remaining, color: "#22c55e", label: "Remaining" },
+      ];
+    }
+  }, [dashboardData, isAdmin]);
+
+  const totalFinancialValue = financialData.reduce((sum, d) => sum + d.value, 0);
+
+  const activeSegment = financialData.find(
+    (segment) => segment.label === hoveredSegment
+  );
+  
+  const displayValue = activeSegment?.value ?? totalFinancialValue;
+  const displayLabel = activeSegment?.label ?? "";
+  const displayPercentage = activeSegment 
+    ? Math.round((activeSegment.value / totalFinancialValue) * 100)
+    : 100;
+
+  // Get percentage changes
+  const depositsChange = calculatePercentageChange('deposits');
+  const spentChange = calculatePercentageChange('spent');
+  const allocatedChange = calculatePercentageChange('allocated');
 
   return (
-    <div className="bg-gray-50 min-h-screen">
-      <div className="p-4 sm:p-6 lg:p-8">
-        <div className="max-w-7xl mx-auto space-y-6">
-          {/* Header with Refresh */}
-          <div className="flex justify-end items-center">
+    <div className="bg-gray-50 min-h-screen p-6">
+      <div className="max-w-7xl mx-auto space-y-6">
+        {/* Top Stats Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          {/* Total Income/Deposits Card - WHITE */}
+          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 relative">
+            <button className="absolute top-4 right-4 text-gray-400 hover:text-gray-600">
+              <MoreVertical className="w-4 h-4" />
+            </button>
+            <div className="mb-4">
+              <div className="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center mb-4">
+                <MdOutlineAttachMoney className="w-6 h-6 text-gray-600" />
+              </div>
+            </div>
             {isLoading ? (
-              <SkeletonBox className="h-9 w-24 rounded-lg" />
+              <>
+                <SkeletonBox className="h-3 w-24 mb-2" />
+                <SkeletonBox className="h-6 w-32 mb-2" />
+                <SkeletonBox className="h-3 w-28" />
+              </>
             ) : (
-              <button
-                onClick={handleRefresh}
-                disabled={isLoading}
-                className="flex items-center gap-2 px-4 py-2 text-xs bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50"
-              >
-                <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
-                Refresh
-              </button>
+              <>
+                <p className="text-xs text-gray-500 uppercase mb-1">
+                  {isAdmin ? 'Total Deposits' : 'Total Allocated'}
+                </p>
+                <h3 className="text-2xl font-bold text-gray-900 mb-2">
+                  {isAdmin 
+                    ? formatCurrency((dashboardData as AdminDashboardData)?.stats.total_deposits || 0)
+                    : formatCurrency((dashboardData as UserDashboardData)?.stats.total_allocated || 0)
+                  }
+                </h3>
+                <div className={`flex items-center gap-1 text-xs ${depositsChange.isPositive ? 'text-green-600' : 'text-red-600'}`}>
+                  {depositsChange.isPositive ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />}
+                  <span>{depositsChange.percentage}% vs last 30 days</span>
+                </div>
+              </>
             )}
           </div>
 
-          {/* Welcome Card */}
-          <WelcomeCard userName={userName} loading={isLoading} />
-
-          {/* Top Stats - Responsive Grid */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {isAdmin ? renderAdminStats() : renderUserStats()}
+          {/* Total Expense/Spent Card - SECONDARY COLOR */}
+          <div className="bg-secondary rounded-xl shadow-sm p-6 relative text-white">
+            <button className="absolute top-4 right-4 text-white/80 hover:text-white">
+              <MoreVertical className="w-4 h-4" />
+            </button>
+            <div className="mb-4">
+              <div className="w-12 h-12 rounded-full bg-white/20 flex items-center justify-center mb-4">
+                <RefreshCw className="w-6 h-6 text-white" />
+              </div>
+            </div>
+            {isLoading ? (
+              <>
+                <SkeletonBox className="h-3 w-24 mb-2 bg-white/30" />
+                <SkeletonBox className="h-6 w-32 mb-2 bg-white/30" />
+                <SkeletonBox className="h-3 w-28 bg-white/30" />
+              </>
+            ) : (
+              <>
+                <p className="text-xs uppercase mb-1 text-white/90">
+                  Total Expense
+                </p>
+                <h3 className="text-2xl font-bold mb-2">
+                  {isAdmin 
+                    ? formatCurrency((dashboardData as AdminDashboardData)?.stats.total_spent || 0)
+                    : formatCurrency((dashboardData as UserDashboardData)?.stats.total_spent || 0)
+                  }
+                </h3>
+                <div className="flex items-center gap-1 text-xs text-white/90">
+                  {spentChange.isPositive ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />}
+                  <span>{spentChange.percentage}% vs last 30 days</span>
+                </div>
+              </>
+            )}
           </div>
 
-          {/* CTA Banner */}
-          <CTABanner
-            text={isAdmin ? "Manage your system and view detailed reports" : "Manage your activities and project expenses"}
-            buttonText="See All"
-            onButtonClick={handleCTAClick}
-            loading={isLoading}
-          />
+          {/* Total Savings/Remaining Card - WHITE */}
+          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 relative">
+            <button className="absolute top-4 right-4 text-gray-400 hover:text-gray-600">
+              <MoreVertical className="w-4 h-4" />
+            </button>
+            <div className="mb-4">
+              <div className="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center mb-4">
+                <PieChart className="w-6 h-6 text-gray-600" />
+              </div>
+            </div>
+            {isLoading ? (
+              <>
+                <SkeletonBox className="h-3 w-24 mb-2" />
+                <SkeletonBox className="h-6 w-32 mb-2" />
+                <SkeletonBox className="h-3 w-28" />
+              </>
+            ) : (
+              <>
+                <p className="text-xs text-gray-500 uppercase mb-1">
+                  {isAdmin ? 'Total Allocated' : 'Remaining Balance'}
+                </p>
+                <h3 className="text-2xl font-bold text-gray-900 mb-2">
+                  {isAdmin 
+                    ? formatCurrency((dashboardData as AdminDashboardData)?.stats.total_allocated || 0)
+                    : formatCurrency((dashboardData as UserDashboardData)?.stats.remaining_balance || 0)
+                  }
+                </h3>
+                <div className={`flex items-center gap-1 text-xs ${allocatedChange.isPositive ? 'text-green-600' : 'text-red-600'}`}>
+                  {allocatedChange.isPositive ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />}
+                  <span>{allocatedChange.percentage}% vs last 30 days</span>
+                </div>
+              </>
+            )}
+          </div>
 
-          {/* Monthly Spending Chart */}
-          <div className="bg-white rounded-xl border border-gray-200 p-4">
-            <div className="border-b border-gray-100 pb-3 mb-4">
-              {isLoading ? (
-                <>
-                  <SkeletonBox className="h-5 w-32 mb-1" />
-                  <SkeletonBox className="h-3 w-24" />
-                </>
-              ) : (
-                <>
-                  <h2 className="text-lg font-bold text-gray-900">
-                    Monthly Spending
-                  </h2>
-                  <p className="text-xs text-gray-500 mt-0.5">
-                    {isAdmin ? 'Total spending by month' : 'My spending by month'}
-                  </p>
-                </>
-              )}
+          {/* Most Spending/Projects Card - WHITE */}
+          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 relative">
+            <button className="absolute top-4 right-4 text-gray-400 hover:text-gray-600">
+              <MoreVertical className="w-4 h-4" />
+            </button>
+            <div className="mb-4">
+              <div className="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center mb-4">
+                <Building2 className="w-6 h-6 text-gray-600" />
+              </div>
+            </div>
+            {isLoading ? (
+              <>
+                <SkeletonBox className="h-3 w-24 mb-2" />
+                <SkeletonBox className="h-5 w-28 mb-2" />
+                <SkeletonBox className="h-3 w-20" />
+              </>
+            ) : (
+              <>
+                <p className="text-xs text-gray-500 uppercase mb-1">
+                  {isAdmin ? 'Total Projects' : 'My Projects'}
+                </p>
+                <h3 className="text-xl font-bold text-gray-900 mb-2">
+                  {isAdmin 
+                    ? (dashboardData as AdminDashboardData)?.stats.total_projects || 0
+                    : (dashboardData as UserDashboardData)?.stats.my_projects || 0
+                  }
+                </h3>
+                <p className="text-xs text-gray-500">
+                  {isAdmin 
+                    ? `${(dashboardData as AdminDashboardData)?.stats.active_projects || 0} active`
+                    : 'Active projects'
+                  }
+                </p>
+              </>
+            )}
+          </div>
+        </div>
+
+        {/* Main Content Grid */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Monthly Spending Bar Chart */}
+          <div className="lg:col-span-2 bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-xs font-bold text-gray-900">
+                {isAdmin ? 'Monthly Spending by Project' : 'Top 5 Expense Source'}
+              </h2>
+              <button className="text-gray-400 hover:text-gray-600">
+                <MoreVertical className="w-4 h-4" />
+              </button>
             </div>
             <div className="h-80">
               {isLoading ? (
-                <div className="w-full h-full flex items-center justify-center">
-                  <SkeletonBox className="w-full h-64" />
-                </div>
+                <SkeletonBox className="w-full h-full" />
               ) : (
-                <ChartContainer config={chartConfig} className="h-full w-full">
-                  <BarChart data={getChartData()} margin={{ top: 20, right: 30, left: 20, bottom: 20 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={getChartData()} margin={{ top: 20, right: 30, left: 0, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
                     <XAxis 
                       dataKey="month_name" 
-                      tick={{ fill: '#6b7280', fontSize: 12 }}
-                      axisLine={{ stroke: '#e5e7eb' }}
+                      tick={{ fill: '#94a3b8', fontSize: 11 }}
+                      axisLine={false}
+                      tickLine={false}
                     />
                     <YAxis 
-                      tick={{ fill: '#6b7280', fontSize: 12 }}
-                      axisLine={{ stroke: '#e5e7eb' }}
-                      tickFormatter={(value) => `$${(value / 1000).toFixed(0)}k`}
+                      tick={{ fill: '#94a3b8', fontSize: 11 }}
+                      axisLine={false}
+                      tickLine={false}
+                      tickFormatter={(value) => `${(value / 1000).toFixed(0)}k`}
                     />
-                    <ChartTooltip 
-                      content={
-                        <ChartTooltipContent 
-                          className="text-xs"
-                          formatter={(value) => formatCurrency(Number(value))}
-                        />
-                      } 
-                    />
+                    <Tooltip content={<CustomTooltip />} />
                     <Bar 
                       dataKey="total" 
-                      fill="var(--color-total)"
+                      fill="hsl(var(--secondary))"
                       radius={[8, 8, 0, 0]}
+                      maxBarSize={60}
                     />
                   </BarChart>
-                </ChartContainer>
+                </ResponsiveContainer>
               )}
             </div>
           </div>
 
-          {/* Main Content Grid */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Projects Section */}
-            <div className="bg-white rounded-xl border border-gray-200">
-              <div className="p-4 border-b border-gray-100">
-                {isLoading ? (
-                  <>
-                    <SkeletonBox className="h-5 w-32 mb-1" />
-                    <SkeletonBox className="h-3 w-24" />
-                  </>
-                ) : (
-                  <>
-                    <h2 className="text-lg font-bold text-gray-900">
-                      {isAdmin ? 'Recent Projects' : 'My Projects'}
-                    </h2>
-                    <p className="text-xs text-gray-500 mt-0.5">
-                      {isAdmin ? 'Latest project activities' : 'Projects assigned to me'}
-                    </p>
-                  </>
-                )}
-              </div>
-              <div className="p-4 space-y-3">
-                {isLoading ? (
-                  Array.from({ length: 3 }).map((_, index) => (
-                    <ListItemSkeleton key={index} />
-                  ))
-                ) : isAdmin ? (
-                  (dashboardData as AdminDashboardData)?.recent_projects && 
-                  (dashboardData as AdminDashboardData).recent_projects.length > 0 ? (
-                    (dashboardData as AdminDashboardData).recent_projects.map((project) => (
-                      <div key={project.id} className="bg-white rounded-lg border border-gray-200 p-3">
-                        <div className="flex justify-between items-start">
-                          <div className="flex-1">
-                            <h3 className="text-xs font-semibold text-gray-900 mb-1">
-                              {project.name}
-                            </h3>
-                            <p className="text-xs text-gray-500 mb-1">
-                              Code: {project.project_code}
-                            </p>
-                            <p className="text-xs text-gray-400">
-                              Created: {formatDate(project.created_at)}
-                            </p>
-                          </div>
-                          <span className={`px-2 py-1 text-xs font-medium rounded-lg ${getStatusColor(project.status)}`}>
-                            {project.status}
-                          </span>
-                        </div>
-                      </div>
-                    ))
-                  ) : (
-                    <p className="text-xs text-gray-500 text-center py-6">No projects found</p>
-                  )
-                ) : (
-                  (dashboardData as UserDashboardData)?.my_projects && 
-                  (dashboardData as UserDashboardData).my_projects.length > 0 ? (
-                    (dashboardData as UserDashboardData).my_projects.map((project) => (
-                      <div key={project.id} className="bg-white rounded-lg border border-gray-200 p-3">
-                        <div className="flex justify-between items-start">
-                          <div className="flex-1">
-                            <h3 className="text-xs font-semibold text-gray-900 mb-1">
-                              {project.name}
-                            </h3>
-                            <p className="text-xs text-gray-500 mb-1">
-                              Code: {project.project_code}
-                            </p>
-                            <p className="text-xs text-gray-400">
-                              Assigned: {formatDate(project.assigned_at)}
-                            </p>
-                          </div>
-                          <span className={`px-2 py-1 text-xs font-medium rounded-lg ${getStatusColor(project.status)}`}>
-                            {project.status}
-                          </span>
-                        </div>
-                      </div>
-                    ))
-                  ) : (
-                    <p className="text-xs text-gray-500 text-center py-6">No projects assigned</p>
-                  )
-                )}
-              </div>
+          {/* Recent Expenses / Allocations */}
+          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-xs font-bold text-gray-900">
+                {isAdmin ? 'Recent Allocations' : 'Recent Expenses'}
+              </h2>
+              <button className="text-gray-400 hover:text-gray-600">
+                <MoreVertical className="w-4 h-4" />
+              </button>
             </div>
-
-            {/* Allocations Section */}
-            <div className="bg-white rounded-xl border border-gray-200">
-              <div className="p-4 border-b border-gray-100">
-                {isLoading ? (
-                  <>
-                    <SkeletonBox className="h-5 w-32 mb-1" />
-                    <SkeletonBox className="h-3 w-24" />
-                  </>
-                ) : (
-                  <>
-                    <h2 className="text-lg font-bold text-gray-900">
-                      Recent Allocations
-                    </h2>
-                    <p className="text-xs text-gray-500 mt-0.5">
-                      {isAdmin ? 'Latest money allocations' : 'My recent allocations'}
-                    </p>
-                  </>
-                )}
-              </div>
-              <div className="p-4 space-y-3">
-                {isLoading ? (
-                  Array.from({ length: 2 }).map((_, index) => (
-                    <ListItemSkeleton key={index} />
-                  ))
-                ) : (
-                  dashboardData && 'recent_allocations' in dashboardData && 
-                  dashboardData.recent_allocations.length > 0 ? (
-                    dashboardData.recent_allocations.map((allocation: any) => (
-                      <div key={allocation.id} className="bg-white rounded-lg border border-gray-200 p-3">
-                        <div className="flex justify-between items-start">
-                          <div className="flex-1">
-                            <h3 className="text-xs font-semibold text-gray-900 mb-1">
-                              {allocation.description}
-                            </h3>
-                            <p className="text-xs text-gray-500 mb-1">
-                              Amount: {formatCurrency(parseFloat(allocation.amount))}
-                            </p>
-                            <p className="text-xs text-gray-500">
-                              Project: {allocation.project_name}
-                            </p>
-                            {isAdmin && allocation.first_name && (
-                              <p className="text-xs text-gray-400">
-                                User: {allocation.first_name} {allocation.last_name}
-                              </p>
-                            )}
-                          </div>
-                          <span className={`px-2 py-1 text-xs font-medium rounded-lg ${getStatusColor(allocation.status)}`}>
-                            {allocation.status}
-                          </span>
-                        </div>
-                      </div>
-                    ))
-                  ) : (
-                    <p className="text-xs text-gray-500 text-center py-6">No allocations found</p>
-                  )
-                )}
-              </div>
+            <div className="space-y-4">
+              {isLoading ? (
+                Array.from({ length: 4 }).map((_, i) => (
+                  <div key={i} className="flex items-start gap-3">
+                    <SkeletonBox className="w-1 h-12 rounded-full" />
+                    <div className="flex-1">
+                      <SkeletonBox className="h-3 w-24 mb-2" />
+                      <SkeletonBox className="h-2 w-32" />
+                    </div>
+                    <SkeletonBox className="h-3 w-12" />
+                  </div>
+                ))
+              ) : isAdmin ? (
+                (dashboardData as AdminDashboardData)?.recent_allocations?.slice(0, 4).map((allocation, index) => (
+                  <div key={allocation.id} className="flex items-start gap-3">
+                    <div className="flex-shrink-0 mt-1">
+                      <div className="w-2 h-2 rounded-full bg-secondary"></div>
+                      {index < 3 && <div className="w-0.5 h-8 bg-secondary mx-auto mt-1"></div>}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-semibold text-gray-900 truncate">
+                        {allocation.description}
+                      </p>
+                      <p className="text-xs text-gray-500">
+                        {formatDate(allocation.allocated_at)}
+                      </p>
+                    </div>
+                    <div className="text-xs font-semibold text-gray-900">
+                      {formatCurrency(parseFloat(allocation.amount))}
+                    </div>
+                  </div>
+                ))
+              ) : (
+                (dashboardData as UserDashboardData)?.recent_expenses?.slice(0, 4).map((expense, index) => (
+                  <div key={expense.id} className="flex items-start gap-3">
+                    <div className="flex-shrink-0 mt-1">
+                      <div className="w-2 h-2 rounded-full bg-secondary"></div>
+                      {index < 3 && <div className="w-0.5 h-8 bg-secondary mx-auto mt-1"></div>}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-semibold text-gray-900 truncate">
+                        {expense.description}
+                      </p>
+                      <p className="text-xs text-gray-500">
+                        {formatDate(expense.spent_at)}
+                      </p>
+                    </div>
+                    <div className="text-xs font-semibold text-gray-900">
+                      {formatCurrency(parseFloat(expense.amount))}
+                    </div>
+                  </div>
+                ))
+              )}
             </div>
           </div>
+        </div>
 
-          {/* Additional Sections for Admin */}
-          {isAdmin && !isLoading && (dashboardData as AdminDashboardData)?.top_spending_users && 
-           (dashboardData as AdminDashboardData).top_spending_users.length > 0 && (
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {/* Top Spending Users */}
-              <div className="bg-white rounded-xl border border-gray-200">
-                <div className="p-4 border-b border-gray-100">
-                  <h2 className="text-lg font-bold text-gray-900">
-                    Top Spending Users
-                  </h2>
-                  <p className="text-xs text-gray-500 mt-0.5">
-                    Highest expenses by user
-                  </p>
+        {/* Bottom Section */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Report Overview / Donut Chart */}
+          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-xs font-bold text-gray-900">Report Overview</h2>
+              <button className="text-gray-400 hover:text-gray-600">
+                <MoreVertical className="w-4 h-4" />
+              </button>
+            </div>
+            {isLoading ? (
+              <div className="flex items-center justify-center py-12">
+                <SkeletonBox className="w-48 h-48 rounded-full" />
+              </div>
+            ) : (
+              <div className="flex flex-col lg:flex-row items-center gap-8">
+                <div className="relative">
+                  <DonutChart
+                    data={financialData}
+                    size={180}
+                    strokeWidth={20}
+                    animationDuration={1}
+                    animationDelayPerSegment={0.1}
+                    highlightOnHover={true}
+                    onSegmentHover={(segment) => setHoveredSegment(segment?.label || null)}
+                    centerContent={
+                      <AnimatePresence mode="wait">
+                        <motion.div
+                          key={displayLabel || 'default'}
+                          initial={{ opacity: 0, scale: 0.9 }}
+                          animate={{ opacity: 1, scale: 1 }}
+                          exit={{ opacity: 0, scale: 0.9 }}
+                          transition={{ duration: 0.2 }}
+                          className="flex flex-col items-center justify-center text-center"
+                        >
+                          {displayLabel && (
+                            <p className="text-xl font-bold text-gray-900">
+                              {displayPercentage}%
+                            </p>
+                          )}
+                        </motion.div>
+                      </AnimatePresence>
+                    }
+                  />
                 </div>
-                <div className="p-4 space-y-3">
-                  {(dashboardData as AdminDashboardData).top_spending_users.map((user) => (
-                    <div key={user.id} className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
-                      <div>
-                        <p className="text-xs font-medium text-gray-900">
-                          {user.first_name} {user.last_name}
-                        </p>
+                <div className="space-y-4 flex-1">
+                  {financialData.map((segment) => (
+                    <div 
+                      key={segment.label}
+                      className={cn(
+                        "flex items-center justify-between p-2 rounded-lg transition-colors cursor-pointer",
+                        hoveredSegment === segment.label && "bg-gray-50"
+                      )}
+                      onMouseEnter={() => setHoveredSegment(segment.label)}
+                      onMouseLeave={() => setHoveredSegment(null)}
+                    >
+                      <div className="flex items-center gap-3">
+                        <div 
+                          className="w-3 h-3 rounded-full"
+                          style={{ backgroundColor: segment.color }}
+                        />
+                        <span className="text-xs font-medium text-gray-700">{segment.label}</span>
                       </div>
-                      <p className="text-xs font-semibold text-red-600">
-                        {formatCurrency(user.total_spent)}
-                      </p>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-bold text-gray-900">
+                          {formatCurrency(segment.value)}
+                        </span>
+                        <ArrowUp className="w-3 h-3 text-green-600" />
+                      </div>
                     </div>
                   ))}
                 </div>
               </div>
+            )}
+          </div>
 
-              {/* Budget Utilization */}
-              {isLoading ? (
-                <BudgetUtilizationSkeleton />
-              ) : (
-                <div className="bg-white rounded-xl border border-gray-200 p-4">
-                  <div className="border-b border-gray-100 pb-4 mb-4">
-                    <h2 className="text-lg font-bold text-gray-900">
-                      Budget Utilization
-                    </h2>
-                    <p className="text-xs text-gray-500 mt-0.5">
-                      Overall budget usage
-                    </p>
-                  </div>
-                  <div className="p-2">
-                    <div className="flex items-center justify-center">
-                      <div className="relative">
-                        <PieChart className="h-16 w-16 text-purple-500" />
-                        <div className="absolute inset-0 flex items-center justify-center">
-                          <span className="text-lg font-bold text-gray-900">
-                            {`${(dashboardData as AdminDashboardData)?.stats.budget_utilization || 0}%`}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                    <div className="mt-4 text-center">
-                      <p className="text-xs text-gray-600">
-                        {formatCurrency((dashboardData as AdminDashboardData)?.stats.total_spent || 0)} spent of{' '}
-                        {formatCurrency((dashboardData as AdminDashboardData)?.stats.total_deposits || 0)} deposited
-                      </p>
-                    </div>
-                  </div>
+          {/* Expense Activity / Line Chart */}
+          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-xs font-bold text-gray-900">Expense Activity</h2>
+              <div className="flex items-center gap-4">
+                <div className="flex items-center gap-2">
+                  <div className="w-2 h-2 rounded-full bg-secondary"></div>
+                  <span className="text-xs text-gray-500">Actual expense</span>
                 </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-2 h-2 rounded-full border-2 border-secondary bg-transparent"></div>
+                  <span className="text-xs text-gray-500">Projected expense</span>
+                </div>
+              </div>
+            </div>
+            <div className="h-64">
+              {isLoading ? (
+                <SkeletonBox className="w-full h-full" />
+              ) : (
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={getChartData()} margin={{ top: 5, right: 30, left: 0, bottom: 5 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                    <XAxis 
+                      dataKey="month_name" 
+                      tick={{ fill: '#94a3b8', fontSize: 11 }}
+                      axisLine={false}
+                      tickLine={false}
+                    />
+                    <YAxis 
+                      tick={{ fill: '#94a3b8', fontSize: 11 }}
+                      axisLine={false}
+                      tickLine={false}
+                      tickFormatter={(value) => `${(value / 1000).toFixed(0)}k`}
+                    />
+                    <Tooltip content={<CustomTooltip />} />
+                    <Line 
+                      type="monotone" 
+                      dataKey="total" 
+                      stroke="hsl(var(--secondary))" 
+                      strokeWidth={3}
+                      dot={{ fill: 'hsl(var(--secondary))', r: 5 }}
+                      activeDot={{ r: 7 }}
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
               )}
             </div>
-          )}
+          </div>
         </div>
       </div>
     </div>
@@ -1012,24 +910,5 @@ export function Dashboard({
   loading,
   onRefresh,
 }: DashboardProps) {
-  const renderContent = () => {
-    switch (activeSection) {
-      case "dashboard":
-        return (
-          <EnhancedDashboardContent
-            loading={loading}
-            onRefresh={onRefresh}
-          />
-        );
-      default:
-        return (
-          <EnhancedDashboardContent
-            loading={loading}
-            onRefresh={onRefresh}
-          />
-        );
-    }
-  };
-
-  return renderContent();
+  return <EnhancedDashboardContent loading={loading} onRefresh={onRefresh} />;
 }
