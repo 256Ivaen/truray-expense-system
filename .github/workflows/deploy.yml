@@ -53,9 +53,9 @@ jobs:
           username: ${{ secrets.SSH_USER }}
           password: ${{ secrets.SSH_PASSWORD }}
           port: ${{ secrets.SSH_PORT }}
-          source: "backend/*"
+          source: "backend/"
           target: "/home/${{ secrets.SSH_USER }}/domains/orange-ferret-922211.hostingersite.com/public_html/"
-          strip_components: 1
+          strip_components: 0
           overwrite: true
           
       - name: Setup Backend Permissions
@@ -78,7 +78,6 @@ jobs:
             chmod -R 775 storage public/uploads
             
             echo "Backend deployed successfully"
-
 
   deploy-frontend:
     runs-on: ubuntu-latest
@@ -122,6 +121,29 @@ jobs:
         if: steps.frontend-changes.outputs.changed == 'true'
         run: npm run build
 
+      - name: Find and verify build directory
+        if: steps.frontend-changes.outputs.changed == 'true'
+        run: |
+          echo "Checking for build directories..."
+          # Check for common build directories
+          if [ -d "build" ]; then
+            echo "Found 'build' directory"
+            ls -la build/
+            echo "BUILD_DIR=build" >> $GITHUB_ENV
+          elif [ -d "dist" ]; then
+            echo "Found 'dist' directory"
+            ls -la dist/
+            echo "BUILD_DIR=dist" >> $GITHUB_ENV
+          elif [ -d "out" ]; then
+            echo "Found 'out' directory"
+            ls -la out/
+            echo "BUILD_DIR=out" >> $GITHUB_ENV
+          else
+            echo "No build directory found! Available directories:"
+            ls -la
+            exit 1
+          fi
+
       - name: Deploy Frontend to Hostinger
         if: steps.frontend-changes.outputs.changed == 'true'
         uses: appleboy/scp-action@v0.1.7
@@ -130,9 +152,9 @@ jobs:
           username: ${{ secrets.SSH_USER }}
           password: ${{ secrets.SSH_PASSWORD }}
           port: ${{ secrets.SSH_PORT }}
-          source: "build/*"
+          source: "${{ env.BUILD_DIR }}/"
           target: "/home/${{ secrets.SSH_USER }}/domains/mediumturquoise-giraffe-679504.hostingersite.com/public_html/"
-          strip_components: 1
+          strip_components: 0
           overwrite: true
 
       - name: Confirm Frontend Deployment

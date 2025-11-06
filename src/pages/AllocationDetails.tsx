@@ -163,14 +163,6 @@ const AllocationDetailsPage = () => {
                   </h1>
 
                   <div className="flex items-center gap-2 flex-shrink-0">
-                    <span
-                      className={`inline-flex items-center gap-2 px-3 py-1 text-xs font-medium rounded-full capitalize ${getStatusColor(
-                        allocation.status
-                      )}`}
-                    >
-                      <CheckCircle className="h-4 w-4" />
-                      {allocation.status}
-                    </span>
                     <span className="text-xs text-gray-500">
                       Allocated {formatDate(allocation.allocated_at)}
                     </span>
@@ -180,7 +172,7 @@ const AllocationDetailsPage = () => {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {loading ? (
               <>
                 <StatCard
@@ -207,12 +199,6 @@ const AllocationDetailsPage = () => {
                   value={allocation.project_code || "N/A"}
                   subtitle={allocation.project_name || ""}
                   icon={Folder}
-                />
-                <StatCard
-                  title="Status"
-                  value={allocation.status.toUpperCase()}
-                  subtitle="Current status"
-                  icon={Clock}
                 />
                 <StatCard
                   title="Allocated By"

@@ -167,14 +167,6 @@ const ExpenseDetailsPage = () => {
                   </h1>
 
                   <div className="flex items-center gap-2 flex-shrink-0">
-                    <span
-                      className={`inline-flex items-center gap-2 px-3 py-1 text-xs font-medium rounded-full capitalize ${getStatusColor(
-                        expense.status
-                      )}`}
-                    >
-                      {getStatusIcon(expense.status)}
-                      {expense.status}
-                    </span>
                     <span className="text-xs text-gray-500">
                       Spent {formatDate(expense.spent_at)}
                     </span>
@@ -184,7 +176,7 @@ const ExpenseDetailsPage = () => {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {loading ? (
               <>
                 <StatCard
@@ -211,12 +203,6 @@ const ExpenseDetailsPage = () => {
                   value={expense.category || "N/A"}
                   subtitle="Expense type"
                   icon={Tag}
-                />
-                <StatCard
-                  title="Status"
-                  value={expense.status.toUpperCase()}
-                  subtitle="Current status"
-                  icon={Clock}
                 />
                 <StatCard
                   title="Submitted By"

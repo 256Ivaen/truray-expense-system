@@ -778,19 +778,12 @@ const ExpensesPage = () => {
           )}
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           <StatCard
             title="Total Expenses"
             value={formatCurrency(expenseStats.totalExpenses)}
             subtitle="All time total"
             icon={Receipt}
-            loading={loading}
-          />
-          <StatCard
-            title="Total Records"
-            value={expenseStats.totalRecords}
-            subtitle="Expense entries"
-            icon={TrendingUp}
             loading={loading}
           />
           <StatCard

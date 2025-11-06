@@ -731,19 +731,12 @@ const AllocationsPage = () => {
           )}
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           <StatCard
             title="Total Allocations"
             value={formatCurrency(allocationStats.totalAllocations)}
             subtitle="All time total"
             icon={Wallet}
-            loading={loading}
-          />
-          <StatCard
-            title="Total Records"
-            value={allocationStats.totalRecords}
-            subtitle="Allocation entries"
-            icon={TrendingUp}
             loading={loading}
           />
           <StatCard

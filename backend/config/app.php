@@ -8,4 +8,5 @@ return [
     'timezone' => $_ENV['APP_TIMEZONE'] ?? 'Africa/Kampala',
     'charset' => 'UTF-8',
     'locale' => 'en',
+    
 ];
