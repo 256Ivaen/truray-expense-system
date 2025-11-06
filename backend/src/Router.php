@@ -52,15 +52,18 @@ class Router
         $this->routes['POST']['/api/projects/:id/assign-user'] = [ProjectController::class, 'assignUser', true, ['admin']];
         $this->routes['DELETE']['/api/projects/:id/remove-user/:userId'] = [ProjectController::class, 'removeUser', true, ['admin']];
         
-        $this->routes['GET']['/api/finances'] = [FinanceController::class, 'index', true, ['admin', 'finance_manager']];
-        $this->routes['GET']['/api/finances/:id'] = [FinanceController::class, 'show', true, ['admin', 'finance_manager']];
-        $this->routes['POST']['/api/finances'] = [FinanceController::class, 'store', true, ['admin', 'finance_manager']];
+        $this->routes['GET']['/api/finances'] = [FinanceController::class, 'index', true, ['admin']];
+        $this->routes['GET']['/api/finances/system-balance'] = [FinanceController::class, 'systemBalance', true, ['admin']];
+        $this->routes['GET']['/api/finances/:id'] = [FinanceController::class, 'show', true, ['admin']];
+        $this->routes['POST']['/api/finances'] = [FinanceController::class, 'store', true, ['admin']];
+        $this->routes['PUT']['/api/finances/:id'] = [FinanceController::class, 'update', true, ['admin']];
+        $this->routes['DELETE']['/api/finances/:id'] = [FinanceController::class, 'destroy', true, ['admin']];
         $this->routes['GET']['/api/projects/:id/finances'] = [FinanceController::class, 'byProject', true];
         
         $this->routes['GET']['/api/allocations'] = [AllocationController::class, 'index', true];
         $this->routes['GET']['/api/allocations/:id'] = [AllocationController::class, 'show', true];
-        $this->routes['POST']['/api/allocations'] = [AllocationController::class, 'store', true, ['admin', 'finance_manager']];
-        $this->routes['PUT']['/api/allocations/:id'] = [AllocationController::class, 'update', true, ['admin', 'finance_manager']];
+        $this->routes['POST']['/api/allocations'] = [AllocationController::class, 'store', true, ['admin']];
+        $this->routes['PUT']['/api/allocations/:id'] = [AllocationController::class, 'update', true, ['admin']];
         $this->routes['GET']['/api/users/:id/allocations'] = [AllocationController::class, 'byUser', true];
         $this->routes['GET']['/api/projects/:id/allocations'] = [AllocationController::class, 'byProject', true];
         
@@ -69,14 +72,14 @@ class Router
         $this->routes['POST']['/api/expenses'] = [ExpenseController::class, 'store', true];
         $this->routes['PUT']['/api/expenses/:id'] = [ExpenseController::class, 'update', true];
         $this->routes['DELETE']['/api/expenses/:id'] = [ExpenseController::class, 'destroy', true];
-        $this->routes['POST']['/api/expenses/:id/approve'] = [ExpenseController::class, 'approve', true, ['admin', 'finance_manager']];
-        $this->routes['POST']['/api/expenses/:id/reject'] = [ExpenseController::class, 'reject', true, ['admin', 'finance_manager']];
+        $this->routes['POST']['/api/expenses/:id/approve'] = [ExpenseController::class, 'approve', true, ['admin']];
+        $this->routes['POST']['/api/expenses/:id/reject'] = [ExpenseController::class, 'reject', true, ['admin']];
         $this->routes['GET']['/api/projects/:id/expenses'] = [ExpenseController::class, 'byProject', true];
         
         $this->routes['GET']['/api/reports/dashboard'] = [ReportController::class, 'dashboard', true];
-        $this->routes['GET']['/api/reports/project-summary'] = [ReportController::class, 'projectSummary', true, ['admin', 'finance_manager']];
-        $this->routes['GET']['/api/reports/user-spending'] = [ReportController::class, 'userSpending', true, ['admin', 'finance_manager']];
-        $this->routes['GET']['/api/reports/financial-overview'] = [ReportController::class, 'financialOverview', true, ['admin', 'finance_manager']];
+        $this->routes['GET']['/api/reports/project-summary'] = [ReportController::class, 'projectSummary', true, ['admin']];
+        $this->routes['GET']['/api/reports/user-spending'] = [ReportController::class, 'userSpending', true, ['admin']];
+        $this->routes['GET']['/api/reports/financial-overview'] = [ReportController::class, 'financialOverview', true, ['admin']];
         
         $this->routes['GET']['/api/notifications'] = [NotificationController::class, 'index', true];
         $this->routes['GET']['/api/notifications/unread'] = [NotificationController::class, 'unread', true];

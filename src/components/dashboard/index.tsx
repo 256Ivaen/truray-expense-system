@@ -288,13 +288,19 @@ const DonutChart = React.forwardRef<HTMLDivElement, DonutChartProps>(
 
 DonutChart.displayName = "DonutChart";
 
-// Custom Tooltip Component
+// Custom Tooltip Component for UGX
 const CustomTooltip = ({ active, payload }: any) => {
   if (active && payload && payload.length) {
+    const value = payload[0].value;
+    const formattedValue = `UGX ${value.toLocaleString('en-US', {
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0
+    })}`;
+    
     return (
       <div className="bg-gray-900 text-white px-3 py-2 rounded-lg shadow-lg text-xs">
         <p className="font-semibold">{payload[0].payload.month_name}</p>
-        <p className="text-primary">${(payload[0].value / 1000).toFixed(1)}k</p>
+        <p className="text-primary">{formattedValue}</p>
       </div>
     );
   }
@@ -326,7 +332,7 @@ function EnhancedDashboardContent({
 }: any) {
   const [dashboardData, setDashboardData] = useState<DashboardData>(null);
   const [dataLoading, setDataLoading] = useState(true);
-  const [userRole, setUserRole] = useState<'admin' | 'finance_manager' | 'user'>('user');
+  const [userRole, setUserRole] = useState<'admin' | 'user'>('user');
   const [userName, setUserName] = useState<string>('User');
   const [hoveredSegment, setHoveredSegment] = useState<string | null>(null);
 
@@ -361,13 +367,12 @@ function EnhancedDashboardContent({
     onRefresh?.();
   };
 
+  // UGX Currency Formatter - exactly like expenses page
   const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
+    return `UGX ${amount.toLocaleString('en-US', {
       minimumFractionDigits: 0,
       maximumFractionDigits: 0
-    }).format(amount);
+    })}`;
   };
 
   const formatDate = (dateString: string) => {
@@ -382,7 +387,7 @@ function EnhancedDashboardContent({
   };
 
   const isLoading = loading || dataLoading;
-  const isAdmin = userRole === 'admin' || userRole === 'finance_manager';
+  const isAdmin = userRole === 'admin';
 
   // Calculate percentage changes based on monthly data
   const calculatePercentageChange = (type: 'deposits' | 'spent' | 'allocated' | 'projects') => {
@@ -510,6 +515,16 @@ function EnhancedDashboardContent({
   const depositsChange = calculatePercentageChange('deposits');
   const spentChange = calculatePercentageChange('spent');
   const allocatedChange = calculatePercentageChange('allocated');
+
+  // Format Y-axis values for charts
+  const formatYAxisValue = (value: number) => {
+    if (value >= 1000000) {
+      return `${(value / 1000000).toFixed(1)}M`;
+    } else if (value >= 1000) {
+      return `${(value / 1000).toFixed(0)}k`;
+    }
+    return value.toString();
+  };
 
   return (
     <div className="bg-gray-50 min-h-screen p-6">
@@ -688,7 +703,7 @@ function EnhancedDashboardContent({
                       tick={{ fill: '#94a3b8', fontSize: 11 }}
                       axisLine={false}
                       tickLine={false}
-                      tickFormatter={(value) => `${(value / 1000).toFixed(0)}k`}
+                      tickFormatter={formatYAxisValue}
                     />
                     <Tooltip content={<CustomTooltip />} />
                     <Bar 
@@ -878,7 +893,7 @@ function EnhancedDashboardContent({
                       tick={{ fill: '#94a3b8', fontSize: 11 }}
                       axisLine={false}
                       tickLine={false}
-                      tickFormatter={(value) => `${(value / 1000).toFixed(0)}k`}
+                      tickFormatter={formatYAxisValue}
                     />
                     <Tooltip content={<CustomTooltip />} />
                     <Line 

@@ -20,6 +20,11 @@ class ExpenseValidator
             $errors['description'] = 'Description is required';
         }
         
+        // Require explicit expense type/category
+        if (empty($data['category'])) {
+            $errors['category'] = 'Expense type is required';
+        }
+        
         return $errors;
     }
     

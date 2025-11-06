@@ -74,7 +74,7 @@ const ReportsPage = () => {
     return 'user';
   };
 
-  const isAdmin = getCurrentUserRole() === 'admin' || getCurrentUserRole() === 'finance_manager';
+  const isAdmin = getCurrentUserRole() === 'admin';
 
   useEffect(() => {
     if (isAdmin) {

@@ -32,14 +32,14 @@ class RoleMiddleware
     
     public static function requireFinanceAccess()
     {
-        return self::requireRole(['admin', 'finance_manager']);
+        return self::requireRole(['admin']);
     }
     
     public static function canAccess($resourceUserId)
     {
         $user = AuthMiddleware::user();
         
-        if (in_array($user['role'], ['admin', 'finance_manager'])) {
+        if (in_array($user['role'], ['admin'])) {
             return true;
         }
         

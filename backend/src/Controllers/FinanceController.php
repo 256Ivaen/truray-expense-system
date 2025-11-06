@@ -20,10 +20,6 @@ class FinanceController
     {
         $filters = [];
         
-        if (isset($data['project_id'])) {
-            $filters['project_id'] = $data['project_id'];
-        }
-        
         if (isset($data['status'])) {
             $filters['status'] = $data['status'];
         }
@@ -53,10 +49,6 @@ class FinanceController
     
     public function store($data)
     {
-        if (empty($data['project_id'])) {
-            return Response::error('Project ID is required', 400);
-        }
-        
         if (empty($data['amount']) || !is_numeric($data['amount']) || $data['amount'] <= 0) {
             return Response::error('Valid amount greater than 0 is required', 400);
         }
@@ -74,18 +66,41 @@ class FinanceController
         return Response::error($result['message'], 400);
     }
     
-    public function byProject($data)
+    public function update($data)
     {
         if (empty($data['id'])) {
-            return Response::error('Project ID is required', 400);
+            return Response::error('Finance ID is required', 400);
         }
         
-        $page = isset($data['page']) ? max(1, (int)$data['page']) : 1;
-        $perPage = isset($data['per_page']) ? max(1, (int)$data['per_page']) : 5;
+        $result = $this->financeService->update($data['id'], $data);
         
-        $result = $this->financeService->getByProject($data['id'], $page, $perPage);
-        $total = $this->financeService->getTotalDeposits($data['id']);
+        if ($result['success']) {
+            AuditMiddleware::logUpdate('finances', $data['id'], $result['data']);
+            return Response::success($result['data'], 'Deposit updated successfully');
+        }
         
-        return Response::paginated($result['data'], $result['total'], $result['page'], $result['per_page'], 'Finances retrieved successfully');
+        return Response::error($result['message'], 400);
+    }
+    
+    public function delete($data)
+    {
+        if (empty($data['id'])) {
+            return Response::error('Finance ID is required', 400);
+        }
+        
+        $result = $this->financeService->delete($data['id']);
+        
+        if ($result['success']) {
+            AuditMiddleware::logDelete('finances', $data['id']);
+            return Response::success(null, $result['message']);
+        }
+        
+        return Response::error($result['message'], 400);
+    }
+    
+    public function systemBalance($data)
+    {
+        $balance = $this->financeService->getSystemBalance();
+        return Response::success($balance);
     }
 }

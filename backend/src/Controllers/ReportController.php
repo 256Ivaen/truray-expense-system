@@ -19,7 +19,7 @@ class ReportController
     {
         $currentUser = AuthMiddleware::user();
         
-        if ($currentUser['role'] === 'admin' || $currentUser['role'] === 'finance_manager') {
+        if ($currentUser['role'] === 'admin') {
             $stats = [
                 'total_projects' => $this->getTotalProjects(),
                 'active_projects' => $this->getActiveProjects(),

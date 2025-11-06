@@ -30,7 +30,7 @@ class UserValidator
         
         if (empty($data['role'])) {
             $errors['role'] = 'Role is required';
-        } elseif (!in_array($data['role'], ['admin', 'finance_manager', 'user'])) {
+        } elseif (!in_array($data['role'], ['admin', 'user'])) {
             $errors['role'] = 'Invalid role';
         }
         
@@ -49,7 +49,7 @@ class UserValidator
             $errors['password'] = 'Password must be at least 8 characters';
         }
         
-        if (isset($data['role']) && !in_array($data['role'], ['admin', 'finance_manager', 'user'])) {
+        if (isset($data['role']) && !in_array($data['role'], ['admin', 'user'])) {
             $errors['role'] = 'Invalid role';
         }
         

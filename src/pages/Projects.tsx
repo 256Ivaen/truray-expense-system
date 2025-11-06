@@ -10,6 +10,7 @@ import {
   X,
   CheckCircle,
   Clock,
+  Loader2
 } from "lucide-react";
 import { get, post, put, del } from "../utils/service";
 import { toast } from "sonner";
@@ -53,7 +54,7 @@ interface User {
   first_name: string;
   last_name: string;
   phone?: string;
-  role: 'admin' | 'finance_manager' | 'user';
+  role: 'admin' | 'user';
 }
 
 interface CreateProjectData {
@@ -62,6 +63,7 @@ interface CreateProjectData {
   description?: string;
   start_date?: string;
   end_date?: string;
+  expense_types?: string[];
 }
 
 interface UpdateProjectData {
@@ -73,7 +75,6 @@ interface UpdateProjectData {
   status?: 'planning' | 'active' | 'completed' | 'cancelled' | 'closed';
 }
 
-// Get current user role from localStorage
 const getCurrentUserRole = () => {
   try {
     const userStr = localStorage.getItem('truray_user');
@@ -100,7 +101,6 @@ const getCurrentUserId = () => {
   return null;
 };
 
-// Skeleton Components
 const SkeletonBox = ({ className }: { className?: string }) => (
   <div className={`animate-pulse bg-gray-200 rounded-lg ${className}`}></div>
 );
@@ -120,7 +120,6 @@ const SearchSkeleton = () => (
   </div>
 );
 
-// Project Modals Components
 interface CreateProjectModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -139,6 +138,8 @@ function CreateProjectModal({ isOpen, onClose, onSubmit, loading = false }: Crea
 
   const [startDate, setStartDate] = useState<Date | null>(null);
   const [endDate, setEndDate] = useState<Date | null>(null);
+  const [expenseTypes, setExpenseTypes] = useState<string[]>([]);
+  const [newExpenseType, setNewExpenseType] = useState<string>("");
 
   const formatDateForInput = (date: Date | null): string => {
     if (!date) return '';
@@ -158,7 +159,22 @@ function CreateProjectModal({ isOpen, onClose, onSubmit, loading = false }: Crea
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    onSubmit(form);
+    
+    if (!startDate) {
+      toast.error('Please select a start date');
+      return;
+    }
+    
+    if (!endDate) {
+      toast.error('Please select an end date');
+      return;
+    }
+    
+    const payload = {
+      ...form,
+      expense_types: expenseTypes.filter(t => t.trim() !== "")
+    };
+    onSubmit(payload as any);
   };
 
   const handleClose = () => {
@@ -171,12 +187,14 @@ function CreateProjectModal({ isOpen, onClose, onSubmit, loading = false }: Crea
     });
     setStartDate(null);
     setEndDate(null);
+    setExpenseTypes([]);
+    setNewExpenseType("");
     onClose();
   };
 
   return (
     <div 
-      className={`fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50 ${isOpen ? 'block' : 'hidden'}`}
+      className={`fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm flex items-center justify-center p-4 z-50 ${isOpen ? 'block' : 'hidden'}`}
       onClick={onClose}
     >
       <div 
@@ -184,30 +202,15 @@ function CreateProjectModal({ isOpen, onClose, onSubmit, loading = false }: Crea
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between p-6 border-b border-gray-200">
-          <h2 className="text-xs font-semibold text-gray-900">Create New Project</h2>
+          <h2 className="text-lg font-semibold text-gray-900">Create New Project</h2>
           <button
             onClick={onClose}
             className="text-gray-400 hover:text-gray-600 transition-colors"
           >
-            <X className="h-4 w-4" />
+            <X className="h-5 w-5" />
           </button>
         </div>
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
-          <div>
-            <label className="block text-xs font-medium text-gray-700 mb-1">
-              Project Code *
-            </label>
-            <input
-              type="text"
-              required
-              value={form.project_code}
-              onChange={(e) => setForm({ ...form, project_code: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary text-xs"
-              placeholder="PRJ001"
-              disabled={loading}
-            />
-          </div>
-
           <div>
             <label className="block text-xs font-medium text-gray-700 mb-1">
               Project Name *
@@ -236,11 +239,75 @@ function CreateProjectModal({ isOpen, onClose, onSubmit, loading = false }: Crea
               disabled={loading}
             />
           </div>
+          
+          <div>
+            <label className="block text-xs font-medium text-gray-700 mb-1">
+              Project Code *
+            </label>
+            <input
+              type="text"
+              required
+              value={form.project_code}
+              onChange={(e) => setForm({ ...form, project_code: e.target.value })}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary text-xs"
+              placeholder="PRJ001"
+              disabled={loading}
+            />
+          </div>
+
+          <div className="pt-2">
+            <label className="block text-xs font-medium text-gray-700 mb-2">
+              Expense Types
+            </label>
+            <div className="flex gap-2 mb-2">
+              <input
+                type="text"
+                value={newExpenseType}
+                onChange={(e) => setNewExpenseType(e.target.value)}
+                placeholder="e.g. Transport"
+                className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary text-xs"
+                disabled={loading}
+              />
+              <button
+                type="button"
+                onClick={() => {
+                  const name = newExpenseType.trim();
+                  if (!name) return;
+                  if (expenseTypes.includes(name)) return;
+                  setExpenseTypes([...expenseTypes, name]);
+                  setNewExpenseType("");
+                }}
+                disabled={loading || !newExpenseType.trim()}
+                className="px-3 py-2 bg-primary text-secondary rounded-lg hover:bg-primary/90 transition-colors text-xs font-medium disabled:opacity-50"
+              >
+                Add
+              </button>
+            </div>
+            {expenseTypes.length > 0 ? (
+              <div className="flex flex-wrap gap-2">
+                {expenseTypes.map((t, idx) => (
+                  <span key={idx} className="inline-flex items-center gap-2 px-2 py-1 rounded-full bg-gray-100 text-gray-800 text-[11px]">
+                    {t}
+                    <button
+                      type="button"
+                      onClick={() => setExpenseTypes(expenseTypes.filter(x => x !== t))}
+                      className="text-gray-500 hover:text-gray-700"
+                      disabled={loading}
+                    >
+                      ×
+                    </button>
+                  </span>
+                ))}
+              </div>
+            ) : (
+              <p className="text-[11px] text-gray-500">No expense types added yet.</p>
+            )}
+          </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-medium text-gray-700 mb-1">
-                Start Date
+                Start Date *
               </label>
               <CalendarPicker
                 value={startDate}
@@ -251,7 +318,7 @@ function CreateProjectModal({ isOpen, onClose, onSubmit, loading = false }: Crea
             </div>
             <div>
               <label className="block text-xs font-medium text-gray-700 mb-1">
-                End Date
+                End Date *
               </label>
               <CalendarPicker
                 value={endDate}
@@ -267,15 +334,16 @@ function CreateProjectModal({ isOpen, onClose, onSubmit, loading = false }: Crea
               type="button"
               onClick={handleClose}
               disabled={loading}
-              className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors text-xs font-medium disabled:opacity-50"
+              className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors text-xs font-medium disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={loading}
-              className="flex-1 px-4 py-2 bg-primary text-black rounded-lg hover:bg-primary/90 transition-colors text-xs font-medium disabled:opacity-50"
+              className="flex-1 px-4 py-2 bg-primary text-secondary rounded-lg hover:bg-primary/90 transition-colors text-xs font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
             >
+              {loading && <Loader2 className="w-4 h-4 animate-spin" />}
               {loading ? "Creating..." : "Create Project"}
             </button>
           </div>
@@ -344,6 +412,17 @@ function EditProjectModal({ isOpen, onClose, onSubmit, project, loading = false 
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (!startDate) {
+      toast.error('Please select a start date');
+      return;
+    }
+    
+    if (!endDate) {
+      toast.error('Please select an end date');
+      return;
+    }
+    
     onSubmit(form);
   };
 
@@ -355,7 +434,7 @@ function EditProjectModal({ isOpen, onClose, onSubmit, project, loading = false 
 
   return (
     <div 
-      className={`fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50 ${isOpen ? 'block' : 'hidden'}`}
+      className={`fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm flex items-center justify-center p-4 z-50 ${isOpen ? 'block' : 'hidden'}`}
       onClick={onClose}
     >
       <div 
@@ -363,12 +442,12 @@ function EditProjectModal({ isOpen, onClose, onSubmit, project, loading = false 
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between p-6 border-b border-gray-200">
-          <h2 className="text-xs font-semibold text-gray-900">Edit Project</h2>
+          <h2 className="text-lg font-semibold text-gray-900">Edit Project</h2>
           <button
             onClick={onClose}
             className="text-gray-400 hover:text-gray-600 transition-colors"
           >
-            <X className="h-4 w-4" />
+            <X className="h-5 w-5" />
           </button>
         </div>
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
@@ -416,7 +495,7 @@ function EditProjectModal({ isOpen, onClose, onSubmit, project, loading = false 
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-medium text-gray-700 mb-1">
-                Start Date
+                Start Date *
               </label>
               <CalendarPicker
                 value={startDate}
@@ -427,7 +506,7 @@ function EditProjectModal({ isOpen, onClose, onSubmit, project, loading = false 
             </div>
             <div>
               <label className="block text-xs font-medium text-gray-700 mb-1">
-                End Date
+                End Date *
               </label>
               <CalendarPicker
                 value={endDate}
@@ -461,15 +540,16 @@ function EditProjectModal({ isOpen, onClose, onSubmit, project, loading = false 
               type="button"
               onClick={handleClose}
               disabled={loading}
-              className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors text-xs font-medium disabled:opacity-50"
+              className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors text-xs font-medium disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={loading}
-              className="flex-1 px-4 py-2 bg-primary text-black rounded-lg hover:bg-primary/90 transition-colors text-xs font-medium disabled:opacity-50"
+              className="flex-1 px-4 py-2 bg-primary text-secondary rounded-lg hover:bg-primary/90 transition-colors text-xs font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
             >
+              {loading && <Loader2 className="w-4 h-4 animate-spin" />}
               {loading ? "Updating..." : "Update Project"}
             </button>
           </div>
@@ -489,17 +569,15 @@ const ProjectsPage = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   
-  // Modal states
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
 
-  // Get current user info
   const currentUserRole = getCurrentUserRole();
   const currentUserId = getCurrentUserId();
   const isAdmin = currentUserRole === 'admin';
-  const isFinanceManager = currentUserRole === 'finance_manager';
+  const isFinanceManager = false;
   const canManageProjects = isAdmin || isFinanceManager;
 
   useEffect(() => {
@@ -636,7 +714,6 @@ const ProjectsPage = () => {
   };
 
   const handleViewProject = (project: Project) => {
-    // Navigate to project details page using React Router
     navigate(`/projects/${project.id}`);
   };
 
@@ -684,7 +761,6 @@ const ProjectsPage = () => {
   return (
     <div className="min-h-screen bg-gray-50 p-4 sm:p-6">
       <div className="max-w-7xl mx-auto space-y-6">
-        {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
           <div>
             {loading ? (
@@ -721,15 +797,7 @@ const ProjectsPage = () => {
           )}
         </div>
 
-        {/* Stats Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <StatCard
-            title="Total Projects"
-            value={projectStats.total}
-            subtitle="All projects"
-            icon={Folder}
-            loading={loading}
-          />
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           <StatCard
             title="Active Projects"
             value={projectStats.active}
@@ -753,7 +821,6 @@ const ProjectsPage = () => {
           />
         </div>
 
-        {/* Filters and Search */}
         {loading ? (
           <SearchSkeleton />
         ) : (
@@ -794,7 +861,6 @@ const ProjectsPage = () => {
           </div>
         )}
 
-        {/* Projects Table */}
         <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
           <div className="px-4 sm:px-6 py-4 border-b border-gray-200 bg-gray-50">
             {loading ? (

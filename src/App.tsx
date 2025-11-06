@@ -19,6 +19,8 @@ import ExpensesPage from "./pages/Expenses.js";
 import ReportsPage from "./pages/Reports";
 import SettingsPage from "./pages/Settings";
 import ProjectDetailsPage from "./pages/ProjectDetails.js";
+import ExpenseDetailsPage from "./pages/ExpenseDetails.js";
+import AllocationDetailsPage from "./pages/AllocationDetails.js";
 
 // Protected Route Component
 const ProtectedRoute = ({ children }) => {
@@ -172,6 +174,17 @@ function AppContent() {
             }
           />
 
+          <Route
+            path="/allocations/:id"
+            element={
+              <ProtectedRoute>
+                <LayoutWrapper>
+                  <AllocationDetailsPage />
+                </LayoutWrapper>
+              </ProtectedRoute>
+            }
+          />
+
           {/* Expense Tracking */}
           <Route
             path="/expenses"
@@ -179,6 +192,17 @@ function AppContent() {
               <ProtectedRoute>
                 <LayoutWrapper>
                   <ExpensesPage />
+                </LayoutWrapper>
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/expenses/:id"
+            element={
+              <ProtectedRoute>
+                <LayoutWrapper>
+                  <ExpenseDetailsPage />
                 </LayoutWrapper>
               </ProtectedRoute>
             }

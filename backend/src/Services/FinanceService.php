@@ -19,39 +19,32 @@ class FinanceService
     
     public function getAll($filters = [], $page = 1, $perPage = 5)
     {
-        $sql = "SELECT f.*, p.project_code, p.name as project_name 
-                FROM finances f
-                INNER JOIN projects p ON f.project_id = p.id
-                WHERE 1=1";
+        $sql = "SELECT * FROM finances WHERE 1=1";
         $params = [];
         
-        $countSql = "SELECT COUNT(*) as total FROM finances f
-                INNER JOIN projects p ON f.project_id = p.id
-                WHERE 1=1";
+        $countSql = "SELECT COUNT(*) as total FROM finances WHERE 1=1";
         $countParams = [];
         
-        if (isset($filters['project_id'])) {
-            $sql .= " AND f.project_id = ?";
-            $params[] = $filters['project_id'];
-            $countSql .= " AND f.project_id = ?";
-            $countParams[] = $filters['project_id'];
-        }
-        
         if (isset($filters['status'])) {
-            $sql .= " AND f.status = ?";
+            $sql .= " AND status = ?";
             $params[] = $filters['status'];
-            $countSql .= " AND f.status = ?";
+            $countSql .= " AND status = ?";
             $countParams[] = $filters['status'];
         }
         
         $countResult = $this->db->queryOne($countSql, $countParams);
         $total = $countResult['total'] ?? 0;
         
-        $sql .= " ORDER BY f.deposited_at DESC";
+        $sql .= " ORDER BY deposited_at DESC";
         $offset = ($page - 1) * $perPage;
         $sql .= " LIMIT " . (int)$perPage . " OFFSET " . (int)$offset;
         
         $data = $this->db->query($sql, $params);
+        
+        // Format amounts to 2 decimal places
+        foreach ($data as &$record) {
+            $record['amount'] = number_format((float)$record['amount'], 2, '.', '');
+        }
         
         return [
             'data' => $data,
@@ -63,41 +56,32 @@ class FinanceService
     
     public function getById($id)
     {
-        $sql = "SELECT f.*, p.project_code, p.name as project_name 
-                FROM finances f
-                INNER JOIN projects p ON f.project_id = p.id
-                WHERE f.id = ?";
+        $sql = "SELECT * FROM finances WHERE id = ?";
+        $finance = $this->db->queryOne($sql, [$id]);
         
-        return $this->db->queryOne($sql, [$id]);
+        if ($finance) {
+            $finance['amount'] = number_format((float)$finance['amount'], 2, '.', '');
+        }
+        
+        return $finance;
     }
     
     public function create($data)
     {
-        $project = $this->db->queryOne(
-            "SELECT id, status FROM projects WHERE id = ? AND deleted_at IS NULL",
-            [$data['project_id']]
-        );
-        
-        if (!$project) {
-            return ['success' => false, 'message' => 'Project not found'];
-        }
-        
-        if ($project['status'] === 'closed' || $project['status'] === 'cancelled') {
-            return ['success' => false, 'message' => 'Cannot deposit to closed or cancelled project'];
-        }
-        
         if (!is_numeric($data['amount']) || $data['amount'] <= 0) {
             return ['success' => false, 'message' => 'Invalid amount'];
         }
         
+        // Round to 2 decimal places to prevent precision issues
+        $amount = round((float)$data['amount'], 2);
+        
         $financeId = Uuid::uuid4()->toString();
         $this->db->execute(
-            "INSERT INTO finances (id, project_id, amount, description, deposited_by, status) 
-             VALUES (?, ?, ?, ?, ?, ?)",
+            "INSERT INTO finances (id, amount, description, deposited_by, status) 
+             VALUES (?, ?, ?, ?, ?)",
             [
                 $financeId,
-                $data['project_id'],
-                $data['amount'],
+                $amount,
                 $data['description'] ?? null,
                 $data['deposited_by'] ?? null,
                 $data['status'] ?? 'approved'
@@ -108,20 +92,87 @@ class FinanceService
         return ['success' => true, 'data' => $finance];
     }
     
-    public function getByProject($projectId, $page = 1, $perPage = 5)
+    public function update($id, $data)
     {
-        return $this->getAll(['project_id' => $projectId], $page, $perPage);
+        $finance = $this->getById($id);
+        if (!$finance) {
+            return ['success' => false, 'message' => 'Finance record not found'];
+        }
+        
+        if (isset($data['amount']) && (!is_numeric($data['amount']) || $data['amount'] <= 0)) {
+            return ['success' => false, 'message' => 'Invalid amount'];
+        }
+        
+        $updates = [];
+        $params = [];
+        
+        if (isset($data['amount'])) {
+            $updates[] = "amount = ?";
+            $params[] = round((float)$data['amount'], 2);
+        }
+        
+        if (isset($data['description'])) {
+            $updates[] = "description = ?";
+            $params[] = $data['description'];
+        }
+        
+        if (isset($data['status'])) {
+            $updates[] = "status = ?";
+            $params[] = $data['status'];
+        }
+        
+        if (empty($updates)) {
+            return ['success' => false, 'message' => 'No fields to update'];
+        }
+        
+        $params[] = $id;
+        $sql = "UPDATE finances SET " . implode(', ', $updates) . " WHERE id = ?";
+        $this->db->execute($sql, $params);
+        
+        $updatedFinance = $this->getById($id);
+        return ['success' => true, 'data' => $updatedFinance];
     }
     
-    public function getTotalDeposits($projectId)
+    public function delete($id)
+    {
+        $finance = $this->getById($id);
+        if (!$finance) {
+            return ['success' => false, 'message' => 'Finance record not found'];
+        }
+        
+        $this->db->execute("DELETE FROM finances WHERE id = ?", [$id]);
+        return ['success' => true, 'message' => 'Finance record deleted successfully'];
+    }
+    
+    public function getTotalDeposits()
     {
         $result = $this->db->queryOne(
             "SELECT COALESCE(SUM(amount), 0) as total 
              FROM finances 
-             WHERE project_id = ? AND status = 'approved'",
-            [$projectId]
+             WHERE status = 'approved'"
         );
         
-        return $result['total'] ?? 0;
+        return number_format((float)($result['total'] ?? 0), 2, '.', '');
+    }
+    
+    public function getSystemBalance()
+    {
+        $balance = $this->db->queryOne("SELECT * FROM system_balance");
+        
+        if (!$balance) {
+            return [
+                'total_deposits' => '0.00',
+                'total_allocated' => '0.00',
+                'available_balance' => '0.00',
+                'this_month_deposits' => '0.00'
+            ];
+        }
+        
+        return [
+            'total_deposits' => number_format((float)$balance['total_deposits'], 2, '.', ''),
+            'total_allocated' => number_format((float)$balance['total_allocated'], 2, '.', ''),
+            'available_balance' => number_format((float)$balance['available_balance'], 2, '.', ''),
+            'this_month_deposits' => number_format((float)$balance['this_month_deposits'], 2, '.', '')
+        ];
     }
 }

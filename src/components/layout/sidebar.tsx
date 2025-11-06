@@ -9,13 +9,14 @@ import {
   FiSettings,
 } from 'react-icons/fi'
 import { ChevronLeft, X, LogOut } from 'react-feather'
-import { Building2, User } from "lucide-react"
+import { Building2 } from "lucide-react"
 import { TbReportAnalytics } from "react-icons/tb";
 import { GiMoneyStack } from "react-icons/gi";
 import { LuLayoutDashboard } from "react-icons/lu"
 import { TbSubtask } from "react-icons/tb";
 import { MdOutlineAttachMoney } from "react-icons/md";
 import { logout, getCurrentUser } from '../../utils/service.js'
+import { assets } from "../../assets/assets";
 
 const Sidebar = ({ 
   isOpen, 
@@ -60,18 +61,18 @@ const Sidebar = ({
         path: '/',
         section: 'dashboard',
         icon: <LuLayoutDashboard className="h-4 w-4" />,
-        roles: ['admin', 'finance_manager', 'user'] // All roles can access dashboard
+        roles: ['admin', 'user'] // All roles can access dashboard
       }
     ]
 
-    // Users section - Admin and Finance Manager only
-    if (currentUserRole === 'admin' || currentUserRole === 'finance_manager') {
+    // Users section - Admin only
+    if (currentUserRole === 'admin') {
       baseNav.push({
         title: 'Users',
         path: '/users',
         section: 'users',
         icon: <FiUsers className="h-4 w-4" />,
-        roles: ['admin', 'finance_manager']
+        roles: ['admin']
       })
     }
 
@@ -81,27 +82,30 @@ const Sidebar = ({
       path: '/projects',
       section: 'projects',
       icon: <Building2 className="h-4 w-4" />,
-      roles: ['admin', 'finance_manager', 'user']
+      roles: ['admin', 'user']
     })
 
-    // Finance section - Admin and Finance Manager only
-    if (currentUserRole === 'admin' || currentUserRole === 'finance_manager') {
+    // Finance section - Admin only
+    if (currentUserRole === 'admin') {
       baseNav.push({
         title: 'Finance',
         path: '/finance',
         section: 'finance',
         icon: <MdOutlineAttachMoney className="h-4 w-4" />,
-        roles: ['admin', 'finance_manager']
+        roles: ['admin']
       })
     }
 
+    // Allocations - Admin only; users should not see this
+    if (currentUserRole === 'admin') {
       baseNav.push({
         title: 'Allocations',
         path: '/allocations',
         section: 'allocations',
         icon: <TbSubtask className="h-4 w-4" />,
-        roles: ['admin', 'finance_manager', 'user']
+        roles: ['admin']
       })
+    }
 
     // Expenses section - All roles can access
     baseNav.push({
@@ -109,17 +113,17 @@ const Sidebar = ({
       path: '/expenses',
       section: 'expenses',
       icon: <GiMoneyStack className="h-4 w-4" />,
-      roles: ['admin', 'finance_manager', 'user']
+      roles: ['admin', 'user']
     })
 
-    // Reports section - Admin and Finance Manager only - NOW A NORMAL ITEM
-    if (currentUserRole === 'admin' || currentUserRole === 'finance_manager') {
+    // Reports section - Admin only
+    if (currentUserRole === 'admin') {
       baseNav.push({
         title: 'Reports',
         path: '/reports',
         section: 'reports',
         icon: <TbReportAnalytics className="h-4 w-4" />,
-        roles: ['admin', 'finance_manager']
+        roles: ['admin']
       })
     }
 
@@ -129,7 +133,7 @@ const Sidebar = ({
       path: '/settings',
       section: 'settings',
       icon: <FiSettings className="h-4 w-4" />,
-      roles: ['admin', 'finance_manager', 'user']
+      roles: ['admin', 'user']
     })
 
     return baseNav
@@ -210,12 +214,12 @@ const Sidebar = ({
               exit={{ opacity: 0, x: -20 }}
               className="flex items-center gap-3"
             >
-              <div className="flex items-center gap-2">
-                <User className="h-5 w-5 text-primary" />
-                <span className="text-sm font-medium text-white">
-                  Hello {currentUser.firstName}
-                </span>
-              </div>
+              {/* Replace with your logo image */}
+              <img 
+                src={assets.SidebarOpen}
+                alt="TruRay Logo" 
+                className="h-8 w-auto"
+              />
             </motion.div>
           ) : (
             <motion.div
@@ -225,7 +229,12 @@ const Sidebar = ({
               exit={{ opacity: 0, scale: 0.8 }}
               className="flex items-center justify-center"
             >
-              <User className="h-5 w-5 text-primary" />
+              {/* Replace with your compact logo image */}
+              <img 
+                src={assets.MainLogo}
+                alt="TruRay" 
+                className="h-8 w-8"
+              />
             </motion.div>
           )}
         </AnimatePresence>

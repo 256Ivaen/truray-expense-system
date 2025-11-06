@@ -22,17 +22,16 @@ class AllocationService
     
     public function getAll($filters = [], $page = 1, $perPage = 5)
     {
-        $sql = "SELECT a.*, p.project_code, p.name as project_name, 
-                u.first_name, u.last_name, u.email
+        $sql = "SELECT a.*, p.project_code, p.name as project_name, p.status as project_status,
+                u.first_name as allocated_by_first_name, u.last_name as allocated_by_last_name
                 FROM allocations a
                 INNER JOIN projects p ON a.project_id = p.id
-                INNER JOIN users u ON a.user_id = u.id
+                LEFT JOIN users u ON a.allocated_by = u.id
                 WHERE 1=1";
         $params = [];
         
         $countSql = "SELECT COUNT(*) as total FROM allocations a
                 INNER JOIN projects p ON a.project_id = p.id
-                INNER JOIN users u ON a.user_id = u.id
                 WHERE 1=1";
         $countParams = [];
         
@@ -41,13 +40,6 @@ class AllocationService
             $params[] = $filters['project_id'];
             $countSql .= " AND a.project_id = ?";
             $countParams[] = $filters['project_id'];
-        }
-        
-        if (isset($filters['user_id'])) {
-            $sql .= " AND a.user_id = ?";
-            $params[] = $filters['user_id'];
-            $countSql .= " AND a.user_id = ?";
-            $countParams[] = $filters['user_id'];
         }
         
         if (isset($filters['status'])) {
@@ -66,6 +58,11 @@ class AllocationService
         
         $data = $this->db->query($sql, $params);
         
+        // Format amounts
+        foreach ($data as &$record) {
+            $record['amount'] = number_format((float)$record['amount'], 2, '.', '');
+        }
+        
         return [
             'data' => $data,
             'total' => $total,
@@ -76,14 +73,20 @@ class AllocationService
     
     public function getById($id)
     {
-        $sql = "SELECT a.*, p.project_code, p.name as project_name,
-                u.first_name, u.last_name, u.email
+        $sql = "SELECT a.*, p.project_code, p.name as project_name, p.status as project_status,
+                u.first_name as allocated_by_first_name, u.last_name as allocated_by_last_name
                 FROM allocations a
                 INNER JOIN projects p ON a.project_id = p.id
-                INNER JOIN users u ON a.user_id = u.id
+                LEFT JOIN users u ON a.allocated_by = u.id
                 WHERE a.id = ?";
         
-        return $this->db->queryOne($sql, [$id]);
+        $allocation = $this->db->queryOne($sql, [$id]);
+        
+        if ($allocation) {
+            $allocation['amount'] = number_format((float)$allocation['amount'], 2, '.', '');
+        }
+        
+        return $allocation;
     }
     
     public function create($data, $files = [])
@@ -91,6 +94,7 @@ class AllocationService
         try {
             $this->db->beginTransaction();
             
+            // Validate project exists and is active
             $project = $this->db->queryOne(
                 "SELECT id, status FROM projects WHERE id = ? AND deleted_at IS NULL",
                 [$data['project_id']]
@@ -101,54 +105,39 @@ class AllocationService
                 return ['success' => false, 'message' => 'Project not found'];
             }
             
-            if ($project['status'] === 'closed' || $project['status'] === 'cancelled' || $project['status'] === 'completed') {
+            if ($project['status'] === 'closed' || $project['status'] === 'cancelled') {
                 $this->db->rollback();
-                return ['success' => false, 'message' => 'Cannot allocate to closed, cancelled or completed project'];
+                return ['success' => false, 'message' => 'Cannot allocate to closed or cancelled project'];
             }
             
-            $user = $this->db->queryOne(
-                "SELECT id FROM users WHERE id = ? AND deleted_at IS NULL",
-                [$data['user_id']]
-            );
-            
-            if (!$user) {
+            // Validate amount
+            $amount = round((float)$data['amount'], 2);
+            if ($amount <= 0) {
                 $this->db->rollback();
-                return ['success' => false, 'message' => 'User not found'];
+                return ['success' => false, 'message' => 'Amount must be greater than zero'];
             }
             
-            $projectUser = $this->db->queryOne(
-                "SELECT id FROM project_users WHERE project_id = ? AND user_id = ?",
-                [$data['project_id'], $data['user_id']]
-            );
+            // Check system balance using system_balance view
+            $systemBalance = $this->db->queryOne("SELECT * FROM system_balance");
             
-            if (!$projectUser) {
+            if (!$systemBalance) {
                 $this->db->rollback();
-                return ['success' => false, 'message' => 'User not assigned to this project'];
+                return ['success' => false, 'message' => 'Unable to retrieve system balance'];
             }
             
-            if (!is_numeric($data['amount']) || $data['amount'] <= 0) {
+            $availableBalance = (float)$systemBalance['available_balance'];
+            
+            if ($availableBalance < $amount) {
                 $this->db->rollback();
-                return ['success' => false, 'message' => 'Invalid amount'];
+                return [
+                    'success' => false, 
+                    'message' => 'Insufficient system balance. Available: UGX ' . number_format($availableBalance, 2)
+                ];
             }
             
-            // Check project balance using the view
-            $balance = $this->db->queryOne(
-                "SELECT * FROM project_balances WHERE id = ?",
-                [$data['project_id']]
-            );
-            
-            if (!$balance) {
-                $this->db->rollback();
-                return ['success' => false, 'message' => 'Project balance not found'];
-            }
-            
-            if ($balance['unallocated_balance'] < $data['amount']) {
-                $this->db->rollback();
-                return ['success' => false, 'message' => 'Insufficient project balance'];
-            }
-            
+            // Handle proof image upload
             $proofImage = null;
-            if (isset($files['proof_image'])) {
+            if (isset($files['proof_image']) && $files['proof_image']['error'] === UPLOAD_ERR_OK) {
                 try {
                     $proofImage = $this->fileUploader->upload($files['proof_image'], 'allocations');
                 } catch (\Exception $e) {
@@ -159,36 +148,20 @@ class AllocationService
             
             $allocationId = Uuid::uuid4()->toString();
             
-            // Insert allocation - this will automatically update the view
+            // Insert allocation
             $this->db->execute(
-                "INSERT INTO allocations (id, project_id, user_id, amount, description, proof_image, allocated_by, status) 
-                 VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                "INSERT INTO allocations (id, project_id, amount, description, proof_image, allocated_by, status, allocated_at) 
+                 VALUES (?, ?, ?, ?, ?, ?, ?, NOW())",
                 [
                     $allocationId,
                     $data['project_id'],
-                    $data['user_id'],
-                    $data['amount'],
+                    $amount,
                     $data['description'] ?? null,
                     $proofImage,
                     $data['allocated_by'] ?? null,
                     $data['status'] ?? 'approved'
                 ]
             );
-            
-            // Check if user has existing allocations for this project (using the actual allocations table)
-            $existingAllocation = $this->db->queryOne(
-                "SELECT id FROM allocations 
-                 WHERE user_id = ? AND project_id = ? AND status = 'approved'",
-                [$data['user_id'], $data['project_id']]
-            );
-            
-            // If project was completed but now has new allocations, reopen it
-            if ($project['status'] === 'completed') {
-                $this->db->execute(
-                    "UPDATE projects SET status = 'active', updated_at = NOW() WHERE id = ?",
-                    [$data['project_id']]
-                );
-            }
             
             $this->db->commit();
             
@@ -206,7 +179,7 @@ class AllocationService
         try {
             $this->db->beginTransaction();
             
-            $allocation = $this->allocationModel->find($id);
+            $allocation = $this->getById($id);
             if (!$allocation) {
                 $this->db->rollback();
                 return ['success' => false, 'message' => 'Allocation not found'];
@@ -216,33 +189,54 @@ class AllocationService
             $params = [];
             
             if (isset($data['amount'])) {
-                if (!is_numeric($data['amount']) || $data['amount'] <= 0) {
+                $newAmount = round((float)$data['amount'], 2);
+                if ($newAmount <= 0) {
                     $this->db->rollback();
-                    return ['success' => false, 'message' => 'Invalid amount'];
+                    return ['success' => false, 'message' => 'Amount must be greater than zero'];
                 }
                 
-                // If amount is being changed, we need to check balance
-                $amountDifference = $data['amount'] - $allocation['amount'];
+                // Calculate the difference in amount
+                $currentAmount = (float)str_replace(',', '', $allocation['amount']);
+                $amountDifference = $newAmount - $currentAmount;
                 
-                if ($amountDifference != 0) {
-                    // Check if there's enough unallocated balance for increase
-                    if ($amountDifference > 0) {
-                        $balance = $this->db->queryOne(
-                            "SELECT unallocated_balance FROM project_balances WHERE id = ?",
-                            [$allocation['project_id']]
-                        );
-                        
-                        if ($balance['unallocated_balance'] < $amountDifference) {
-                            $this->db->rollback();
-                            return ['success' => false, 'message' => 'Insufficient project balance for amount increase'];
-                        }
+                // If increasing, check if system has enough balance
+                if ($amountDifference > 0) {
+                    $systemBalance = $this->db->queryOne("SELECT * FROM system_balance");
+                    
+                    if (!$systemBalance) {
+                        $this->db->rollback();
+                        return ['success' => false, 'message' => 'Unable to retrieve system balance'];
                     }
                     
-                    // Just update the allocation amount - the view will recalculate automatically
+                    $availableBalance = (float)$systemBalance['available_balance'];
+                    
+                    if ($availableBalance < $amountDifference) {
+                        $this->db->rollback();
+                        return [
+                            'success' => false, 
+                            'message' => 'Insufficient system balance for increase. Available: UGX ' . number_format($availableBalance, 2)
+                        ];
+                    }
                 }
                 
                 $updateFields[] = "amount = ?";
-                $params[] = $data['amount'];
+                $params[] = $newAmount;
+            }
+            
+            if (isset($data['project_id'])) {
+                // Validate new project
+                $project = $this->db->queryOne(
+                    "SELECT id, status FROM projects WHERE id = ? AND deleted_at IS NULL",
+                    [$data['project_id']]
+                );
+                
+                if (!$project) {
+                    $this->db->rollback();
+                    return ['success' => false, 'message' => 'Project not found'];
+                }
+                
+                $updateFields[] = "project_id = ?";
+                $params[] = $data['project_id'];
             }
             
             if (isset($data['description'])) {
@@ -251,11 +245,16 @@ class AllocationService
             }
             
             if (isset($data['status'])) {
+                $validStatuses = ['pending', 'approved', 'rejected'];
+                if (!in_array($data['status'], $validStatuses)) {
+                    $this->db->rollback();
+                    return ['success' => false, 'message' => 'Invalid status'];
+                }
                 $updateFields[] = "status = ?";
                 $params[] = $data['status'];
             }
             
-            if (isset($files['proof_image'])) {
+            if (isset($files['proof_image']) && $files['proof_image']['error'] === UPLOAD_ERR_OK) {
                 try {
                     if ($allocation['proof_image']) {
                         $this->fileUploader->delete($allocation['proof_image']);
@@ -276,7 +275,7 @@ class AllocationService
             
             $params[] = $id;
             
-            $sql = "UPDATE allocations SET " . implode(", ", $updateFields) . " WHERE id = ?";
+            $sql = "UPDATE allocations SET " . implode(", ", $updateFields) . ", updated_at = NOW() WHERE id = ?";
             $this->db->execute($sql, $params);
             
             $this->db->commit();
@@ -290,9 +289,35 @@ class AllocationService
         }
     }
     
-    public function getByUser($userId, $page = 1, $perPage = 5)
+    public function delete($id)
     {
-        return $this->getAll(['user_id' => $userId], $page, $perPage);
+        try {
+            $this->db->beginTransaction();
+            
+            $allocation = $this->getById($id);
+            if (!$allocation) {
+                $this->db->rollback();
+                return ['success' => false, 'message' => 'Allocation not found'];
+            }
+            
+            // Delete proof image if exists
+            if ($allocation['proof_image']) {
+                try {
+                    $this->fileUploader->delete($allocation['proof_image']);
+                } catch (\Exception $e) {
+                    // Continue even if file deletion fails
+                }
+            }
+            
+            $this->db->execute("DELETE FROM allocations WHERE id = ?", [$id]);
+            
+            $this->db->commit();
+            return ['success' => true, 'message' => 'Allocation deleted successfully'];
+            
+        } catch (\Exception $e) {
+            $this->db->rollback();
+            return ['success' => false, 'message' => 'Failed to delete allocation: ' . $e->getMessage()];
+        }
     }
     
     public function getByProject($projectId, $page = 1, $perPage = 5)
@@ -300,18 +325,60 @@ class AllocationService
         return $this->getAll(['project_id' => $projectId], $page, $perPage);
     }
     
-    public function getUserBalance($userId, $projectId)
+    public function getSystemBalance()
+    {
+        $balance = $this->db->queryOne("SELECT * FROM system_balance");
+        
+        if (!$balance) {
+            return [
+                'total_deposits' => '0.00',
+                'total_allocated' => '0.00',
+                'available_balance' => '0.00',
+                'this_month_deposits' => '0.00'
+            ];
+        }
+        
+        return [
+            'total_deposits' => number_format((float)$balance['total_deposits'], 2, '.', ''),
+            'total_allocated' => number_format((float)$balance['total_allocated'], 2, '.', ''),
+            'available_balance' => number_format((float)$balance['available_balance'], 2, '.', ''),
+            'this_month_deposits' => number_format((float)$balance['this_month_deposits'], 2, '.', '')
+        ];
+    }
+    
+    public function getProjectAllocation($projectId)
     {
         $result = $this->db->queryOne(
-            "SELECT * FROM user_allocation_balances 
-             WHERE user_id = ? AND project_id = ?",
-            [$userId, $projectId]
+            "SELECT 
+                p.id,
+                p.project_code,
+                p.name as project_name,
+                COALESCE(SUM(CASE WHEN a.status = 'approved' THEN a.amount ELSE 0 END), 0) as total_allocated,
+                COALESCE((SELECT SUM(amount) FROM expenses WHERE project_id = p.id AND status = 'approved'), 0) as total_spent,
+                COALESCE(SUM(CASE WHEN a.status = 'approved' THEN a.amount ELSE 0 END), 0) - 
+                COALESCE((SELECT SUM(amount) FROM expenses WHERE project_id = p.id AND status = 'approved'), 0) as remaining_balance
+            FROM projects p
+            LEFT JOIN allocations a ON p.id = a.project_id
+            WHERE p.id = ? AND p.deleted_at IS NULL
+            GROUP BY p.id, p.project_code, p.name",
+            [$projectId]
         );
         
-        return $result ?? [
-            'total_allocated' => 0,
-            'total_spent' => 0,
-            'remaining_balance' => 0
+        if (!$result) {
+            return [
+                'total_allocated' => '0.00',
+                'total_spent' => '0.00',
+                'remaining_balance' => '0.00'
+            ];
+        }
+        
+        return [
+            'id' => $result['id'],
+            'project_code' => $result['project_code'],
+            'project_name' => $result['project_name'],
+            'total_allocated' => number_format((float)$result['total_allocated'], 2, '.', ''),
+            'total_spent' => number_format((float)$result['total_spent'], 2, '.', ''),
+            'remaining_balance' => number_format((float)$result['remaining_balance'], 2, '.', '')
         ];
     }
 }

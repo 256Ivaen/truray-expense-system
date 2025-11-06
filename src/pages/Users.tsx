@@ -25,7 +25,7 @@ interface User {
   first_name: string;
   last_name: string;
   phone?: string;
-  role: 'admin' | 'finance_manager' | 'user';
+  role: 'admin' | 'user';
   status: 'active' | 'inactive' | 'suspended';
   created_at: string;
   updated_at: string;
@@ -45,7 +45,7 @@ interface CreateUserData {
   first_name: string;
   last_name: string;
   phone?: string;
-  role: 'admin' | 'finance_manager' | 'user';
+  role: 'admin' | 'user';
 }
 
 interface UpdateUserData {
@@ -53,7 +53,7 @@ interface UpdateUserData {
   first_name?: string;
   last_name?: string;
   phone?: string;
-  role?: 'admin' | 'finance_manager' | 'user';
+  role?: 'admin' | 'user';
   status?: 'active' | 'inactive' | 'suspended';
 }
 

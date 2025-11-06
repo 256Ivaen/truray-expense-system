@@ -58,10 +58,7 @@ export const useAuth = () => {
     login,
     logout,
     hasRole,
-    isAdmin: () => hasRole(['super_admin']),
-    isFinanceManager: () => hasRole(['finance_manager', 'super_admin']),
-    isManager: () => hasRole(['manager', 'super_admin']),
-    isProjectManager: () => hasRole(['project_manager', 'manager', 'super_admin']),
+    isAdmin: () => hasRole(['admin']),
     isAuthenticated: !!user
   }
 }

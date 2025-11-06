@@ -8,7 +8,8 @@ import {
   Bell, 
   User,
   Menu,
-  LogOut
+  LogOut,
+  Search
 } from 'lucide-react'
 import { getCurrentUser, logout, getAuthToken, get, post, BASE_URL } from '../../utils/service.js'
 
@@ -29,10 +30,12 @@ const MainLayout = ({
   const [showNotifications, setShowNotifications] = useState(false)
   const [isMobile, setIsMobile] = useState(false)
   const [notifications, setNotifications] = useState([])
+  const [searchQuery, setSearchQuery] = useState('')
   const [user, setUser] = useState({
     name: '',
     email: '',
-    initials: 'U'
+    initials: 'U',
+    firstName: ''
   })
   const wsRef = useRef(null)
   const reconnectTimeoutRef = useRef(null)
@@ -50,7 +53,8 @@ const MainLayout = ({
       setUser({
         name: userName,
         email: currentUser.email,
-        initials: userInitials.toUpperCase()
+        initials: userInitials.toUpperCase(),
+        firstName: currentUser.first_name || 'User'
       })
     }
   }, [])
@@ -399,7 +403,8 @@ const MainLayout = ({
       }`}>
         {/* Header */}
         <header className="bg-white border-b border-gray-200 px-4 md:px-6 py-4 sticky top-0 z-20">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between gap-4">
+            {/* Left Section: Mobile Menu + Welcome Message */}
             <div className="flex items-center gap-4">
               {/* Mobile Menu Button */}
               {isMobile && (
@@ -410,8 +415,30 @@ const MainLayout = ({
                   <Menu className="h-5 w-5 text-gray-600" />
                 </button>
               )}
+              
+              {/* Welcome Message */}
+              <div className="hidden md:block">
+                <h2 className="text-sm font-semibold text-gray-900">
+                  Hello, {user.firstName}
+                </h2>
+              </div>
+            </div>
+
+            {/* Middle Section: Search Bar */}
+            <div className="flex-1">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                <input
+                  type="text"
+                  placeholder="Search..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full pl-10 pr-4 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+                />
+              </div>
             </div>
             
+            {/* Right Section: Notifications + Profile */}
             <div className="flex items-center gap-2 md:gap-3">
               {/* Notifications */}
               <div className="relative notifications-container">

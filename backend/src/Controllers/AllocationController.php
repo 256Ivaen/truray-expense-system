@@ -18,13 +18,7 @@ class AllocationController
     
     public function index($data)
     {
-        $currentUser = AuthMiddleware::user();
-        
         $filters = [];
-        
-        if ($currentUser['role'] === 'user') {
-            $filters['user_id'] = $currentUser['id'];
-        }
         
         if (isset($data['project_id'])) {
             $filters['project_id'] = $data['project_id'];
@@ -54,12 +48,6 @@ class AllocationController
             return Response::notFound('Allocation not found');
         }
         
-        $currentUser = AuthMiddleware::user();
-        
-        if ($currentUser['role'] === 'user' && $allocation['user_id'] !== $currentUser['id']) {
-            return Response::forbidden('You can only view your own allocations');
-        }
-        
         return Response::success($allocation);
     }
     
@@ -67,10 +55,6 @@ class AllocationController
     {
         if (empty($data['project_id'])) {
             return Response::error('Project ID is required', 400);
-        }
-        
-        if (empty($data['user_id'])) {
-            return Response::error('User ID is required', 400);
         }
         
         if (empty($data['amount']) || !is_numeric($data['amount']) || $data['amount'] <= 0) {
@@ -112,24 +96,20 @@ class AllocationController
         return Response::error($result['message'], 400);
     }
     
-    public function byUser($data)
+    public function delete($data)
     {
         if (empty($data['id'])) {
-            return Response::error('User ID is required', 400);
+            return Response::error('Allocation ID is required', 400);
         }
         
-        $currentUser = AuthMiddleware::user();
+        $result = $this->allocationService->delete($data['id']);
         
-        if ($currentUser['role'] === 'user' && $data['id'] !== $currentUser['id']) {
-            return Response::forbidden('You can only view your own allocations');
+        if ($result['success']) {
+            AuditMiddleware::logDelete('allocations', $data['id']);
+            return Response::success(null, $result['message']);
         }
         
-        $page = isset($data['page']) ? max(1, (int)$data['page']) : 1;
-        $perPage = isset($data['per_page']) ? max(1, (int)$data['per_page']) : 5;
-        
-        $result = $this->allocationService->getByUser($data['id'], $page, $perPage);
-        
-        return Response::paginated($result['data'], $result['total'], $result['page'], $result['per_page']);
+        return Response::error($result['message'], 400);
     }
     
     public function byProject($data)
@@ -144,5 +124,21 @@ class AllocationController
         $result = $this->allocationService->getByProject($data['id'], $page, $perPage);
         
         return Response::paginated($result['data'], $result['total'], $result['page'], $result['per_page']);
+    }
+    
+    public function systemBalance($data)
+    {
+        $balance = $this->allocationService->getSystemBalance();
+        return Response::success($balance);
+    }
+    
+    public function projectBalance($data)
+    {
+        if (empty($data['id'])) {
+            return Response::error('Project ID is required', 400);
+        }
+        
+        $balance = $this->allocationService->getProjectAllocation($data['id']);
+        return Response::success($balance);
     }
 }

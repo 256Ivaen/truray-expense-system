@@ -15,7 +15,7 @@ class DashboardService
     
     public function getDashboardData($currentUser)
     {
-        if ($currentUser['role'] === 'admin' || $currentUser['role'] === 'finance_manager') {
+        if ($currentUser['role'] === 'admin') {
             return $this->getAdminDashboard();
         } else {
             return $this->getUserDashboard($currentUser['id']);
@@ -161,7 +161,7 @@ class DashboardService
                 u.first_name, u.last_name, u.email
                 FROM allocations a
                 INNER JOIN projects p ON a.project_id = p.id
-                INNER JOIN users u ON a.user_id = u.id
+                LEFT JOIN users u ON a.allocated_by = u.id
                 ORDER BY a.allocated_at DESC
                 LIMIT 5";
         
@@ -216,9 +216,10 @@ class DashboardService
     private function getUserAllocations($userId)
     {
         $result = $this->db->queryOne(
-            "SELECT COALESCE(SUM(amount), 0) as total 
-             FROM allocations 
-             WHERE user_id = ? AND status = 'approved'",
+            "SELECT COALESCE(SUM(a.amount), 0) as total 
+             FROM allocations a
+             INNER JOIN project_users pu ON a.project_id = pu.project_id
+             WHERE pu.user_id = ? AND a.status = 'approved'",
             [$userId]
         );
         return (float)($result['total'] ?? 0);
@@ -285,7 +286,8 @@ class DashboardService
                 p.name as project_name, p.project_code
                 FROM allocations a
                 INNER JOIN projects p ON a.project_id = p.id
-                WHERE a.user_id = ?
+                INNER JOIN project_users pu ON p.id = pu.project_id
+                WHERE pu.user_id = ?
                 ORDER BY a.allocated_at DESC
                 LIMIT 5";
         

@@ -39,6 +39,11 @@ interface Project {
     unallocated_balance: string;
     allocated_balance: string;
   };
+  expense_types?: Array<{
+    id: string;
+    name: string;
+    created_at: string;
+  }>;
   users?: Array<{
     id: string;
     email: string;
@@ -55,10 +60,9 @@ interface User {
   first_name: string;
   last_name: string;
   phone?: string;
-  role: "admin" | "finance_manager" | "user";
+  role: "admin" | "user";
 }
 
-// Skeleton Components
 const SkeletonBox = ({ className }: { className?: string }) => (
   <div className={`animate-pulse bg-gray-200 rounded-lg ${className}`}></div>
 );
@@ -95,7 +99,6 @@ const ProjectDetailsPage = () => {
   const [actionLoading, setActionLoading] = useState(false);
   const [selectedUser, setSelectedUser] = useState("");
 
-  // Get current user role
   const getCurrentUserRole = () => {
     try {
       const userStr = localStorage.getItem("truray_user");
@@ -111,7 +114,7 @@ const ProjectDetailsPage = () => {
 
   const currentUserRole = getCurrentUserRole();
   const isAdmin = currentUserRole === "admin";
-  const isFinanceManager = currentUserRole === "finance_manager";
+  const isFinanceManager = false;
   const canManageUsers = isAdmin || isFinanceManager;
 
   useEffect(() => {
@@ -205,7 +208,7 @@ const ProjectDetailsPage = () => {
   const formatCurrency = (amount: string) => {
     return new Intl.NumberFormat("en-US", {
       style: "currency",
-      currency: "USD",
+      currency: "UGX",
     }).format(parseFloat(amount));
   };
 
@@ -237,14 +240,13 @@ const ProjectDetailsPage = () => {
   const assignedUserIds = project?.users?.map((u) => u.id) || [];
   const availableUsers = users.filter((u) => !assignedUserIds.includes(u.id));
 
-  // Transform project users to match DataTable user format
   const transformedUsers =
     project?.users?.map((user) => ({
       id: user.id,
       email: user.email,
       first_name: user.first_name,
       last_name: user.last_name,
-      role: user.role as "admin" | "finance_manager" | "user",
+      role: user.role as "admin" | "user",
       status: "active" as const,
       created_at: user.assigned_at,
       updated_at: user.assigned_at,
@@ -252,7 +254,6 @@ const ProjectDetailsPage = () => {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Global Loading Overlay */}
       {actionLoading && (
         <div className="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 flex flex-col items-center gap-3 shadow-xl">
@@ -264,7 +265,6 @@ const ProjectDetailsPage = () => {
 
       <div className="p-4 sm:p-6 lg:p-8">
         <div className="max-w-7xl mx-auto space-y-6">
-          {/* Header */}
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4 w-full">
               <button
@@ -298,7 +298,6 @@ const ProjectDetailsPage = () => {
             </div>
           </div>
 
-          {/* Financial Stats */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             {loading ? (
               <>
@@ -355,9 +354,8 @@ const ProjectDetailsPage = () => {
             ) : null}
           </div>
 
-          {/* Project Information Cards */}
           <div>
-            <h2 className="text-xsm font-bold text-gray-900 mb-4">
+            <h2 className="text-lg font-bold text-gray-900 mb-4">
               Project Information
             </h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -372,7 +370,6 @@ const ProjectDetailsPage = () => {
                 </>
               ) : project ? (
                 <>
-                  {/* Project Code Card */}
                   <div className="bg-white rounded-xl border border-gray-200 p-6">
                     <div className="flex items-center gap-3 mb-3">
                       <div className="h-10 w-10 bg-primary/10 rounded-full flex items-center justify-center">
@@ -387,7 +384,6 @@ const ProjectDetailsPage = () => {
                     </p>
                   </div>
 
-                  {/* Project Name Card */}
                   <div className="bg-white rounded-xl border border-gray-200 p-6">
                     <div className="flex items-center gap-3 mb-3">
                       <div className="h-10 w-10 bg-blue-100 rounded-full flex items-center justify-center">
@@ -402,7 +398,6 @@ const ProjectDetailsPage = () => {
                     </p>
                   </div>
 
-                  {/* Status Card */}
                   <div className="bg-white rounded-xl border border-gray-200 p-6">
                     <div className="flex items-center gap-3 mb-3">
                       <div className="h-10 w-10 bg-green-100 rounded-full flex items-center justify-center">
@@ -421,7 +416,6 @@ const ProjectDetailsPage = () => {
                     </span>
                   </div>
 
-                  {/* Description Card */}
                   <div className="bg-white rounded-xl border border-gray-200 p-6 sm:col-span-2 lg:col-span-3">
                     <div className="flex items-center gap-3 mb-3">
                       <div className="h-10 w-10 bg-purple-100 rounded-full flex items-center justify-center">
@@ -436,7 +430,6 @@ const ProjectDetailsPage = () => {
                     </p>
                   </div>
 
-                  {/* Start Date Card */}
                   {project.start_date && (
                     <div className="bg-white rounded-xl border border-gray-200 p-6">
                       <div className="flex items-center gap-3 mb-3">
@@ -453,7 +446,6 @@ const ProjectDetailsPage = () => {
                     </div>
                   )}
 
-                  {/* End Date Card */}
                   {project.end_date && (
                     <div className="bg-white rounded-xl border border-gray-200 p-6">
                       <div className="flex items-center gap-3 mb-3">
@@ -470,7 +462,6 @@ const ProjectDetailsPage = () => {
                     </div>
                   )}
 
-                  {/* Last Updated Card */}
                   <div className="bg-white rounded-xl border border-gray-200 p-6">
                     <div className="flex items-center gap-3 mb-3">
                       <div className="h-10 w-10 bg-gray-100 rounded-full flex items-center justify-center">
@@ -484,12 +475,34 @@ const ProjectDetailsPage = () => {
                       {formatDate(project.updated_at)}
                     </p>
                   </div>
+
+                  {project.expense_types && project.expense_types.length > 0 && (
+                    <div className="bg-white rounded-xl border border-gray-200 p-6 sm:col-span-2 lg:col-span-3">
+                      <div className="flex items-center gap-3 mb-3">
+                        <div className="h-10 w-10 bg-indigo-100 rounded-full flex items-center justify-center">
+                          <Tag className="h-5 w-5 text-indigo-600" />
+                        </div>
+                        <h3 className="text-xs font-medium text-gray-700">
+                          Expense Types ({project.expense_types.length})
+                        </h3>
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        {project.expense_types.map((type) => (
+                          <span
+                            key={type.id}
+                            className="inline-flex px-3 py-1.5 text-xs font-medium rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200"
+                          >
+                            {type.name}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </>
               ) : null}
             </div>
           </div>
 
-          {/* Team Members Section */}
           <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
             <div className="px-6 py-4 border-b border-gray-200 bg-gray-50">
               <div className="flex items-center justify-between">
@@ -499,7 +512,6 @@ const ProjectDetailsPage = () => {
               </div>
             </div>
 
-            {/* User Assignment Section - Only for admins and finance managers */}
             {canManageUsers && !loading && (
               <div className="px-6 py-4 border-b border-gray-200 bg-gray-50">
                 <div className="flex gap-2">
@@ -532,7 +544,6 @@ const ProjectDetailsPage = () => {
               </div>
             )}
 
-            {/* Users Table */}
             {loading ? (
               <div className="p-12 flex items-center justify-center">
                 <Loader2 className="h-8 w-8 animate-spin text-primary" />

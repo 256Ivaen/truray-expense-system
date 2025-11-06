@@ -26,7 +26,7 @@ interface User {
   first_name: string;
   last_name: string;
   phone?: string;
-  role: "admin" | "finance_manager" | "user";
+  role: "admin" | "user";
   status: "active" | "inactive" | "suspended";
   created_at: string;
   updated_at: string;
@@ -249,7 +249,7 @@ export function DataTable({
   const userId = currentUserId || getCurrentUserId();
   
   const isAdmin = userRole === 'admin';
-  const isFinanceManager = userRole === 'finance_manager';
+  const isFinanceManager = false;
   const isNormalUser = userRole === 'user';
 
   const handleOpenDropdown = (itemId: string, event: React.MouseEvent<HTMLButtonElement>) => {
@@ -325,7 +325,6 @@ export function DataTable({
     return pages;
   };
 
-  // Get actions for each item
   const getItemActions = (item: TableData) => {
     const actions: Array<{
       label: string;
@@ -333,7 +332,7 @@ export function DataTable({
       onClick: () => void;
       color?: string;
     }> = [];
-
+  
     switch (type) {
       case "users":
         const user = item as User;
@@ -370,7 +369,7 @@ export function DataTable({
           });
         }
         break;
-
+  
       case "projects":
         const project = item as Project;
         if (canView(project) && onView) {
@@ -398,9 +397,17 @@ export function DataTable({
           });
         }
         break;
-
+  
       case "expenses":
         const expense = item as Expense;
+        if (canView(expense) && onView) {
+          actions.push({
+            label: 'View Details',
+            icon: <Eye className="h-4 w-4" />,
+            onClick: () => onView(expense),
+            color: 'text-blue-600',
+          });
+        }
         if (canApproveReject(expense)) {
           if (onApprove) {
             actions.push({
@@ -436,27 +443,34 @@ export function DataTable({
           });
         }
         break;
-
-      case "allocations":
-        const allocation = item as Allocation;
-        if (canEdit(allocation) && onEdit) {
-          actions.push({
-            label: 'Edit Allocation',
-            icon: <Edit3 className="h-4 w-4" />,
-            onClick: () => onEdit(allocation),
-            color: 'text-primary',
-          });
-        }
-        if (canDelete(allocation) && onDelete) {
-          actions.push({
-            label: 'Delete Allocation',
-            icon: <Trash2 className="h-4 w-4" />,
-            onClick: () => onDelete(allocation),
-            color: 'text-red-600',
-          });
-        }
-        break;
-
+  
+        case "allocations":
+          const allocation = item as Allocation;
+          if (canView(allocation) && onView) {
+            actions.push({
+              label: 'View Details',
+              icon: <Eye className="h-4 w-4" />,
+              onClick: () => onView(allocation),
+              color: 'text-blue-600',
+            });
+          }
+          if (canEdit(allocation) && onEdit) {
+            actions.push({
+              label: 'Edit Allocation',
+              icon: <Edit3 className="h-4 w-4" />,
+              onClick: () => onEdit(allocation),
+              color: 'text-primary',
+            });
+          }
+          if (canDelete(allocation) && onDelete) {
+            actions.push({
+              label: 'Delete Allocation',
+              icon: <Trash2 className="h-4 w-4" />,
+              onClick: () => onDelete(allocation),
+              color: 'text-red-600',
+            });
+          }
+          break;
       case "finances":
         const finance = item as Finance;
         if (canEdit(finance) && onEdit) {
@@ -469,7 +483,7 @@ export function DataTable({
         }
         break;
     }
-
+  
     return actions;
   };
 
@@ -481,17 +495,17 @@ export function DataTable({
       case "users":
         return isAdmin;
       case "projects":
-        return isAdmin || isFinanceManager;
+        return isAdmin;
       case "expenses":
         const expense = item as Expense;
         if (isNormalUser && expense.user_id === userId && expense.status === 'pending') {
           return true;
         }
-        return isAdmin || isFinanceManager;
+        return isAdmin;
       case "allocations":
-        return isAdmin || isFinanceManager;
+        return isAdmin;
       case "finances":
-        return isAdmin || isFinanceManager;
+        return isAdmin;
       default:
         return false;
     }
@@ -510,7 +524,7 @@ export function DataTable({
         if (isNormalUser && expense.user_id === userId && expense.status === 'pending') {
           return true;
         }
-        return isAdmin || isFinanceManager;
+        return isAdmin;
       case "allocations":
         return isAdmin || isFinanceManager;
       case "finances":
@@ -525,7 +539,7 @@ export function DataTable({
     
     switch (type) {
       case "expenses":
-        return (isAdmin || isFinanceManager) && (item as Expense).status === 'pending';
+        return (isAdmin) && (item as Expense).status === 'pending';
       default:
         return false;
     }
@@ -536,7 +550,7 @@ export function DataTable({
     
     switch (type) {
       case "users":
-        return isAdmin || isFinanceManager;
+        return isAdmin;
       default:
         return false;
     }
@@ -551,7 +565,7 @@ export function DataTable({
       case "admin":
         return "bg-red-100 text-red-800";
       case "finance_manager":
-        return "bg-primary/20 text-primary";
+        return "bg-gray-100 text-gray-800";
       case "user":
         return "bg-gray-100 text-gray-800";
       default:
@@ -602,7 +616,7 @@ export function DataTable({
     const numAmount = typeof amount === 'string' ? parseFloat(amount) : amount;
     return new Intl.NumberFormat("en-US", {
       style: "currency",
-      currency: "USD",
+      currency: "UGX",
     }).format(numAmount);
   };
 

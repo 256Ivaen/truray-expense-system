@@ -26,7 +26,7 @@ class ProjectService
                     INNER JOIN project_users pu ON p.id = pu.project_id 
                     WHERE pu.user_id = ? AND p.deleted_at IS NULL";
         
-        if ($role === 'admin' || $role === 'finance_manager') {
+        if ($role === 'admin') {
             $countSql = "SELECT COUNT(*) as total FROM projects WHERE deleted_at IS NULL";
             $countResult = $this->db->queryOne($countSql);
             $total = $countResult['total'] ?? 0;
@@ -67,8 +67,8 @@ class ProjectService
             return null;
         }
         
-        // If user is admin or finance manager, return project
-        if ($role === 'admin' || $role === 'finance_manager') {
+        // If user is admin, return project
+        if ($role === 'admin') {
             return $this->enhanceProjectWithBalance($project);
         }
         
@@ -88,202 +88,294 @@ class ProjectService
     
     public function create($data)
     {
-        $existing = $this->db->queryOne(
-            "SELECT id FROM projects WHERE project_code = ?",
-            [$data['project_code']]
-        );
-        
-        if ($existing) {
-            return ['success' => false, 'message' => 'Project code already exists'];
-        }
-        
-        $projectId = Uuid::uuid4()->toString();
-        $this->db->execute(
-            "INSERT INTO projects (id, project_code, name, description, start_date, end_date, status, created_by) 
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-            [
-                $projectId,
-                $data['project_code'],
-                $data['name'],
-                $data['description'] ?? null,
-                $data['start_date'] ?? null,
-                $data['end_date'] ?? null,
-                $data['status'] ?? 'planning',
-                $data['created_by'] ?? null
-            ]
-        );
-        
-        // Create initial project balance record
-        $this->db->execute(
-            "INSERT INTO project_balances (id, total_deposits, unallocated_balance, allocated_balance, total_spent) 
-             VALUES (?, 0, 0, 0, 0)",
-            [$projectId]
-        );
-        
-        $project = $this->projectModel->find($projectId);
-        return ['success' => true, 'data' => $this->enhanceProjectWithBalance($project)];
-    }
-    
-    public function update($id, $data)
-    {
-        $project = $this->projectModel->find($id);
-        if (!$project) {
-            return ['success' => false, 'message' => 'Project not found'];
-        }
-        
-        if (isset($data['project_code']) && $data['project_code'] !== $project['project_code']) {
+        try {
             $existing = $this->db->queryOne(
-                "SELECT id FROM projects WHERE project_code = ? AND id != ?",
-                [$data['project_code'], $id]
+                "SELECT id FROM projects WHERE project_code = ?",
+                [$data['project_code']]
             );
             
             if ($existing) {
                 return ['success' => false, 'message' => 'Project code already exists'];
             }
-        }
-        
-        $updateFields = [];
-        $params = [];
-        
-        if (isset($data['project_code'])) {
-            $updateFields[] = "project_code = ?";
-            $params[] = $data['project_code'];
-        }
-        
-        if (isset($data['name'])) {
-            $updateFields[] = "name = ?";
-            $params[] = $data['name'];
-        }
-        
-        if (isset($data['description'])) {
-            $updateFields[] = "description = ?";
-            $params[] = $data['description'];
-        }
-        
-        if (isset($data['start_date'])) {
-            $updateFields[] = "start_date = ?";
-            $params[] = $data['start_date'];
-        }
-        
-        if (isset($data['end_date'])) {
-            $updateFields[] = "end_date = ?";
-            $params[] = $data['end_date'];
-        }
-        
-        if (isset($data['status'])) {
-            $updateFields[] = "status = ?";
-            $params[] = $data['status'];
-        }
-        
-        if (empty($updateFields)) {
+            
+            $projectId = Uuid::uuid4()->toString();
+            
+            // Start transaction for data consistency
+            $this->db->beginTransaction();
+            
+            // Insert the main project
+            $this->db->execute(
+                "INSERT INTO projects (id, project_code, name, description, start_date, end_date, status, created_by) 
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                [
+                    $projectId,
+                    $data['project_code'],
+                    $data['name'],
+                    $data['description'] ?? null,
+                    $data['start_date'] ?? null,
+                    $data['end_date'] ?? null,
+                    $data['status'] ?? 'planning',
+                    $data['created_by'] ?? null
+                ]
+            );
+            
+            // Insert expense types if provided
+            if (!empty($data['expense_types']) && is_array($data['expense_types'])) {
+                foreach ($data['expense_types'] as $typeName) {
+                    $typeName = trim((string)$typeName);
+                    if ($typeName === '') { 
+                        continue; 
+                    }
+                    
+                    // Check if expense type already exists for this project
+                    $existingType = $this->db->queryOne(
+                        "SELECT id FROM project_expense_types WHERE project_id = ? AND name = ?",
+                        [$projectId, $typeName]
+                    );
+                    
+                    if (!$existingType) {
+                        $this->db->execute(
+                            "INSERT INTO project_expense_types (id, project_id, name) VALUES (?, ?, ?)",
+                            [Uuid::uuid4()->toString(), $projectId, $typeName]
+                        );
+                    }
+                }
+            }
+            
+            // Commit transaction
+            $this->db->commit();
+            
+            $project = $this->projectModel->find($projectId);
             return ['success' => true, 'data' => $this->enhanceProjectWithBalance($project)];
+            
+        } catch (\Exception $e) {
+            // Rollback on error
+            $this->db->rollback();
+            error_log("Project creation failed: " . $e->getMessage());
+            return ['success' => false, 'message' => 'Failed to create project: ' . $e->getMessage()];
         }
-        
-        $updateFields[] = "updated_at = NOW()";
-        $params[] = $id;
-        
-        $sql = "UPDATE projects SET " . implode(", ", $updateFields) . " WHERE id = ?";
-        $this->db->execute($sql, $params);
-        
-        $updatedProject = $this->projectModel->find($id);
-        return ['success' => true, 'data' => $this->enhanceProjectWithBalance($updatedProject)];
+    }
+    
+    public function update($id, $data)
+    {
+        try {
+            $project = $this->projectModel->find($id);
+            if (!$project) {
+                return ['success' => false, 'message' => 'Project not found'];
+            }
+            
+            if (isset($data['project_code']) && $data['project_code'] !== $project['project_code']) {
+                $existing = $this->db->queryOne(
+                    "SELECT id FROM projects WHERE project_code = ? AND id != ?",
+                    [$data['project_code'], $id]
+                );
+                
+                if ($existing) {
+                    return ['success' => false, 'message' => 'Project code already exists'];
+                }
+            }
+            
+            $updateFields = [];
+            $params = [];
+            
+            if (isset($data['project_code'])) {
+                $updateFields[] = "project_code = ?";
+                $params[] = $data['project_code'];
+            }
+            
+            if (isset($data['name'])) {
+                $updateFields[] = "name = ?";
+                $params[] = $data['name'];
+            }
+            
+            if (isset($data['description'])) {
+                $updateFields[] = "description = ?";
+                $params[] = $data['description'];
+            }
+            
+            if (isset($data['start_date'])) {
+                $updateFields[] = "start_date = ?";
+                $params[] = $data['start_date'];
+            }
+            
+            if (isset($data['end_date'])) {
+                $updateFields[] = "end_date = ?";
+                $params[] = $data['end_date'];
+            }
+            
+            if (isset($data['status'])) {
+                $updateFields[] = "status = ?";
+                $params[] = $data['status'];
+            }
+            
+            if (empty($updateFields)) {
+                return ['success' => true, 'data' => $this->enhanceProjectWithBalance($project)];
+            }
+            
+            $updateFields[] = "updated_at = NOW()";
+            $params[] = $id;
+            
+            $sql = "UPDATE projects SET " . implode(", ", $updateFields) . " WHERE id = ?";
+            $this->db->execute($sql, $params);
+            
+            // Update expense types if provided
+            if (!empty($data['expense_types']) && is_array($data['expense_types'])) {
+                // Remove existing expense types for this project
+                $this->db->execute(
+                    "DELETE FROM project_expense_types WHERE project_id = ?",
+                    [$id]
+                );
+                
+                // Insert new expense types
+                foreach ($data['expense_types'] as $typeName) {
+                    $typeName = trim((string)$typeName);
+                    if ($typeName === '') { 
+                        continue; 
+                    }
+                    
+                    $this->db->execute(
+                        "INSERT INTO project_expense_types (id, project_id, name) VALUES (?, ?, ?)",
+                        [Uuid::uuid4()->toString(), $id, $typeName]
+                    );
+                }
+            }
+            
+            $updatedProject = $this->projectModel->find($id);
+            return ['success' => true, 'data' => $this->enhanceProjectWithBalance($updatedProject)];
+            
+        } catch (\Exception $e) {
+            error_log("Project update failed: " . $e->getMessage());
+            return ['success' => false, 'message' => 'Failed to update project: ' . $e->getMessage()];
+        }
     }
     
     public function delete($id)
     {
-        $project = $this->projectModel->find($id);
-        if (!$project) {
-            return ['success' => false, 'message' => 'Project not found'];
+        try {
+            $project = $this->projectModel->find($id);
+            if (!$project) {
+                return ['success' => false, 'message' => 'Project not found'];
+            }
+            
+            $this->db->execute(
+                "UPDATE projects SET deleted_at = NOW() WHERE id = ?",
+                [$id]
+            );
+            
+            return ['success' => true, 'message' => 'Project deleted successfully'];
+            
+        } catch (\Exception $e) {
+            error_log("Project deletion failed: " . $e->getMessage());
+            return ['success' => false, 'message' => 'Failed to delete project: ' . $e->getMessage()];
         }
-        
-        $this->db->execute(
-            "UPDATE projects SET deleted_at = NOW() WHERE id = ?",
-            [$id]
-        );
-        
-        return ['success' => true, 'message' => 'Project deleted successfully'];
     }
     
     public function assignUser($projectId, $userId, $assignedBy)
     {
-        $project = $this->projectModel->find($projectId);
-        if (!$project) {
-            return ['success' => false, 'message' => 'Project not found'];
+        try {
+            $project = $this->projectModel->find($projectId);
+            if (!$project) {
+                return ['success' => false, 'message' => 'Project not found'];
+            }
+            
+            $user = $this->db->queryOne(
+                "SELECT id, role FROM users WHERE id = ? AND deleted_at IS NULL",
+                [$userId]
+            );
+            
+            if (!$user) {
+                return ['success' => false, 'message' => 'User not found'];
+            }
+            
+            // Prevent assigning admin users to projects
+            if ($user['role'] === 'admin') {
+                return ['success' => false, 'message' => 'Cannot assign admin users to projects'];
+            }
+            
+            // Enforce single-project assignment per user
+            $alreadyAssigned = $this->db->queryOne(
+                "SELECT id FROM project_users WHERE user_id = ?",
+                [$userId]
+            );
+            if ($alreadyAssigned) {
+                return ['success' => false, 'message' => 'User is already assigned to a project'];
+            }
+            
+            $existing = $this->db->queryOne(
+                "SELECT id FROM project_users WHERE project_id = ? AND user_id = ?",
+                [$projectId, $userId]
+            );
+            
+            if ($existing) {
+                return ['success' => false, 'message' => 'User already assigned to this project'];
+            }
+            
+            $id = Uuid::uuid4()->toString();
+            $this->db->execute(
+                "INSERT INTO project_users (id, project_id, user_id, assigned_by) VALUES (?, ?, ?, ?)",
+                [$id, $projectId, $userId, $assignedBy]
+            );
+            
+            // Get user details for notification
+            $assignedUser = $this->db->queryOne(
+                "SELECT first_name, last_name FROM users WHERE id = ?",
+                [$userId]
+            );
+            
+            // Create notification for the assigned user
+            $this->notificationService->create(
+                $userId,
+                'project_assignment',
+                'Assigned to Project',
+                "You have been assigned to the project: {$project['name']}",
+                'project',
+                $projectId
+            );
+            
+            return ['success' => true, 'message' => 'User assigned to project successfully'];
+            
+        } catch (\Exception $e) {
+            error_log("User assignment failed: " . $e->getMessage());
+            return ['success' => false, 'message' => 'Failed to assign user: ' . $e->getMessage()];
         }
-        
-        $user = $this->db->queryOne(
-            "SELECT id, role FROM users WHERE id = ? AND deleted_at IS NULL",
-            [$userId]
-        );
-        
-        if (!$user) {
-            return ['success' => false, 'message' => 'User not found'];
-        }
-        
-        // Prevent assigning admin users to projects
-        if ($user['role'] === 'admin') {
-            return ['success' => false, 'message' => 'Cannot assign admin users to projects'];
-        }
-        
-        $existing = $this->db->queryOne(
-            "SELECT id FROM project_users WHERE project_id = ? AND user_id = ?",
-            [$projectId, $userId]
-        );
-        
-        if ($existing) {
-            return ['success' => false, 'message' => 'User already assigned to this project'];
-        }
-        
-        $id = Uuid::uuid4()->toString();
-        $this->db->execute(
-            "INSERT INTO project_users (id, project_id, user_id, assigned_by) VALUES (?, ?, ?, ?)",
-            [$id, $projectId, $userId, $assignedBy]
-        );
-        
-        // Get user details for notification
-        $assignedUser = $this->db->queryOne(
-            "SELECT first_name, last_name FROM users WHERE id = ?",
-            [$userId]
-        );
-        
-        // Create notification for the assigned user
-        $this->notificationService->create(
-            $userId,
-            'project_assignment',
-            'Assigned to Project',
-            "You have been assigned to the project: {$project['name']}",
-            'project',
-            $projectId
-        );
-        
-        return ['success' => true, 'message' => 'User assigned to project successfully'];
     }
     
     public function removeUser($projectId, $userId)
     {
-        $existing = $this->db->queryOne(
-            "SELECT id FROM project_users WHERE project_id = ? AND user_id = ?",
-            [$projectId, $userId]
-        );
-        
-        if (!$existing) {
-            return ['success' => false, 'message' => 'User not assigned to this project'];
+        try {
+            $existing = $this->db->queryOne(
+                "SELECT id FROM project_users WHERE project_id = ? AND user_id = ?",
+                [$projectId, $userId]
+            );
+            
+            if (!$existing) {
+                return ['success' => false, 'message' => 'User not assigned to this project'];
+            }
+            
+            $this->db->execute(
+                "DELETE FROM project_users WHERE project_id = ? AND user_id = ?",
+                [$projectId, $userId]
+            );
+            
+            return ['success' => true, 'message' => 'User removed from project successfully'];
+            
+        } catch (\Exception $e) {
+            error_log("User removal failed: " . $e->getMessage());
+            return ['success' => false, 'message' => 'Failed to remove user: ' . $e->getMessage()];
         }
-        
-        $this->db->execute(
-            "DELETE FROM project_users WHERE project_id = ? AND user_id = ?",
-            [$projectId, $userId]
-        );
-        
-        return ['success' => true, 'message' => 'User removed from project successfully'];
     }
     
     public function getBalance($projectId)
     {
-        return $this->db->queryOne(
-            "SELECT * FROM project_balances WHERE id = ?",
-            [$projectId]
-        );
+        try {
+            return $this->db->queryOne(
+                "SELECT * FROM project_balances WHERE id = ?",
+                [$projectId]
+            );
+        } catch (\Exception $e) {
+            error_log("Balance query failed: " . $e->getMessage());
+            return null;
+        }
     }
     
     public function getProjectUsers($projectId)
@@ -295,6 +387,19 @@ class ProjectService
                 ORDER BY pu.assigned_at DESC";
         
         return $this->db->query($sql, [$projectId]);
+    }
+    
+    public function getProjectExpenseTypes($projectId)
+    {
+        try {
+            return $this->db->query(
+                "SELECT id, name, created_at FROM project_expense_types WHERE project_id = ? ORDER BY name",
+                [$projectId]
+            );
+        } catch (\Exception $e) {
+            error_log("Expense types query failed: " . $e->getMessage());
+            return [];
+        }
     }
     
     // Helper method to check if project exists (without user restrictions)
@@ -320,7 +425,7 @@ class ProjectService
                 'remaining_balance' => 0
             ];
         } catch (\Exception $e) {
-            // If balance table doesn't exist or has issues, set default balance
+            // If balance view doesn't exist or has issues, set default balance
             $project['balance'] = [
                 'total_deposits' => 0,
                 'unallocated_balance' => 0,
@@ -335,6 +440,13 @@ class ProjectService
             $project['balance']['remaining_balance'] = 
                 ($project['balance']['total_deposits'] ?? 0) - 
                 ($project['balance']['total_spent'] ?? 0);
+        }
+        
+        // Get expense types for this project
+        try {
+            $project['expense_types'] = $this->getProjectExpenseTypes($project['id']);
+        } catch (\Exception $e) {
+            $project['expense_types'] = [];
         }
         
         return $project;

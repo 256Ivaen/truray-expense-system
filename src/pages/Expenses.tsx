@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { 
   Receipt, 
   Search, 
@@ -9,6 +10,8 @@ import {
   Clock,
   TrendingUp,
   X,
+  Upload,
+  Loader2,
 } from "lucide-react";
 import { MdOutlineAttachMoney } from "react-icons/md";
 import { get, post, put, del } from "../utils/service";
@@ -22,11 +25,11 @@ interface Expense {
   project_id: string;
   user_id: string;
   allocation_id: string | null;
-  amount: string; // Changed from number to string to match API
+  amount: string;
   description: string;
   category?: string;
   receipt_image: string | null;
-  spent_at: string; // Changed from created_at to spent_at
+  spent_at: string;
   status: 'pending' | 'approved' | 'rejected';
   approved_by: string | null;
   approved_at: string | null;
@@ -43,13 +46,17 @@ interface Project {
   project_code: string;
   name: string;
   status: 'planning' | 'active' | 'completed' | 'cancelled' | 'closed';
+  expense_types?: Array<{
+    id: string;
+    name: string;
+  }>;
 }
 
 interface CreateExpenseData {
   project_id: string;
   amount: number;
   description: string;
-  category?: string;
+  category: string;
   receipt_image?: File;
 }
 
@@ -61,7 +68,6 @@ interface UpdateExpenseData {
   status?: 'pending' | 'approved' | 'rejected';
 }
 
-// Get current user role from localStorage
 const getCurrentUserRole = () => {
   try {
     const userStr = localStorage.getItem('truray_user');
@@ -88,7 +94,6 @@ const getCurrentUserId = () => {
   return null;
 };
 
-// Skeleton Components
 const SkeletonBox = ({ className }: { className?: string }) => (
   <div className={`animate-pulse bg-gray-200 rounded-lg ${className}`}></div>
 );
@@ -109,7 +114,6 @@ const SearchSkeleton = () => (
   </div>
 );
 
-// Expense Modals Components
 interface CreateExpenseModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -127,8 +131,26 @@ function CreateExpenseModal({ isOpen, onClose, onSubmit, projects, loading = fal
     receipt_image: undefined
   });
 
+  const [selectedProject, setSelectedProject] = useState<Project | null>(null);
+
+  useEffect(() => {
+    if (form.project_id) {
+      const project = projects.find(p => p.id === form.project_id);
+      setSelectedProject(project || null);
+      if (project) {
+        setForm(prev => ({ ...prev, category: "" }));
+      }
+    } else {
+      setSelectedProject(null);
+    }
+  }, [form.project_id, projects]);
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!form.category) {
+      toast.error('Please select an expense type');
+      return;
+    }
     onSubmit(form);
   };
 
@@ -140,6 +162,7 @@ function CreateExpenseModal({ isOpen, onClose, onSubmit, projects, loading = fal
       category: "",
       receipt_image: undefined
     });
+    setSelectedProject(null);
     onClose();
   };
 
@@ -152,7 +175,7 @@ function CreateExpenseModal({ isOpen, onClose, onSubmit, projects, loading = fal
 
   return (
     <div 
-      className={`fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50 ${isOpen ? 'block' : 'hidden'}`}
+      className={`fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm flex items-center justify-center p-4 z-50 ${isOpen ? 'block' : 'hidden'}`}
       onClick={onClose}
     >
       <div 
@@ -160,12 +183,12 @@ function CreateExpenseModal({ isOpen, onClose, onSubmit, projects, loading = fal
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between p-6 border-b border-gray-200">
-          <h2 className="text-xs font-semibold text-gray-900">Record New Expense</h2>
+          <h2 className="text-lg font-semibold text-gray-900">Record New Expense</h2>
           <button
             onClick={onClose}
             className="text-gray-400 hover:text-gray-600 transition-colors"
           >
-            <X className="h-4 w-4" />
+            <X className="h-5 w-5" />
           </button>
         </div>
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
@@ -189,17 +212,47 @@ function CreateExpenseModal({ isOpen, onClose, onSubmit, projects, loading = fal
             </select>
           </div>
 
+          {selectedProject && selectedProject.expense_types && selectedProject.expense_types.length > 0 && (
+            <div>
+              <label className="block text-xs font-medium text-gray-700 mb-1">
+                Expense Type *
+              </label>
+              <select
+                required
+                value={form.category}
+                onChange={(e) => setForm({ ...form, category: e.target.value })}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary text-xs"
+                disabled={loading}
+              >
+                <option value="">Select expense type</option>
+                {selectedProject.expense_types.map(type => (
+                  <option key={type.id} value={type.name}>
+                    {type.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+
+          {selectedProject && (!selectedProject.expense_types || selectedProject.expense_types.length === 0) && (
+            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+              <p className="text-xs text-yellow-800">
+                <strong>Note:</strong> This project has no expense types defined. Please contact admin to add expense types.
+              </p>
+            </div>
+          )}
+
           <div>
             <label className="block text-xs font-medium text-gray-700 mb-1">
-              Amount (USD) *
+              Amount (UGX) *
             </label>
             <input
               type="number"
               required
               min="0"
               step="0.01"
-              value={form.amount}
-              onChange={(e) => setForm({ ...form, amount: parseFloat(e.target.value) || 0 })}
+              value={form.amount === 0 ? '' : form.amount}
+              onChange={(e) => setForm({ ...form, amount: e.target.value === '' ? 0 : parseFloat(e.target.value) })}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary text-xs"
               placeholder="0.00"
               disabled={loading}
@@ -223,38 +276,30 @@ function CreateExpenseModal({ isOpen, onClose, onSubmit, projects, loading = fal
 
           <div>
             <label className="block text-xs font-medium text-gray-700 mb-1">
-              Category
-            </label>
-            <select
-              value={form.category}
-              onChange={(e) => setForm({ ...form, category: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary text-xs"
-              disabled={loading}
-            >
-              <option value="">Select category</option>
-              <option value="travel">Travel</option>
-              <option value="supplies">Supplies</option>
-              <option value="equipment">Equipment</option>
-              <option value="services">Services</option>
-              <option value="software">Software</option>
-              <option value="other">Other</option>
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-xs font-medium text-gray-700 mb-1">
               Receipt Image
             </label>
-            <input
-              type="file"
-              accept="image/*"
-              onChange={handleFileChange}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary text-xs"
-              disabled={loading}
-            />
-            <p className="text-xs text-gray-500 mt-1">
-              Upload receipt or proof of expense (optional)
-            </p>
+            <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center hover:border-gray-400 transition-colors">
+              <input
+                type="file"
+                accept="image/*"
+                onChange={handleFileChange}
+                className="hidden"
+                id="receipt-image"
+                disabled={loading}
+              />
+              <label 
+                htmlFor="receipt-image" 
+                className="cursor-pointer block"
+              >
+                <Upload className="h-6 w-6 text-gray-400 mx-auto mb-2" />
+                <span className="text-xs text-gray-600 font-medium">
+                  {form.receipt_image ? form.receipt_image.name : 'Click to upload receipt'}
+                </span>
+                <p className="text-xs text-gray-500 mt-1">
+                  Upload receipt or proof of expense (optional)
+                </p>
+              </label>
+            </div>
           </div>
 
           <div className="flex gap-3 pt-4">
@@ -262,15 +307,16 @@ function CreateExpenseModal({ isOpen, onClose, onSubmit, projects, loading = fal
               type="button"
               onClick={handleClose}
               disabled={loading}
-              className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors text-xs font-medium disabled:opacity-50"
+              className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors text-xs font-medium disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Cancel
             </button>
             <button
               type="submit"
-              disabled={loading}
-              className="flex-1 px-4 py-2 bg-primary text-black rounded-lg hover:bg-primary/90 transition-colors text-xs font-medium disabled:opacity-50"
+              disabled={loading || !selectedProject || (selectedProject.expense_types && selectedProject.expense_types.length > 0 && !form.category)}
+              className="flex-1 px-4 py-2 bg-primary text-secondary rounded-lg hover:bg-primary/90 transition-colors text-xs font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
             >
+              {loading && <Loader2 className="w-4 h-4 animate-spin" />}
               {loading ? "Recording..." : "Record Expense"}
             </button>
           </div>
@@ -298,17 +344,29 @@ function EditExpenseModal({ isOpen, onClose, onSubmit, expense, projects, loadin
     status: "pending"
   });
 
+  const [selectedProject, setSelectedProject] = useState<Project | null>(null);
+
   useEffect(() => {
     if (expense) {
       setForm({
         project_id: expense.project_id,
-        amount: parseFloat(expense.amount), // Convert string to number
+        amount: parseFloat(expense.amount),
         description: expense.description,
         category: expense.category || "",
         status: expense.status
       });
+      
+      const project = projects.find(p => p.id === expense.project_id);
+      setSelectedProject(project || null);
     }
-  }, [expense]);
+  }, [expense, projects]);
+
+  useEffect(() => {
+    if (form.project_id) {
+      const project = projects.find(p => p.id === form.project_id);
+      setSelectedProject(project || null);
+    }
+  }, [form.project_id, projects]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -323,7 +381,7 @@ function EditExpenseModal({ isOpen, onClose, onSubmit, expense, projects, loadin
 
   return (
     <div 
-      className={`fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50 ${isOpen ? 'block' : 'hidden'}`}
+      className={`fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm flex items-center justify-center p-4 z-50 ${isOpen ? 'block' : 'hidden'}`}
       onClick={onClose}
     >
       <div 
@@ -331,12 +389,12 @@ function EditExpenseModal({ isOpen, onClose, onSubmit, expense, projects, loadin
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between p-6 border-b border-gray-200">
-          <h2 className="text-xs font-semibold text-gray-900">Edit Expense</h2>
+          <h2 className="text-lg font-semibold text-gray-900">Edit Expense</h2>
           <button
             onClick={onClose}
             className="text-gray-400 hover:text-gray-600 transition-colors"
           >
-            <X className="h-4 w-4" />
+            <X className="h-5 w-5" />
           </button>
         </div>
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
@@ -359,16 +417,37 @@ function EditExpenseModal({ isOpen, onClose, onSubmit, expense, projects, loadin
             </select>
           </div>
 
+          {selectedProject && selectedProject.expense_types && selectedProject.expense_types.length > 0 && (
+            <div>
+              <label className="block text-xs font-medium text-gray-700 mb-1">
+                Expense Type
+              </label>
+              <select
+                value={form.category}
+                onChange={(e) => setForm({ ...form, category: e.target.value })}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary text-xs"
+                disabled={loading}
+              >
+                <option value="">Select expense type</option>
+                {selectedProject.expense_types.map(type => (
+                  <option key={type.id} value={type.name}>
+                    {type.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+
           <div>
             <label className="block text-xs font-medium text-gray-700 mb-1">
-              Amount (USD)
+              Amount (UGX)
             </label>
             <input
               type="number"
               min="0"
               step="0.01"
-              value={form.amount}
-              onChange={(e) => setForm({ ...form, amount: parseFloat(e.target.value) || 0 })}
+              value={form.amount === 0 ? '' : form.amount}
+              onChange={(e) => setForm({ ...form, amount: e.target.value === '' ? 0 : parseFloat(e.target.value) })}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary text-xs"
               disabled={loading}
             />
@@ -385,26 +464,6 @@ function EditExpenseModal({ isOpen, onClose, onSubmit, expense, projects, loadin
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary text-xs"
               disabled={loading}
             />
-          </div>
-
-          <div>
-            <label className="block text-xs font-medium text-gray-700 mb-1">
-              Category
-            </label>
-            <select
-              value={form.category}
-              onChange={(e) => setForm({ ...form, category: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary text-xs"
-              disabled={loading}
-            >
-              <option value="">Select category</option>
-              <option value="travel">Travel</option>
-              <option value="supplies">Supplies</option>
-              <option value="equipment">Equipment</option>
-              <option value="services">Services</option>
-              <option value="software">Software</option>
-              <option value="other">Other</option>
-            </select>
           </div>
 
           <div>
@@ -428,15 +487,16 @@ function EditExpenseModal({ isOpen, onClose, onSubmit, expense, projects, loadin
               type="button"
               onClick={handleClose}
               disabled={loading}
-              className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors text-xs font-medium disabled:opacity-50"
+              className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors text-xs font-medium disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={loading}
-              className="flex-1 px-4 py-2 bg-primary text-black rounded-lg hover:bg-primary/90 transition-colors text-xs font-medium disabled:opacity-50"
+              className="flex-1 px-4 py-2 bg-primary text-secondary rounded-lg hover:bg-primary/90 transition-colors text-xs font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
             >
+              {loading && <Loader2 className="w-4 h-4 animate-spin" />}
               {loading ? "Updating..." : "Update Expense"}
             </button>
           </div>
@@ -447,6 +507,7 @@ function EditExpenseModal({ isOpen, onClose, onSubmit, expense, projects, loadin
 }
 
 const ExpensesPage = () => {
+  const navigate = useNavigate();
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
@@ -455,13 +516,11 @@ const ExpensesPage = () => {
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [projectFilter, setProjectFilter] = useState<string>("all");
   
-  // Modal states
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [selectedExpense, setSelectedExpense] = useState<Expense | null>(null);
 
-  // Get current user info
   const currentUserRole = getCurrentUserRole();
   const currentUserId = getCurrentUserId();
 
@@ -491,7 +550,23 @@ const ExpensesPage = () => {
     try {
       const response = await get('/projects');
       if (response.success) {
-        setProjects(response.data);
+        const projectsWithTypes = await Promise.all(
+          response.data.map(async (project: Project) => {
+            try {
+              const detailsResponse = await get(`/projects/${project.id}`);
+              if (detailsResponse.success && detailsResponse.data.expense_types) {
+                return {
+                  ...project,
+                  expense_types: detailsResponse.data.expense_types
+                };
+              }
+            } catch (error) {
+              console.error(`Error fetching expense types for project ${project.id}:`, error);
+            }
+            return project;
+          })
+        );
+        setProjects(projectsWithTypes);
       }
     } catch (error) {
       console.error('Error fetching projects:', error);
@@ -505,7 +580,7 @@ const ExpensesPage = () => {
       formData.append('project_id', data.project_id);
       formData.append('amount', data.amount.toString());
       formData.append('description', data.description);
-      if (data.category) formData.append('category', data.category);
+      formData.append('category', data.category);
       if (data.receipt_image) formData.append('receipt_image', data.receipt_image);
 
       const response = await post('/expenses', formData, {
@@ -609,6 +684,10 @@ const ExpensesPage = () => {
     }
   };
 
+  const handleViewExpense = (expense: Expense) => {
+    navigate(`/expenses/${expense.id}`);
+  };
+
   const openCreateModal = () => {
     setShowCreateModal(true);
   };
@@ -630,7 +709,6 @@ const ExpensesPage = () => {
     setSelectedExpense(null);
   };
 
-  // Filter expenses based on search and filters
   const filteredExpenses = expenses.filter(expense => {
     const matchesSearch = 
       expense.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -643,7 +721,6 @@ const ExpensesPage = () => {
     return matchesSearch && matchesStatus && matchesProject;
   });
 
-  // Calculate expense statistics - FIXED: Parse string amounts to numbers
   const expenseStats = {
     totalExpenses: expenses.reduce((sum, expense) => sum + parseFloat(expense.amount), 0),
     totalRecords: expenses.length,
@@ -655,13 +732,12 @@ const ExpensesPage = () => {
   };
 
   const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-    }).format(amount);
+    return `UGX ${amount.toLocaleString('en-US', {
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0
+    })}`;
   };
 
-  // Transform expenses for DataTable - FIXED: Convert amount to number and map spent_at to created_at
   const transformedExpenses = filteredExpenses.map(expense => ({
     ...expense,
     amount: parseFloat(expense.amount),
@@ -671,7 +747,6 @@ const ExpensesPage = () => {
   return (
     <div className="min-h-screen bg-gray-50 p-4 sm:p-6">
       <div className="max-w-7xl mx-auto space-y-6">
-        {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
           <div>
             {loading ? (
@@ -703,7 +778,6 @@ const ExpensesPage = () => {
           )}
         </div>
 
-        {/* Stats Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <StatCard
             title="Total Expenses"
@@ -735,13 +809,11 @@ const ExpensesPage = () => {
           />
         </div>
 
-        {/* Filters and Search */}
         {loading ? (
           <SearchSkeleton />
         ) : (
           <div className="bg-white rounded-lg border border-gray-200 p-4 mb-6">
             <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
-              {/* Search */}
               <div className="lg:col-span-2">
                 <div className="relative">
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
@@ -755,7 +827,6 @@ const ExpensesPage = () => {
                 </div>
               </div>
 
-              {/* Status Filter */}
               <div>
                 <select
                   value={statusFilter}
@@ -769,7 +840,6 @@ const ExpensesPage = () => {
                 </select>
               </div>
 
-              {/* Project Filter */}
               <div>
                 <select
                   value={projectFilter}
@@ -788,9 +858,7 @@ const ExpensesPage = () => {
           </div>
         )}
 
-        {/* Expenses Table */}
         <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
-          {/* Table Header */}
           <div className="px-4 sm:px-6 py-4 border-b border-gray-200 bg-gray-50">
             {loading ? (
               <div className="flex items-center justify-between">
@@ -810,7 +878,6 @@ const ExpensesPage = () => {
             )}
           </div>
 
-          {/* Data Table Component */}
           <DataTable
             data={transformedExpenses}
             loading={loading}
@@ -819,6 +886,7 @@ const ExpensesPage = () => {
             onDelete={openDeleteModal}
             onApprove={handleApproveExpense}
             onReject={handleRejectExpense}
+            onView={handleViewExpense}
             currentUserRole={currentUserRole}
             currentUserId={currentUserId}
             actionLoading={actionLoading}
@@ -826,7 +894,6 @@ const ExpensesPage = () => {
         </div>
       </div>
 
-      {/* Create Expense Modal */}
       <CreateExpenseModal
         isOpen={showCreateModal}
         onClose={closeModals}
@@ -835,7 +902,6 @@ const ExpensesPage = () => {
         loading={actionLoading}
       />
 
-      {/* Edit Expense Modal */}
       <EditExpenseModal
         isOpen={showEditModal}
         onClose={closeModals}
@@ -845,7 +911,6 @@ const ExpensesPage = () => {
         loading={actionLoading}
       />
 
-      {/* Delete Confirmation Modal */}
       <DeleteModal
         isOpen={showDeleteModal}
         onClose={closeModals}

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Calendar, ChevronLeft, ChevronRight, X } from 'lucide-react';
 
 interface CalendarPickerProps {
@@ -22,29 +22,9 @@ export const CalendarPicker: React.FC<CalendarPickerProps> = ({
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [currentMonth, setCurrentMonth] = useState(value ? new Date(value) : new Date());
-  const calendarRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (value) {
-      setCurrentMonth(new Date(value));
-    }
-  }, [value]);
-
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (calendarRef.current && !calendarRef.current.contains(event.target as Node)) {
-        setIsOpen(false);
-      }
-    };
-
-    if (isOpen) {
-      document.addEventListener('mousedown', handleClickOutside);
-    }
-
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, [isOpen]);
+  const [yearInput, setYearInput] = useState(
+    value ? value.getFullYear().toString() : new Date().getFullYear().toString()
+  );
 
   const formatDate = (date: Date | null): string => {
     if (!date) return '';
@@ -72,7 +52,6 @@ export const CalendarPicker: React.FC<CalendarPickerProps> = ({
   };
 
   const isToday = (day: number): boolean => {
-    if (!value) return false;
     const today = new Date();
     return (
       day === today.getDate() &&
@@ -93,15 +72,38 @@ export const CalendarPicker: React.FC<CalendarPickerProps> = ({
   const handleDayClick = (day: number) => {
     const newDate = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), day);
     onChange(newDate);
-    setIsOpen(false);
+    setCurrentMonth(newDate);
   };
 
   const handlePrevMonth = () => {
-    setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1, 1));
+    const newMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1, 1);
+    setCurrentMonth(newMonth);
+    setYearInput(newMonth.getFullYear().toString());
   };
 
   const handleNextMonth = () => {
-    setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 1));
+    const newMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 1);
+    setCurrentMonth(newMonth);
+    setYearInput(newMonth.getFullYear().toString());
+  };
+
+  const handleMonthChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const newMonth = new Date(currentMonth.getFullYear(), parseInt(e.target.value), 1);
+    setCurrentMonth(newMonth);
+  };
+
+  const handleYearInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const input = e.target.value;
+    if (/^\d{0,4}$/.test(input)) {
+      setYearInput(input);
+      if (input.length === 4) {
+        const year = parseInt(input);
+        if (year >= 1900 && year <= 2100) {
+          const newMonth = new Date(year, currentMonth.getMonth(), 1);
+          setCurrentMonth(newMonth);
+        }
+      }
+    }
   };
 
   const handleClear = (e: React.MouseEvent) => {
@@ -109,61 +111,85 @@ export const CalendarPicker: React.FC<CalendarPickerProps> = ({
     onChange(null);
   };
 
+  const handleConfirm = () => {
+    setIsOpen(false);
+  };
+
+  const handleClose = () => {
+    setIsOpen(false);
+    if (value) {
+      setCurrentMonth(new Date(value));
+      setYearInput(value.getFullYear().toString());
+    } else {
+      const now = new Date();
+      setCurrentMonth(now);
+      setYearInput(now.getFullYear().toString());
+    }
+  };
+
   const daysInMonth = getDaysInMonth(currentMonth);
   const firstDay = getFirstDayOfMonth(currentMonth);
-  const monthName = currentMonth.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
-  const weekDays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  const weekDays = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
+  const months = [
+    'January', 'February', 'March', 'April', 'May', 'June',
+    'July', 'August', 'September', 'October', 'November', 'December'
+  ];
 
   const days = [];
   
-  // Empty cells for days before the first day of the month
   for (let i = 0; i < firstDay; i++) {
     days.push(null);
   }
   
-  // Days of the month
   for (let day = 1; day <= daysInMonth; day++) {
     days.push(day);
   }
 
   return (
-    <div ref={calendarRef} className={`relative ${className}`}>
-      <div className="relative">
-        <button
-          type="button"
-          onClick={() => !disabled && setIsOpen(!isOpen)}
-          disabled={disabled}
-          className={`
-            w-full px-3 py-2 text-xs border border-gray-300 rounded-lg 
-            bg-white text-gray-900 placeholder-gray-500
-            focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent
-            disabled:bg-gray-100 disabled:cursor-not-allowed
-            flex items-center justify-between gap-2
-            hover:border-gray-400 transition-colors
-            ${className}
-          `}
-        >
-          <div className="flex items-center gap-2 flex-1">
-            <Calendar className="w-4 h-4 text-gray-400" />
-            <span className={value ? 'text-gray-900' : 'text-gray-500'}>
-              {value ? formatDate(value) : placeholder}
-            </span>
-          </div>
-          {showClearButton && value && !disabled && (
-            <button
-              type="button"
-              onClick={handleClear}
-              className="p-1 hover:bg-gray-100 rounded transition-colors"
-            >
-              <X className="w-3 h-3 text-gray-400" />
-            </button>
-          )}
-        </button>
+    <div className={`relative ${className}`}>
+      <button
+        type="button"
+        onClick={() => !disabled && setIsOpen(true)}
+        disabled={disabled}
+        className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg bg-white text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed flex items-center justify-between gap-2 hover:border-gray-400 transition-colors"
+      >
+        <div className="flex items-center gap-2 flex-1">
+          <Calendar className="w-4 h-4 text-gray-400" />
+          <span className={value ? 'text-gray-900' : 'text-gray-500'}>
+            {value ? formatDate(value) : placeholder}
+          </span>
+        </div>
+        {showClearButton && value && !disabled && (
+          <button
+            type="button"
+            onClick={handleClear}
+            className="p-1 hover:bg-gray-100 rounded transition-colors"
+          >
+            <X className="w-3 h-3 text-gray-400" />
+          </button>
+        )}
+      </button>
 
-        {isOpen && !disabled && (
-          <div className="absolute z-50 mt-2 bg-white border border-gray-200 rounded-lg shadow-lg p-4 min-w-[280px]">
-            {/* Calendar Header */}
-            <div className="flex items-center justify-between mb-4">
+      <div 
+        className={`fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm flex items-center justify-center p-4 z-50 ${isOpen ? 'block' : 'hidden'}`}
+        onClick={handleClose}
+      >
+        <div 
+          className="bg-white rounded-lg w-full max-w-[320px]"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200">
+            <h2 className="text-sm font-semibold text-gray-900">Select Date</h2>
+            <button
+              onClick={handleClose}
+              className="text-gray-400 hover:text-gray-600 transition-colors"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+          
+          <div className="p-4">
+            <div className="flex items-center justify-between gap-2 mb-3">
               <button
                 type="button"
                 onClick={handlePrevMonth}
@@ -171,7 +197,29 @@ export const CalendarPicker: React.FC<CalendarPickerProps> = ({
               >
                 <ChevronLeft className="w-4 h-4 text-gray-600" />
               </button>
-              <h3 className="text-sm font-semibold text-gray-900">{monthName}</h3>
+              
+              <div className="flex items-center gap-2 flex-1">
+                <select
+                  value={currentMonth.getMonth()}
+                  onChange={handleMonthChange}
+                  className="flex-1 px-2 py-1 text-xs border border-gray-300 rounded focus:ring-2 focus:ring-primary focus:border-primary"
+                >
+                  {months.map((month, index) => (
+                    <option key={month} value={index}>
+                      {month}
+                    </option>
+                  ))}
+                </select>
+                
+                <input
+                  type="text"
+                  value={yearInput}
+                  onChange={handleYearInputChange}
+                  placeholder="Year"
+                  className="w-16 px-2 py-1 text-xs border border-gray-300 rounded focus:ring-2 focus:ring-primary focus:border-primary text-center"
+                />
+              </div>
+              
               <button
                 type="button"
                 onClick={handleNextMonth}
@@ -181,19 +229,17 @@ export const CalendarPicker: React.FC<CalendarPickerProps> = ({
               </button>
             </div>
 
-            {/* Week Days */}
-            <div className="grid grid-cols-7 gap-1 mb-2">
+            <div className="grid grid-cols-7 gap-1 mb-1">
               {weekDays.map((day) => (
                 <div
                   key={day}
-                  className="text-xs font-medium text-gray-500 text-center py-2"
+                  className="text-[10px] font-medium text-gray-500 text-center py-1"
                 >
                   {day}
                 </div>
               ))}
             </div>
 
-            {/* Calendar Days */}
             <div className="grid grid-cols-7 gap-1">
               {days.map((day, index) => {
                 if (day === null) {
@@ -208,18 +254,13 @@ export const CalendarPicker: React.FC<CalendarPickerProps> = ({
                     key={day}
                     type="button"
                     onClick={() => handleDayClick(day)}
-                    className={`
-                      aspect-square flex items-center justify-center text-xs rounded-lg
-                      transition-colors
-                      ${
-                        isDaySelected
-                          ? 'bg-primary text-white font-semibold'
-                          : isDayToday
-                          ? 'bg-gray-100 text-gray-900 font-medium border border-gray-300'
-                          : 'text-gray-700 hover:bg-gray-50'
-                      }
-                      hover:bg-primary/10
-                    `}
+                    className={`aspect-square flex items-center justify-center text-[11px] rounded-full transition-colors ${
+                      isDaySelected
+                        ? 'bg-primary text-secondary font-semibold'
+                        : isDayToday
+                        ? 'bg-gray-100 text-gray-900 font-medium border border-gray-300'
+                        : 'text-gray-700 hover:bg-gray-50'
+                    }`}
                   >
                     {day}
                   </button>
@@ -227,33 +268,53 @@ export const CalendarPicker: React.FC<CalendarPickerProps> = ({
               })}
             </div>
 
-            {/* Quick Actions */}
-            <div className="mt-4 pt-4 border-t border-gray-200 flex gap-2">
+            <div className="mt-3 pt-3 border-t border-gray-200 flex gap-2">
               <button
                 type="button"
                 onClick={() => {
-                  onChange(new Date());
-                  setIsOpen(false);
+                  const today = new Date();
+                  onChange(today);
+                  setCurrentMonth(today);
+                  setYearInput(today.getFullYear().toString());
                 }}
-                className="flex-1 px-3 py-1.5 text-xs bg-gray-100 text-gray-700 rounded hover:bg-gray-200 transition-colors"
+                className="flex-1 px-3 py-1.5 text-[11px] bg-gray-100 text-gray-700 rounded hover:bg-gray-200 transition-colors font-medium"
               >
                 Today
               </button>
               {value && (
                 <button
                   type="button"
-                  onClick={handleClear}
-                  className="flex-1 px-3 py-1.5 text-xs bg-gray-100 text-gray-700 rounded hover:bg-gray-200 transition-colors"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onChange(null);
+                  }}
+                  className="flex-1 px-3 py-1.5 text-[11px] bg-gray-100 text-gray-700 rounded hover:bg-gray-200 transition-colors font-medium"
                 >
                   Clear
                 </button>
               )}
             </div>
+
+            <div className="flex gap-2 mt-3">
+              <button
+                type="button"
+                onClick={handleClose}
+                className="flex-1 px-3 py-1.5 border border-gray-300 text-gray-700 rounded hover:bg-gray-50 transition-colors text-[11px] font-medium"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirm}
+                className="flex-1 px-3 py-1.5 bg-primary text-secondary rounded hover:bg-primary/90 transition-colors text-[11px] font-medium"
+              >
+                Confirm
+              </button>
+            </div>
           </div>
-        )}
+        </div>
       </div>
 
-      {/* Hidden input for form compatibility */}
       <input
         type="hidden"
         value={formatInputDate(value)}
@@ -262,4 +323,3 @@ export const CalendarPicker: React.FC<CalendarPickerProps> = ({
     </div>
   );
 };
-
