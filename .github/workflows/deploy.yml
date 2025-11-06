@@ -152,9 +152,9 @@ jobs:
           username: ${{ secrets.SSH_USER }}
           password: ${{ secrets.SSH_PASSWORD }}
           port: ${{ secrets.SSH_PORT }}
-          source: "${{ env.BUILD_DIR }}/"
+          source: "${{ env.BUILD_DIR }}/."
           target: "/home/${{ secrets.SSH_USER }}/domains/mediumturquoise-giraffe-679504.hostingersite.com/public_html/"
-          strip_components: 0
+          strip_components: 1
           overwrite: true
 
       - name: Confirm Frontend Deployment
