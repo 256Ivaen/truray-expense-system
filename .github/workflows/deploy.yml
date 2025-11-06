@@ -91,7 +91,7 @@ jobs:
       - name: Check for frontend changes
         id: frontend-changes
         run: |
-          if git diff --name-only HEAD^ HEAD | grep -qE '^frontend/'; then
+          if git diff --name-only HEAD^ HEAD | grep -v '^backend/' | grep -q '.'; then
             echo "changed=true" >> $GITHUB_OUTPUT
             echo "Frontend files changed, will deploy"
           else
@@ -108,23 +108,19 @@ jobs:
       - name: Install Dependencies
         if: steps.frontend-changes.outputs.changed == 'true'
         run: |
-          cd frontend
           npm install
           npm install framer-motion --save
 
       - name: Create .env file
         if: steps.frontend-changes.outputs.changed == 'true'
         run: |
-          cd frontend
           cat > .env << 'EOF'
           ${{ secrets.FRONTEND_ENV }}
           EOF
 
       - name: Build Frontend
         if: steps.frontend-changes.outputs.changed == 'true'
-        run: |
-          cd frontend
-          npm run build
+        run: npm run build
 
       - name: Deploy Frontend to Hostinger
         if: steps.frontend-changes.outputs.changed == 'true'
@@ -134,7 +130,7 @@ jobs:
           username: ${{ secrets.SSH_USER }}
           password: ${{ secrets.SSH_PASSWORD }}
           port: ${{ secrets.SSH_PORT }}
-          source: "frontend/build/*"
+          source: "build/*"
           target: "/home/${{ secrets.SSH_USER }}/domains/mediumturquoise-giraffe-679504.hostingersite.com/public_html/"
           strip_components: 1
           overwrite: true
