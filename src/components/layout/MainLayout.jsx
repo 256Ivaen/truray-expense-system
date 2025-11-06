@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useNavigate } from 'react-router-dom'
-import Sidebar from './Sidebar'
+import Sidebar from './sidebar.js'
 import { 
   Bell, 
   User,
