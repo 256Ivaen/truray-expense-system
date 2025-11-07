@@ -53,9 +53,9 @@ jobs:
           username: ${{ secrets.SSH_USER }}
           password: ${{ secrets.SSH_PASSWORD }}
           port: ${{ secrets.SSH_PORT }}
-          source: "backend/"
+          source: "backend/*"
           target: "/home/${{ secrets.SSH_USER }}/domains/orange-ferret-922211.hostingersite.com/public_html/"
-          strip_components: 0
+          strip_components: 1
           overwrite: true
           
       - name: Setup Backend Permissions
@@ -125,7 +125,6 @@ jobs:
         if: steps.frontend-changes.outputs.changed == 'true'
         run: |
           echo "Checking for build directories..."
-          # Check for common build directories
           if [ -d "build" ]; then
             echo "Found 'build' directory"
             ls -la build/
