@@ -149,7 +149,7 @@ class FinanceService
         $result = $this->db->queryOne(
             "SELECT COALESCE(SUM(amount), 0) as total 
              FROM finances 
-             WHERE status = 'approved'"
+             WHERE status = 'approved' OR status IS NULL"
         );
         
         return number_format((float)($result['total'] ?? 0), 2, '.', '');

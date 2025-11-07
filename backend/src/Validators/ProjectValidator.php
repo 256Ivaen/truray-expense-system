@@ -8,10 +8,6 @@ class ProjectValidator
     {
         $errors = [];
         
-        if (empty($data['project_code'])) {
-            $errors['project_code'] = 'Project code is required';
-        }
-        
         if (empty($data['name'])) {
             $errors['name'] = 'Project name is required';
         }

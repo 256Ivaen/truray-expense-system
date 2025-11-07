@@ -132,13 +132,23 @@ const ReportsPage = () => {
     }
   };
 
-  const formatCurrency = (amount: string | number) => {
-    const num = typeof amount === 'string' ? parseFloat(amount) : amount;
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-      minimumFractionDigits: 2,
-    }).format(num);
+  const normalizeAmount = (value: string | number | null | undefined) => {
+    if (value === null || value === undefined) return 0;
+    if (typeof value === 'number' && Number.isFinite(value)) return value;
+    if (typeof value === 'string') {
+      const numeric = Number(value.replace(/[^0-9.-]+/g, ''));
+      return Number.isFinite(numeric) ? numeric : 0;
+    }
+    const numeric = Number(value);
+    return Number.isFinite(numeric) ? numeric : 0;
+  };
+
+  const formatCurrency = (amount: string | number | null | undefined) => {
+    const num = normalizeAmount(amount);
+    return `UGX ${num.toLocaleString('en-US', {
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    })}`;
   };
 
   const handleExport = () => {

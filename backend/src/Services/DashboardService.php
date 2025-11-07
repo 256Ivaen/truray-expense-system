@@ -16,7 +16,6 @@ class DashboardService
     public function getDashboardData($currentUser)
     {
         if (in_array($currentUser['role'], ['admin', 'super_admin'])) {
-        if (in_array($currentUser['role'], ['admin', 'super_admin'])) {
             return $this->getAdminDashboard();
         } else {
             return $this->getUserDashboard($currentUser['id']);
@@ -88,7 +87,7 @@ class DashboardService
     private function getTotalDeposits()
     {
         $result = $this->db->queryOne(
-            "SELECT COALESCE(SUM(amount), 0) as total FROM finances WHERE status = 'approved'"
+            "SELECT COALESCE(SUM(amount), 0) as total FROM finances WHERE status = 'approved' OR status IS NULL"
         );
         return (float)($result['total'] ?? 0);
     }
@@ -96,7 +95,7 @@ class DashboardService
     private function getTotalAllocated()
     {
         $result = $this->db->queryOne(
-            "SELECT COALESCE(SUM(amount), 0) as total FROM allocations WHERE status = 'approved'"
+            "SELECT COALESCE(SUM(amount), 0) as total FROM allocations WHERE status = 'approved' OR status IS NULL"
         );
         return (float)($result['total'] ?? 0);
     }
@@ -104,7 +103,7 @@ class DashboardService
     private function getTotalSpent()
     {
         $result = $this->db->queryOne(
-            "SELECT COALESCE(SUM(amount), 0) as total FROM expenses WHERE status = 'approved'"
+            "SELECT COALESCE(SUM(amount), 0) as total FROM expenses WHERE status = 'approved' OR status IS NULL"
         );
         return (float)($result['total'] ?? 0);
     }
@@ -175,7 +174,7 @@ class DashboardService
                 COALESCE(SUM(e.amount), 0) as total_spent,
                 COUNT(e.id) as expense_count
                 FROM users u
-                LEFT JOIN expenses e ON u.id = e.user_id AND e.status = 'approved'
+                LEFT JOIN expenses e ON u.id = e.user_id AND (e.status IN ('approved', 'pending') OR e.status IS NULL)
                 WHERE u.deleted_at IS NULL AND u.role = 'user'
                 GROUP BY u.id, u.first_name, u.last_name, u.email
                 HAVING total_spent > 0
@@ -192,7 +191,7 @@ class DashboardService
                 DATE_FORMAT(spent_at, '%M %Y') as month_name,
                 COALESCE(SUM(amount), 0) as total
                 FROM expenses
-                WHERE status = 'approved' 
+                WHERE (status IN ('approved', 'pending') OR status IS NULL)
                 AND spent_at >= DATE_SUB(NOW(), INTERVAL 6 MONTH)
                 AND spent_at IS NOT NULL
                 GROUP BY DATE_FORMAT(spent_at, '%Y-%m'), DATE_FORMAT(spent_at, '%M %Y')
@@ -220,7 +219,7 @@ class DashboardService
             "SELECT COALESCE(SUM(a.amount), 0) as total 
              FROM allocations a
              INNER JOIN project_users pu ON a.project_id = pu.project_id
-             WHERE pu.user_id = ? AND a.status = 'approved'",
+             WHERE pu.user_id = ? AND (a.status IN ('approved', 'pending') OR a.status IS NULL)",
             [$userId]
         );
         return (float)($result['total'] ?? 0);
@@ -231,7 +230,7 @@ class DashboardService
         $result = $this->db->queryOne(
             "SELECT COALESCE(SUM(amount), 0) as total 
              FROM expenses 
-             WHERE user_id = ? AND status = 'approved'",
+             WHERE user_id = ? AND (status IN ('approved', 'pending') OR status IS NULL)",
             [$userId]
         );
         return (float)($result['total'] ?? 0);
@@ -303,7 +302,7 @@ class DashboardService
                 COALESCE(SUM(amount), 0) as total
                 FROM expenses
                 WHERE user_id = ? 
-                AND status = 'approved'
+                AND (status IN ('approved', 'pending') OR status IS NULL)
                 AND spent_at >= DATE_SUB(NOW(), INTERVAL 6 MONTH)
                 AND spent_at IS NOT NULL
                 GROUP BY DATE_FORMAT(spent_at, '%Y-%m'), DATE_FORMAT(spent_at, '%M %Y')

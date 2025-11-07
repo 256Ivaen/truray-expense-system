@@ -89,13 +89,19 @@ class ProjectService
     public function create($data)
     {
         try {
-            $existing = $this->db->queryOne(
-                "SELECT id FROM projects WHERE project_code = ?",
-                [$data['project_code']]
-            );
+            $projectCode = isset($data['project_code']) ? strtoupper(trim($data['project_code'])) : '';
             
-            if ($existing) {
-                return ['success' => false, 'message' => 'Project code already exists'];
+            if (empty($projectCode)) {
+                $projectCode = $this->generateProjectCode($data['name'] ?? 'PJ');
+            } else {
+                $existing = $this->db->queryOne(
+                    "SELECT id FROM projects WHERE project_code = ?",
+                    [$projectCode]
+                );
+                
+                if ($existing) {
+                    return ['success' => false, 'message' => 'Project code already exists'];
+                }
             }
             
             $projectId = Uuid::uuid4()->toString();
@@ -109,7 +115,7 @@ class ProjectService
                  VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
                 [
                     $projectId,
-                    $data['project_code'],
+                    $projectCode,
                     $data['name'],
                     $data['description'] ?? null,
                     $data['start_date'] ?? null,
@@ -159,6 +165,68 @@ class ProjectService
             error_log("Project creation failed: " . $e->getMessage());
             return ['success' => false, 'message' => 'Failed to create project: ' . $e->getMessage()];
         }
+    }
+    
+    private function generateProjectCode($projectName)
+    {
+        $prefix = $this->generateProjectPrefix($projectName);
+        $likePattern = $prefix . '%';
+        
+        $latest = $this->db->queryOne(
+            "SELECT project_code FROM projects WHERE project_code LIKE ? ORDER BY project_code DESC LIMIT 1",
+            [$likePattern]
+        );
+        
+        $nextNumber = 1;
+        if ($latest && isset($latest['project_code'])) {
+            if (preg_match('/(\\d+)$/', $latest['project_code'], $matches)) {
+                $nextNumber = ((int)$matches[1]) + 1;
+            }
+        }
+        
+        do {
+            $code = $prefix . str_pad((string)$nextNumber, 3, '0', STR_PAD_LEFT);
+            $existing = $this->db->queryOne(
+                "SELECT id FROM projects WHERE project_code = ?",
+                [$code]
+            );
+            if (!$existing) {
+                return $code;
+            }
+            $nextNumber++;
+        } while (true);
+    }
+    
+    private function generateProjectPrefix($projectName)
+    {
+        if (empty($projectName)) {
+            return 'PJ';
+        }
+        
+        $cleanName = preg_replace('/[^A-Za-z0-9\s]/', ' ', $projectName);
+        $words = preg_split('/\s+/', trim($cleanName));
+        $prefix = '';
+        foreach ($words as $word) {
+            if ($word === '') {
+                continue;
+            }
+            $prefix .= substr($word, 0, 1);
+            if (strlen($prefix) >= 3) {
+                break;
+            }
+        }
+        
+        if ($prefix === '') {
+            $alnum = preg_replace('/[^A-Za-z0-9]/', '', $projectName);
+            $prefix = substr($alnum, 0, 3);
+        }
+        
+        $prefix = strtoupper($prefix);
+        if (strlen($prefix) < 2) {
+            $prefix = str_pad($prefix, 2, 'P');
+        }
+        
+        return $prefix;
     }
     
     private function assignUserToProject($projectId, $userId, $assignedBy = null)
@@ -224,6 +292,10 @@ class ProjectService
             $project = $this->projectModel->find($id);
             if (!$project) {
                 return ['success' => false, 'message' => 'Project not found'];
+            }
+            
+            if (isset($data['project_code'])) {
+                $data['project_code'] = strtoupper(trim($data['project_code']));
             }
             
             if (isset($data['project_code']) && $data['project_code'] !== $project['project_code']) {

@@ -59,7 +59,7 @@ interface User {
 }
 
 interface CreateProjectData {
-  project_code: string;
+  project_code?: string;
   name: string;
   description?: string;
   start_date?: string;
@@ -247,20 +247,9 @@ function CreateProjectModal({ isOpen, onClose, onSubmit, loading = false, users 
             />
           </div>
 
-            <div>
-              <label className="block text-xs font-medium text-gray-700 mb-1">
-              Project Code *
-              </label>
-              <input
-              type="text"
-              required
-              value={form.project_code}
-              onChange={(e) => setForm({ ...form, project_code: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary text-xs"
-              placeholder="PRJ001"
-                disabled={loading}
-              />
-            </div>
+          <div className="p-3 bg-gray-50 border border-dashed border-gray-300 rounded-lg text-[11px] text-gray-600">
+            Project codes are generated automatically (e.g. PJ001) based on the project name.
+          </div>
 
             <div>
               <label className="block text-xs font-medium text-gray-700 mb-1">
@@ -486,11 +475,10 @@ function EditProjectModal({ isOpen, onClose, onSubmit, project, loading = false 
             </label>
             <input
               type="text"
-              required
               value={form.project_code}
-              onChange={(e) => setForm({ ...form, project_code: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary text-xs"
-              disabled={loading}
+              className="w-full px-3 py-2 border border-gray-200 bg-gray-100 rounded-lg text-xs"
+              disabled
+              readOnly
             />
           </div>
 

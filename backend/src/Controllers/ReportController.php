@@ -60,8 +60,8 @@ class ReportController
                 (COALESCE(SUM(a.amount), 0) - COALESCE(SUM(e.amount), 0)) as remaining_balance
                 FROM users u
                 LEFT JOIN project_users pu ON u.id = pu.user_id
-                LEFT JOIN allocations a ON u.id = a.user_id AND a.status = 'approved'
-                LEFT JOIN expenses e ON u.id = e.user_id AND e.status = 'approved'
+                LEFT JOIN allocations a ON u.id = a.user_id AND (a.status IN ('approved', 'pending') OR a.status IS NULL)
+                LEFT JOIN expenses e ON u.id = e.user_id AND (e.status IN ('approved', 'pending') OR e.status IS NULL)
                 WHERE u.deleted_at IS NULL AND u.role = 'user'
                 GROUP BY u.id, u.first_name, u.last_name, u.email
                 ORDER BY total_spent DESC";
@@ -114,7 +114,7 @@ class ReportController
     private function getTotalDeposits()
     {
         $result = $this->db->queryOne(
-            "SELECT COALESCE(SUM(amount), 0) as total FROM finances WHERE status = 'approved'"
+            "SELECT COALESCE(SUM(amount), 0) as total FROM finances WHERE status = 'approved' OR status IS NULL"
         );
         return $result['total'] ?? 0;
     }
@@ -122,7 +122,7 @@ class ReportController
     private function getTotalAllocated()
     {
         $result = $this->db->queryOne(
-            "SELECT COALESCE(SUM(amount), 0) as total FROM allocations WHERE status = 'approved'"
+            "SELECT COALESCE(SUM(amount), 0) as total FROM allocations WHERE status = 'approved' OR status IS NULL"
         );
         return $result['total'] ?? 0;
     }
@@ -130,7 +130,7 @@ class ReportController
     private function getTotalSpent()
     {
         $result = $this->db->queryOne(
-            "SELECT COALESCE(SUM(amount), 0) as total FROM expenses WHERE status = 'approved'"
+            "SELECT COALESCE(SUM(amount), 0) as total FROM expenses WHERE status = 'approved' OR status IS NULL"
         );
         return $result['total'] ?? 0;
     }
@@ -168,7 +168,7 @@ class ReportController
         $result = $this->db->queryOne(
             "SELECT COALESCE(SUM(amount), 0) as total 
              FROM allocations 
-             WHERE user_id = ? AND status = 'approved'",
+             WHERE user_id = ? AND (status IN ('approved', 'pending') OR status IS NULL)",
             [$userId]
         );
         return $result['total'] ?? 0;
@@ -179,7 +179,7 @@ class ReportController
         $result = $this->db->queryOne(
             "SELECT COALESCE(SUM(amount), 0) as total 
              FROM expenses 
-             WHERE user_id = ? AND status = 'approved'",
+             WHERE user_id = ? AND (status IN ('approved', 'pending') OR status IS NULL)",
             [$userId]
         );
         return $result['total'] ?? 0;
@@ -226,7 +226,7 @@ class ReportController
                 DATE_FORMAT(spent_at, '%Y-%m') as month,
                 COALESCE(SUM(amount), 0) as total
                 FROM expenses
-                WHERE status = 'approved' AND spent_at >= DATE_SUB(NOW(), INTERVAL 12 MONTH)
+                WHERE (status IN ('approved', 'pending') OR status IS NULL) AND spent_at >= DATE_SUB(NOW(), INTERVAL 12 MONTH)
                 GROUP BY DATE_FORMAT(spent_at, '%Y-%m')
                 ORDER BY month DESC";
         return $this->db->query($sql);
