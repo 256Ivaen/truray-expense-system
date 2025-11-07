@@ -742,7 +742,7 @@ const UsersPage = () => {
   // Calculate stats
   const totalUsers = users.length;
   const activeUsers = users.filter(u => u.status === 'active').length;
-  const adminUsers = users.filter(u => u.role === 'admin').length;
+  const adminUsers = users.filter(u => ['admin', 'super_admin'].includes(u.role)).length;
   const regularUsers = users.filter(u => u.role === 'user').length;
 
   return (

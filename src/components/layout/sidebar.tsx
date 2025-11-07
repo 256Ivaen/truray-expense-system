@@ -61,7 +61,7 @@ const Sidebar = ({
         path: '/',
         section: 'dashboard',
         icon: <LuLayoutDashboard className="h-4 w-4" />,
-        roles: ['admin', 'user'] // All roles can access dashboard
+        roles: ['super_admin', 'admin', 'user'] // All roles can access dashboard
       }
     ]
 
@@ -82,7 +82,7 @@ const Sidebar = ({
       path: '/projects',
       section: 'projects',
       icon: <Building2 className="h-4 w-4" />,
-      roles: ['admin', 'user']
+      roles: ['super_admin', 'admin', 'user']
     })
 
     // Finance section - Admin and Super Admin
@@ -113,17 +113,17 @@ const Sidebar = ({
       path: '/expenses',
       section: 'expenses',
       icon: <GiMoneyStack className="h-4 w-4" />,
-      roles: ['admin', 'user']
+      roles: ['super_admin', 'admin', 'user']
     })
 
     // Reports section - Admin only
-    if (currentUserRole === 'admin') {
+    if (currentUserRole === 'admin' || currentUserRole === 'super_admin') {
       baseNav.push({
         title: 'Reports',
         path: '/reports',
         section: 'reports',
         icon: <TbReportAnalytics className="h-4 w-4" />,
-        roles: ['admin']
+        roles: ['admin', 'super_admin']
       })
     }
 
@@ -133,7 +133,7 @@ const Sidebar = ({
       path: '/settings',
       section: 'settings',
       icon: <FiSettings className="h-4 w-4" />,
-      roles: ['admin', 'user']
+      roles: ['super_admin', 'admin', 'user']
     })
 
     return baseNav

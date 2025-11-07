@@ -195,7 +195,7 @@ const MainLayout = ({
       { value: 'expenses', label: 'Expenses' }
     ]
     
-    if (user.role === 'admin') {
+    if (['admin', 'super_admin'].includes(user.role)) {
       baseOptions.push(
         { value: 'users', label: 'Users' },
         { value: 'finance', label: 'Finances' }
