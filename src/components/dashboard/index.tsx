@@ -15,7 +15,8 @@ import {
   ArrowDown,
   MoreVertical,
   Receipt,
-  Calendar
+  Calendar,
+  ChevronDown
 } from "lucide-react";
 import { MdOutlineAttachMoney } from "react-icons/md";
 import { get, getCurrentUser } from "../../utils/service.js";
@@ -335,6 +336,8 @@ function EnhancedDashboardContent({
   const [userRole, setUserRole] = useState<'admin' | 'user'>('user');
   const [userName, setUserName] = useState<string>('User');
   const [hoveredSegment, setHoveredSegment] = useState<string | null>(null);
+  const [selectedPeriod, setSelectedPeriod] = useState<'all' | 'week' | 'month' | 'year'>('all');
+  const [showPeriodDropdown, setShowPeriodDropdown] = useState(false);
 
   useEffect(() => {
     const role = getCurrentUserRole();
@@ -526,387 +529,376 @@ function EnhancedDashboardContent({
     return value.toString();
   };
 
+  // Calculate period total for the main card
+  const getPeriodTotal = () => {
+    if (!dashboardData) return 0;
+    
+    if (isAdmin) {
+      return (dashboardData as AdminDashboardData)?.stats.total_deposits || 0;
+    } else {
+      return (dashboardData as UserDashboardData)?.stats.total_allocated || 0;
+    }
+  };
+
+  const getPeriodLabel = () => {
+    switch (selectedPeriod) {
+      case 'week': return 'This Week';
+      case 'month': return 'This Month';
+      case 'year': return 'This Year';
+      case 'all': return 'All Time';
+      default: return 'All Time';
+    }
+  };
+
   return (
-    <div className="bg-gray-50 min-h-screen p-6">
-      <div className="max-w-7xl mx-auto space-y-6">
-        {/* Top Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          {/* Total Income/Deposits Card - WHITE */}
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 relative">
-            <button className="absolute top-4 right-4 text-gray-400 hover:text-gray-600">
-              <MoreVertical className="w-4 h-4" />
-            </button>
-            <div className="mb-4">
-              <div className="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center mb-4">
-                <MdOutlineAttachMoney className="w-6 h-6 text-gray-600" />
-              </div>
-            </div>
-            {isLoading ? (
-              <>
-                <SkeletonBox className="h-3 w-24 mb-2" />
-                <SkeletonBox className="h-6 w-32 mb-2" />
-                <SkeletonBox className="h-3 w-28" />
-              </>
-            ) : (
-              <>
-                <p className="text-xs text-gray-500 uppercase mb-1">
-                  {isAdmin ? 'Total Deposits' : 'Total Allocated'}
-                </p>
-                <h3 className="text-2xl font-bold text-gray-900 mb-2">
-                  {isAdmin 
-                    ? formatCurrency((dashboardData as AdminDashboardData)?.stats.total_deposits || 0)
-                    : formatCurrency((dashboardData as UserDashboardData)?.stats.total_allocated || 0)
-                  }
-                </h3>
-                <div className={`flex items-center gap-1 text-xs ${depositsChange.isPositive ? 'text-green-600' : 'text-red-600'}`}>
-                  {depositsChange.isPositive ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />}
-                  <span>{depositsChange.percentage}% vs last 30 days</span>
-                </div>
-              </>
-            )}
-          </div>
-
-          {/* Total Expense/Spent Card - SECONDARY COLOR */}
-          <div className="bg-secondary rounded-xl shadow-sm p-6 relative text-white">
-            <button className="absolute top-4 right-4 text-white/80 hover:text-white">
-              <MoreVertical className="w-4 h-4" />
-            </button>
-            <div className="mb-4">
-              <div className="w-12 h-12 rounded-full bg-white/20 flex items-center justify-center mb-4">
-                <RefreshCw className="w-6 h-6 text-white" />
-              </div>
-            </div>
-            {isLoading ? (
-              <>
-                <SkeletonBox className="h-3 w-24 mb-2 bg-white/30" />
-                <SkeletonBox className="h-6 w-32 mb-2 bg-white/30" />
-                <SkeletonBox className="h-3 w-28 bg-white/30" />
-              </>
-            ) : (
-              <>
-                <p className="text-xs uppercase mb-1 text-white/90">
-                  Total Expense
-                </p>
-                <h3 className="text-2xl font-bold mb-2">
-                  {isAdmin 
-                    ? formatCurrency((dashboardData as AdminDashboardData)?.stats.total_spent || 0)
-                    : formatCurrency((dashboardData as UserDashboardData)?.stats.total_spent || 0)
-                  }
-                </h3>
-                <div className="flex items-center gap-1 text-xs text-white/90">
-                  {spentChange.isPositive ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />}
-                  <span>{spentChange.percentage}% vs last 30 days</span>
-                </div>
-              </>
-            )}
-          </div>
-
-          {/* Total Savings/Remaining Card - WHITE */}
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 relative">
-            <button className="absolute top-4 right-4 text-gray-400 hover:text-gray-600">
-              <MoreVertical className="w-4 h-4" />
-            </button>
-            <div className="mb-4">
-              <div className="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center mb-4">
-                <PieChart className="w-6 h-6 text-gray-600" />
-              </div>
-            </div>
-            {isLoading ? (
-              <>
-                <SkeletonBox className="h-3 w-24 mb-2" />
-                <SkeletonBox className="h-6 w-32 mb-2" />
-                <SkeletonBox className="h-3 w-28" />
-              </>
-            ) : (
-              <>
-                <p className="text-xs text-gray-500 uppercase mb-1">
-                  {isAdmin ? 'Total Allocated' : 'Remaining Balance'}
-                </p>
-                <h3 className="text-2xl font-bold text-gray-900 mb-2">
-                  {isAdmin 
-                    ? formatCurrency((dashboardData as AdminDashboardData)?.stats.total_allocated || 0)
-                    : formatCurrency((dashboardData as UserDashboardData)?.stats.remaining_balance || 0)
-                  }
-                </h3>
-                <div className={`flex items-center gap-1 text-xs ${allocatedChange.isPositive ? 'text-green-600' : 'text-red-600'}`}>
-                  {allocatedChange.isPositive ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />}
-                  <span>{allocatedChange.percentage}% vs last 30 days</span>
-                </div>
-              </>
-            )}
-          </div>
-
-          {/* Most Spending/Projects Card - WHITE */}
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 relative">
-            <button className="absolute top-4 right-4 text-gray-400 hover:text-gray-600">
-              <MoreVertical className="w-4 h-4" />
-            </button>
-            <div className="mb-4">
-              <div className="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center mb-4">
-                <Building2 className="w-6 h-6 text-gray-600" />
-              </div>
-            </div>
-            {isLoading ? (
-              <>
-                <SkeletonBox className="h-3 w-24 mb-2" />
-                <SkeletonBox className="h-5 w-28 mb-2" />
-                <SkeletonBox className="h-3 w-20" />
-              </>
-            ) : (
-              <>
-                <p className="text-xs text-gray-500 uppercase mb-1">
-                  {isAdmin ? 'Total Projects' : 'My Projects'}
-                </p>
-                <h3 className="text-xl font-bold text-gray-900 mb-2">
-                  {isAdmin 
-                    ? (dashboardData as AdminDashboardData)?.stats.total_projects || 0
-                    : (dashboardData as UserDashboardData)?.stats.my_projects || 0
-                  }
-                </h3>
-                <p className="text-xs text-gray-500">
-                  {isAdmin 
-                    ? `${(dashboardData as AdminDashboardData)?.stats.active_projects || 0} active`
-                    : 'Active projects'
-                  }
-                </p>
-              </>
-            )}
-          </div>
-        </div>
-
-        {/* Main Content Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Monthly Spending Bar Chart */}
-          <div className="lg:col-span-2 bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-xs font-bold text-gray-900">
-                {isAdmin ? 'Monthly Spending by Project' : 'Top 5 Expense Source'}
-              </h2>
-              <button className="text-gray-400 hover:text-gray-600">
-                <MoreVertical className="w-4 h-4" />
-              </button>
-            </div>
-            <div className="h-80">
-              {isLoading ? (
-                <SkeletonBox className="w-full h-full" />
-              ) : (
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={getChartData()} margin={{ top: 20, right: 30, left: 0, bottom: 0 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
-                    <XAxis 
-                      dataKey="month_name" 
-                      tick={{ fill: '#94a3b8', fontSize: 11 }}
-                      axisLine={false}
-                      tickLine={false}
-                    />
-                    <YAxis 
-                      tick={{ fill: '#94a3b8', fontSize: 11 }}
-                      axisLine={false}
-                      tickLine={false}
-                      tickFormatter={formatYAxisValue}
-                    />
-                    <Tooltip content={<CustomTooltip />} />
-                    <Bar 
-                      dataKey="total" 
-                      fill="hsl(var(--secondary))"
-                      radius={[8, 8, 0, 0]}
-                      maxBarSize={60}
-                    />
-                  </BarChart>
-                </ResponsiveContainer>
-              )}
-            </div>
-          </div>
-
-          {/* Recent Expenses / Allocations */}
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-xs font-bold text-gray-900">
-                {isAdmin ? 'Recent Allocations' : 'Recent Expenses'}
-              </h2>
-              <button className="text-gray-400 hover:text-gray-600">
-                <MoreVertical className="w-4 h-4" />
-              </button>
-            </div>
-            <div className="space-y-4">
-              {isLoading ? (
-                Array.from({ length: 4 }).map((_, i) => (
-                  <div key={i} className="flex items-start gap-3">
-                    <SkeletonBox className="w-1 h-12 rounded-full" />
-                    <div className="flex-1">
-                      <SkeletonBox className="h-3 w-24 mb-2" />
-                      <SkeletonBox className="h-2 w-32" />
-                    </div>
-                    <SkeletonBox className="h-3 w-12" />
+    <div className="bg-gray-50 min-h-screen p-4 sm:p-6">
+      <div className="max-w-7xl mx-auto">
+        {/* Main Total Deposits Card - EXACTLY like finance page */}
+        <div className="mb-6">
+          <div 
+            className="relative h-56 w-full bg-secondary rounded-2xl p-6 shadow-2xl text-white flex flex-col justify-between overflow-hidden"
+          >
+            <div className="absolute inset-0 bg-black/40 rounded-2xl" />
+            
+            <div className="relative z-10 flex justify-between items-start">
+              <div className="h-10 w-14 bg-yellow-400 rounded-sm" />
+              <div className="relative">
+                <button
+                  onClick={() => setShowPeriodDropdown(!showPeriodDropdown)}
+                  className="flex items-center gap-2 px-3 py-1.5 bg-white/20 hover:bg-white/30 text-white rounded-lg transition-colors text-xs font-medium backdrop-blur-sm"
+                >
+                  <Calendar className="h-3 w-3" />
+                  <span>{getPeriodLabel()}</span>
+                  <ChevronDown className="h-3 w-3" />
+                </button>
+                
+                {showPeriodDropdown && (
+                  <div className="absolute right-0 mt-2 w-40 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-20">
+                    {(['all', 'week', 'month', 'year'] as const).map((period) => (
+                      <button
+                        key={period}
+                        onClick={() => {
+                          setSelectedPeriod(period);
+                          setShowPeriodDropdown(false);
+                        }}
+                        className={`w-full text-left px-4 py-2 text-xs hover:bg-gray-50 transition-colors text-gray-900 ${
+                          selectedPeriod === period ? 'bg-gray-100 font-medium' : ''
+                        }`}
+                      >
+                        {period === 'all' && 'All Time'}
+                        {period === 'week' && 'This Week'}
+                        {period === 'month' && 'This Month'}
+                        {period === 'year' && 'This Year'}
+                      </button>
+                    ))}
                   </div>
-                ))
-              ) : isAdmin ? (
-                (dashboardData as AdminDashboardData)?.recent_allocations?.slice(0, 4).map((allocation, index) => (
-                  <div key={allocation.id} className="flex items-start gap-3">
-                    <div className="flex-shrink-0 mt-1">
-                      <div className="w-2 h-2 rounded-full bg-secondary"></div>
-                      {index < 3 && <div className="w-0.5 h-8 bg-secondary mx-auto mt-1"></div>}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-xs font-semibold text-gray-900 truncate">
-                        {allocation.description}
-                      </p>
-                      <p className="text-xs text-gray-500">
-                        {formatDate(allocation.allocated_at)}
-                      </p>
-                    </div>
-                    <div className="text-xs font-semibold text-gray-900">
-                      {formatCurrency(parseFloat(allocation.amount))}
-                    </div>
-                  </div>
-                ))
-              ) : (
-                (dashboardData as UserDashboardData)?.recent_expenses?.slice(0, 4).map((expense, index) => (
-                  <div key={expense.id} className="flex items-start gap-3">
-                    <div className="flex-shrink-0 mt-1">
-                      <div className="w-2 h-2 rounded-full bg-secondary"></div>
-                      {index < 3 && <div className="w-0.5 h-8 bg-secondary mx-auto mt-1"></div>}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-xs font-semibold text-gray-900 truncate">
-                        {expense.description}
-                      </p>
-                      <p className="text-xs text-gray-500">
-                        {formatDate(expense.spent_at)}
-                      </p>
-                    </div>
-                    <div className="text-xs font-semibold text-gray-900">
-                      {formatCurrency(parseFloat(expense.amount))}
-                    </div>
-                  </div>
-                ))
-              )}
+                )}
+              </div>
+            </div>
+            
+            <div className="relative z-10">
+              <p className="text-xs font-medium tracking-wider mb-2">
+                {isAdmin ? 'TOTAL DEPOSITS' : 'TOTAL ALLOCATED'}
+              </p>
+              <p className="text-3xl sm:text-4xl tracking-wide font-semibold mb-4">
+                {isLoading ? (
+                  <div className="h-8 w-36 bg-gray-300 rounded-lg animate-pulse"></div>
+                ) : (
+                  formatCurrency(getPeriodTotal())
+                )}
+              </p>
+              <div className="flex justify-between text-xs">
+                <span>TruRay Expense System</span>
+                <span>{new Date().toLocaleDateString('en-US', { month: '2-digit', year: '2-digit' })}</span>
+              </div>
             </div>
           </div>
         </div>
 
-        {/* Bottom Section */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Report Overview / Donut Chart */}
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-xs font-bold text-gray-900">Report Overview</h2>
-              <button className="text-gray-400 hover:text-gray-600">
-                <MoreVertical className="w-4 h-4" />
-              </button>
+        {/* Secondary Cards Grid - EXACTLY like finance page */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
+          {/* Available Balance Card */}
+          <div className="bg-white rounded-lg border border-gray-200 p-4">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center">
+                <MdOutlineAttachMoney className="w-5 h-5 text-gray-600" />
+              </div>
+              <div>
+                <p className="text-xs text-gray-500">Available Balance</p>
+                <h3 className="text-lg font-bold text-gray-900">
+                  {isLoading ? (
+                    <div className="h-5 w-24 bg-gray-200 rounded animate-pulse"></div>
+                  ) : isAdmin ? (
+                    formatCurrency((dashboardData as AdminDashboardData)?.stats.total_deposits - (dashboardData as AdminDashboardData)?.stats.total_allocated || 0)
+                  ) : (
+                    formatCurrency((dashboardData as UserDashboardData)?.stats.remaining_balance || 0)
+                  )}
+                </h3>
+              </div>
             </div>
-            {isLoading ? (
-              <div className="flex items-center justify-center py-12">
-                <SkeletonBox className="w-48 h-48 rounded-full" />
-              </div>
-            ) : (
-              <div className="flex flex-col lg:flex-row items-center gap-8">
-                <div className="relative">
-                  <DonutChart
-                    data={financialData}
-                    size={180}
-                    strokeWidth={20}
-                    animationDuration={1}
-                    animationDelayPerSegment={0.1}
-                    highlightOnHover={true}
-                    onSegmentHover={(segment) => setHoveredSegment(segment?.label || null)}
-                    centerContent={
-                      <AnimatePresence mode="wait">
-                        <motion.div
-                          key={displayLabel || 'default'}
-                          initial={{ opacity: 0, scale: 0.9 }}
-                          animate={{ opacity: 1, scale: 1 }}
-                          exit={{ opacity: 0, scale: 0.9 }}
-                          transition={{ duration: 0.2 }}
-                          className="flex flex-col items-center justify-center text-center"
-                        >
-                          {displayLabel && (
-                            <p className="text-xl font-bold text-gray-900">
-                              {displayPercentage}%
-                            </p>
-                          )}
-                        </motion.div>
-                      </AnimatePresence>
-                    }
-                  />
-                </div>
-                <div className="space-y-4 flex-1">
-                  {financialData.map((segment) => (
-                    <div 
-                      key={segment.label}
-                      className={cn(
-                        "flex items-center justify-between p-2 rounded-lg transition-colors cursor-pointer",
-                        hoveredSegment === segment.label && "bg-gray-50"
-                      )}
-                      onMouseEnter={() => setHoveredSegment(segment.label)}
-                      onMouseLeave={() => setHoveredSegment(null)}
-                    >
-                      <div className="flex items-center gap-3">
-                        <div 
-                          className="w-3 h-3 rounded-full"
-                          style={{ backgroundColor: segment.color }}
-                        />
-                        <span className="text-xs font-medium text-gray-700">{segment.label}</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs font-bold text-gray-900">
-                          {formatCurrency(segment.value)}
-                        </span>
-                        <ArrowUp className="w-3 h-3 text-green-600" />
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
+            <p className="text-xs text-gray-500">Unallocated funds</p>
           </div>
 
-          {/* Expense Activity / Line Chart */}
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-xs font-bold text-gray-900">Expense Activity</h2>
-              <div className="flex items-center gap-4">
-                <div className="flex items-center gap-2">
-                  <div className="w-2 h-2 rounded-full bg-secondary"></div>
-                  <span className="text-xs text-gray-500">Actual expense</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="w-2 h-2 rounded-full border-2 border-secondary bg-transparent"></div>
-                  <span className="text-xs text-gray-500">Projected expense</span>
-                </div>
+          {/* This Month Card */}
+          <div className="bg-white rounded-lg border border-gray-200 p-4">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center">
+                <Calendar className="w-5 h-5 text-gray-600" />
+              </div>
+              <div>
+                <p className="text-xs text-gray-500">Total Expense</p>
+                <h3 className="text-lg font-bold text-gray-900">
+                  {isLoading ? (
+                    <div className="h-5 w-24 bg-gray-200 rounded animate-pulse"></div>
+                  ) : (
+                    formatCurrency(isAdmin ? 
+                      (dashboardData as AdminDashboardData)?.stats.total_spent || 0 : 
+                      (dashboardData as UserDashboardData)?.stats.total_spent || 0
+                    )
+                  )}
+                </h3>
               </div>
             </div>
-            <div className="h-64">
+            <p className="text-xs text-gray-500">Total spending</p>
+          </div>
+        </div>
+
+        {/* Rest of the dashboard content remains the same */}
+        <div className="space-y-6">
+          {/* Main Content Grid */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* Monthly Spending Bar Chart */}
+            <div className="lg:col-span-2 bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-xs font-bold text-gray-900">
+                  {isAdmin ? 'Monthly Spending by Project' : 'Top 5 Expense Source'}
+                </h2>
+                <button className="text-gray-400 hover:text-gray-600">
+                  <MoreVertical className="w-4 h-4" />
+                </button>
+              </div>
+              <div className="h-80">
+                {isLoading ? (
+                  <SkeletonBox className="w-full h-full" />
+                ) : (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={getChartData()} margin={{ top: 20, right: 30, left: 0, bottom: 0 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
+                      <XAxis 
+                        dataKey="month_name" 
+                        tick={{ fill: '#94a3b8', fontSize: 11 }}
+                        axisLine={false}
+                        tickLine={false}
+                      />
+                      <YAxis 
+                        tick={{ fill: '#94a3b8', fontSize: 11 }}
+                        axisLine={false}
+                        tickLine={false}
+                        tickFormatter={formatYAxisValue}
+                      />
+                      <Tooltip content={<CustomTooltip />} />
+                      <Bar 
+                        dataKey="total" 
+                        fill="hsl(var(--secondary))"
+                        radius={[8, 8, 0, 0]}
+                        maxBarSize={60}
+                      />
+                    </BarChart>
+                  </ResponsiveContainer>
+                )}
+              </div>
+            </div>
+
+            {/* Recent Expenses / Allocations */}
+            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-xs font-bold text-gray-900">
+                  {isAdmin ? 'Recent Allocations' : 'Recent Expenses'}
+                </h2>
+                <button className="text-gray-400 hover:text-gray-600">
+                  <MoreVertical className="w-4 h-4" />
+                </button>
+              </div>
+              <div className="space-y-4">
+                {isLoading ? (
+                  Array.from({ length: 4 }).map((_, i) => (
+                    <div key={i} className="flex items-start gap-3">
+                      <SkeletonBox className="w-1 h-12 rounded-full" />
+                      <div className="flex-1">
+                        <SkeletonBox className="h-3 w-24 mb-2" />
+                        <SkeletonBox className="h-2 w-32" />
+                      </div>
+                      <SkeletonBox className="h-3 w-12" />
+                    </div>
+                  ))
+                ) : isAdmin ? (
+                  (dashboardData as AdminDashboardData)?.recent_allocations?.slice(0, 4).map((allocation, index) => (
+                    <div key={allocation.id} className="flex items-start gap-3">
+                      <div className="flex-shrink-0 mt-1">
+                        <div className="w-2 h-2 rounded-full bg-secondary"></div>
+                        {index < 3 && <div className="w-0.5 h-8 bg-secondary mx-auto mt-1"></div>}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs font-semibold text-gray-900 truncate">
+                          {allocation.description}
+                        </p>
+                        <p className="text-xs text-gray-500">
+                          {formatDate(allocation.allocated_at)}
+                        </p>
+                      </div>
+                      <div className="text-xs font-semibold text-gray-900">
+                        {formatCurrency(parseFloat(allocation.amount))}
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  (dashboardData as UserDashboardData)?.recent_expenses?.slice(0, 4).map((expense, index) => (
+                    <div key={expense.id} className="flex items-start gap-3">
+                      <div className="flex-shrink-0 mt-1">
+                        <div className="w-2 h-2 rounded-full bg-secondary"></div>
+                        {index < 3 && <div className="w-0.5 h-8 bg-secondary mx-auto mt-1"></div>}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs font-semibold text-gray-900 truncate">
+                          {expense.description}
+                        </p>
+                        <p className="text-xs text-gray-500">
+                          {formatDate(expense.spent_at)}
+                        </p>
+                      </div>
+                      <div className="text-xs font-semibold text-gray-900">
+                        {formatCurrency(parseFloat(expense.amount))}
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Bottom Section */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Report Overview / Donut Chart */}
+            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-xs font-bold text-gray-900">Report Overview</h2>
+                <button className="text-gray-400 hover:text-gray-600">
+                  <MoreVertical className="w-4 h-4" />
+                </button>
+              </div>
               {isLoading ? (
-                <SkeletonBox className="w-full h-full" />
+                <div className="flex items-center justify-center py-12">
+                  <SkeletonBox className="w-48 h-48 rounded-full" />
+                </div>
               ) : (
-                <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={getChartData()} margin={{ top: 5, right: 30, left: 0, bottom: 5 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-                    <XAxis 
-                      dataKey="month_name" 
-                      tick={{ fill: '#94a3b8', fontSize: 11 }}
-                      axisLine={false}
-                      tickLine={false}
+                <div className="flex flex-col lg:flex-row items-center gap-8">
+                  <div className="relative">
+                    <DonutChart
+                      data={financialData}
+                      size={180}
+                      strokeWidth={20}
+                      animationDuration={1}
+                      animationDelayPerSegment={0.1}
+                      highlightOnHover={true}
+                      onSegmentHover={(segment) => setHoveredSegment(segment?.label || null)}
+                      centerContent={
+                        <AnimatePresence mode="wait">
+                          <motion.div
+                            key={displayLabel || 'default'}
+                            initial={{ opacity: 0, scale: 0.9 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            exit={{ opacity: 0, scale: 0.9 }}
+                            transition={{ duration: 0.2 }}
+                            className="flex flex-col items-center justify-center text-center"
+                          >
+                            {displayLabel && (
+                              <p className="text-xl font-bold text-gray-900">
+                                {displayPercentage}%
+                              </p>
+                            )}
+                          </motion.div>
+                        </AnimatePresence>
+                      }
                     />
-                    <YAxis 
-                      tick={{ fill: '#94a3b8', fontSize: 11 }}
-                      axisLine={false}
-                      tickLine={false}
-                      tickFormatter={formatYAxisValue}
-                    />
-                    <Tooltip content={<CustomTooltip />} />
-                    <Line 
-                      type="monotone" 
-                      dataKey="total" 
-                      stroke="hsl(var(--secondary))" 
-                      strokeWidth={3}
-                      dot={{ fill: 'hsl(var(--secondary))', r: 5 }}
-                      activeDot={{ r: 7 }}
-                    />
-                  </LineChart>
-                </ResponsiveContainer>
+                  </div>
+                  <div className="space-y-4 flex-1">
+                    {financialData.map((segment) => (
+                      <div 
+                        key={segment.label}
+                        className={cn(
+                          "flex items-center justify-between p-2 rounded-lg transition-colors cursor-pointer",
+                          hoveredSegment === segment.label && "bg-gray-50"
+                        )}
+                        onMouseEnter={() => setHoveredSegment(segment.label)}
+                        onMouseLeave={() => setHoveredSegment(null)}
+                      >
+                        <div className="flex items-center gap-3">
+                          <div 
+                            className="w-3 h-3 rounded-full"
+                            style={{ backgroundColor: segment.color }}
+                          />
+                          <span className="text-xs font-medium text-gray-700">{segment.label}</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-bold text-gray-900">
+                            {formatCurrency(segment.value)}
+                          </span>
+                          <ArrowUp className="w-3 h-3 text-green-600" />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
               )}
+            </div>
+
+            {/* Expense Activity / Line Chart */}
+            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-xs font-bold text-gray-900">Expense Activity</h2>
+                <div className="flex items-center gap-4">
+                  <div className="flex items-center gap-2">
+                    <div className="w-2 h-2 rounded-full bg-secondary"></div>
+                    <span className="text-xs text-gray-500">Actual expense</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="w-2 h-2 rounded-full border-2 border-secondary bg-transparent"></div>
+                    <span className="text-xs text-gray-500">Projected expense</span>
+                  </div>
+                </div>
+              </div>
+              <div className="h-64">
+                {isLoading ? (
+                  <SkeletonBox className="w-full h-full" />
+                ) : (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <LineChart data={getChartData()} margin={{ top: 5, right: 30, left: 0, bottom: 5 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                      <XAxis 
+                        dataKey="month_name" 
+                        tick={{ fill: '#94a3b8', fontSize: 11 }}
+                        axisLine={false}
+                        tickLine={false}
+                      />
+                      <YAxis 
+                        tick={{ fill: '#94a3b8', fontSize: 11 }}
+                        axisLine={false}
+                        tickLine={false}
+                        tickFormatter={formatYAxisValue}
+                      />
+                      <Tooltip content={<CustomTooltip />} />
+                      <Line 
+                        type="monotone" 
+                        dataKey="total" 
+                        stroke="hsl(var(--secondary))" 
+                        strokeWidth={3}
+                        dot={{ fill: 'hsl(var(--secondary))', r: 5 }}
+                        activeDot={{ r: 7 }}
+                      />
+                    </LineChart>
+                  </ResponsiveContainer>
+                )}
+              </div>
             </div>
           </div>
         </div>
