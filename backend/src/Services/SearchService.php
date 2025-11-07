@@ -56,7 +56,6 @@ class SearchService
         
         $params = [$searchTerm, $searchTerm, $searchTerm];
         
-        // For regular users, only show projects they're assigned to
         if ($userRole === 'user') {
             $sql .= " AND p.id IN (SELECT project_id FROM project_users WHERE user_id = ?)";
             $params[] = $userId;
@@ -89,7 +88,6 @@ class SearchService
         
         $params = [$searchTerm, $searchTerm, $searchTerm, $searchTerm, $searchTerm];
         
-        // For regular users, only show allocations for projects they're assigned to
         if ($userRole === 'user') {
             $sql .= " AND p.id IN (SELECT project_id FROM project_users WHERE user_id = ?)";
             $params[] = $userId;
@@ -126,7 +124,6 @@ class SearchService
         
         $params = [$searchTerm, $searchTerm, $searchTerm, $searchTerm, $searchTerm, $searchTerm, $searchTerm, $searchTerm];
         
-        // For regular users, only show their own expenses
         if ($userRole === 'user') {
             $sql .= " AND e.user_id = ?";
             $params[] = $userId;
@@ -159,23 +156,22 @@ class SearchService
     
     private function searchFinances($searchTerm, $userRole, $page, $perPage, $offset)
     {
-        // Only admin can search finances
         if ($userRole !== 'admin') {
             return ['data' => [], 'total' => 0, 'page' => $page, 'per_page' => $perPage];
         }
         
         $sql = "SELECT 
                     'finance' as type,
-                    id,
+                    f.id,
                     'FINANCE' as code,
-                    CONCAT('Deposit of UGX ', FORMAT(amount, 2)) as title,
-                    description,
-                    status,
-                    deposited_at as created_at,
-                    amount,
-                    CONCAT('Deposit of UGX ', FORMAT(amount, 2)) as display_text,
-                    CONCAT_WS(' ', 'deposit', 'finance', description, 
-                              depositor.first_name, depositor.last_name, FORMAT(amount, 2)) as search_content,
+                    CONCAT('Deposit of UGX ', FORMAT(f.amount, 2)) as title,
+                    f.description,
+                    f.status,
+                    f.deposited_at as created_at,
+                    f.amount,
+                    CONCAT('Deposit of UGX ', FORMAT(f.amount, 2)) as display_text,
+                    CONCAT_WS(' ', 'deposit', 'finance', f.description, 
+                              depositor.first_name, depositor.last_name, FORMAT(f.amount, 2)) as search_content,
                     CONCAT(depositor.first_name, ' ', depositor.last_name) as deposited_by_name
                 FROM finances f
                 LEFT JOIN users depositor ON f.deposited_by = depositor.id
@@ -190,36 +186,23 @@ class SearchService
     {
         $allResults = [];
         
-        // Search projects
         $projects = $this->searchProjects($searchTerm, $userRole, $userId, 1, 5, 0);
         $allResults = array_merge($allResults, $projects['data']);
         
-        // Search allocations
         $allocations = $this->searchAllocations($searchTerm, $userRole, $userId, 1, 5, 0);
         $allResults = array_merge($allResults, $allocations['data']);
         
-        // Search expenses
         $expenses = $this->searchExpenses($searchTerm, $userRole, $userId, 1, 5, 0);
         $allResults = array_merge($allResults, $expenses['data']);
         
-        // Search finances (admin only)
         if ($userRole === 'admin') {
             $finances = $this->searchFinances($searchTerm, $userRole, 1, 5, 0);
             $allResults = array_merge($allResults, $finances['data']);
-        }
-        
-        // Search users (admin only)
-        if ($userRole === 'admin') {
+            
             $users = $this->searchUsers($searchTerm, 1, 5, 0);
             $allResults = array_merge($allResults, $users['data']);
         }
         
-        // Sort by relevance (you can implement more sophisticated relevance scoring)
-        usort($allResults, function($a, $b) use ($searchTerm) {
-            return $this->calculateRelevance($b, $searchTerm) - $this->calculateRelevance($a, $searchTerm);
-        });
-        
-        // Apply pagination
         $total = count($allResults);
         $paginatedResults = array_slice($allResults, $offset, $perPage);
         
@@ -237,27 +220,22 @@ class SearchService
         $relevance = 0;
         $searchTerm = strtolower($searchTerm);
         
-        // Check title
         if (isset($item['title']) && stripos($item['title'], $searchTerm) !== false) {
             $relevance += 10;
         }
         
-        // Check display text
         if (isset($item['display_text']) && stripos($item['display_text'], $searchTerm) !== false) {
             $relevance += 8;
         }
         
-        // Check description
         if (isset($item['description']) && stripos($item['description'], $searchTerm) !== false) {
             $relevance += 5;
         }
         
-        // Check code/project code
         if (isset($item['code']) && stripos($item['code'], $searchTerm) !== false) {
             $relevance += 7;
         }
         
-        // Check user names in relationships
         if (isset($item['allocated_by_name']) && stripos($item['allocated_by_name'], $searchTerm) !== false) {
             $relevance += 6;
         }
@@ -279,22 +257,18 @@ class SearchService
     
     private function executeSearch($sql, $params, $page, $perPage, $offset)
     {
-        // Get total count
         $countSql = "SELECT COUNT(*) as total FROM ($sql) as subquery";
         $countResult = $this->db->queryOne($countSql, $params);
         $total = $countResult['total'] ?? 0;
         
-        // Get paginated data
         $dataSql = $sql . " ORDER BY created_at DESC LIMIT " . (int)$perPage . " OFFSET " . (int)$offset;
         $data = $this->db->query($dataSql, $params);
         
-        // Format amounts and create meaningful display text
         foreach ($data as &$record) {
             if ($record['amount'] !== null) {
                 $record['amount'] = number_format((float)$record['amount'], 2, '.', '');
             }
             
-            // Enhance display text based on type and available data
             $record['display_text'] = $this->enhanceDisplayText($record);
         }
         

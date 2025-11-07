@@ -34,8 +34,6 @@ const MainLayout = ({
   const [isMobile, setIsMobile] = useState(false)
   const [notifications, setNotifications] = useState([])
   const [searchQuery, setSearchQuery] = useState('')
-  const [searchResults, setSearchResults] = useState([])
-  const [showSearchResults, setShowSearchResults] = useState(false)
   const [searchType, setSearchType] = useState('all')
   const [user, setUser] = useState({
     name: '',
@@ -44,6 +42,8 @@ const MainLayout = ({
     firstName: '',
     role: 'user'
   })
+
+  const searchTimeoutRef = useRef(null)
 
   useEffect(() => {
     const currentUser = getCurrentUser()
@@ -90,7 +90,6 @@ const MainLayout = ({
         setShowNotifications(false)
       }
       if (!e.target.closest('.search-container')) {
-        setShowSearchResults(false)
         setShowSearchFilter(false)
       }
     }
@@ -149,80 +148,42 @@ const MainLayout = ({
     }
   }
 
-  const handleSearch = async (query, type = searchType) => {
-    if (!query.trim()) {
-      return []
-    }
-
-    try {
-      const response = await get('/search', { 
-        q: query,
-        type: type,
-        per_page: 20 
-      })
-      
-      if (response.success) {
-        return response.data
-      }
-      return []
-    } catch (error) {
-      console.error('Search error:', error)
-      return []
-    }
-  }
-
-  const handleSearchResultClick = (result) => {
-    setShowSearchResults(false)
-    setSearchQuery('')
+  const handleSearchChange = (query) => {
+    setSearchQuery(query)
     
-    let section = ''
-    let params = {}
-    
-    switch (result.type) {
-      case 'project':
-        section = 'projects'
-        params = { highlight: result.id }
-        break
-      case 'allocation':
-        section = 'allocations'
-        params = { highlight: result.id }
-        break
-      case 'expense':
-        section = 'expenses'
-        params = { highlight: result.id }
-        break
-      case 'user':
-        section = 'users'
-        params = { highlight: result.id }
-        break
-      case 'finance':
-        section = 'finances'
-        params = { highlight: result.id }
-        break
-      default:
-        section = 'search'
-        params = { q: searchQuery }
+    // Clear any existing timeout
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current)
     }
     
-    setActiveSection(section)
-    navigate(`/${section}`, { state: params })
+    // Navigate to search page after a short delay when user types
+    if (query.trim().length > 0) {
+      searchTimeoutRef.current = setTimeout(() => {
+        navigate(`/search?q=${encodeURIComponent(query)}&type=${searchType}`)
+        setActiveSection('search')
+      }, 500) // 500ms delay before navigating
+    }
   }
 
   const handleSearchSubmit = (e) => {
     if (e.key === 'Enter' && searchQuery.trim()) {
-      setShowSearchResults(false)
+      // Clear timeout if user presses Enter
+      if (searchTimeoutRef.current) {
+        clearTimeout(searchTimeoutRef.current)
+      }
+      navigate(`/search?q=${encodeURIComponent(searchQuery)}&type=${searchType}`)
       setActiveSection('search')
-      navigate('/search', { state: { q: searchQuery, type: searchType } })
     }
   }
 
   const handleTypeChange = (type) => {
     setSearchType(type)
     setShowSearchFilter(false)
+    
+    // If there's a search query, navigate to search page with new type
     if (searchQuery.trim()) {
-      handleSearch(searchQuery, type).then(results => {
-        setSearchResults(results)
-      })
+      navigate(`/search?q=${encodeURIComponent(searchQuery)}&type=${type}`)
+      setActiveSection('search')
     }
   }
 
@@ -300,79 +261,10 @@ const MainLayout = ({
                     type="text"
                     placeholder="Search projects, allocations, expenses, users..."
                     value={searchQuery}
-                    onChange={async (e) => {
-                      const query = e.target.value
-                      setSearchQuery(query)
-                      
-                      if (query.length > 2) {
-                        const results = await handleSearch(query)
-                        setSearchResults(results)
-                        setShowSearchResults(true)
-                      } else {
-                        setShowSearchResults(false)
-                        setSearchResults([])
-                      }
-                    }}
+                    onChange={(e) => handleSearchChange(e.target.value)}
                     onKeyPress={handleSearchSubmit}
-                    onFocus={() => {
-                      if (searchQuery.length > 2 && searchResults.length > 0) {
-                        setShowSearchResults(true)
-                      }
-                    }}
                     className="w-full pl-10 pr-4 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
                   />
-                  
-                  {showSearchResults && searchResults.length > 0 && (
-                    <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-xl z-50 max-h-80 overflow-y-auto">
-                      {searchResults.map((result) => (
-                        <div
-                          key={`${result.type}-${result.id}`}
-                          className="p-3 border-b border-gray-100 hover:bg-gray-50 cursor-pointer transition-colors"
-                          onClick={() => handleSearchResultClick(result)}
-                        >
-                          <div className="flex justify-between items-start">
-                            <div className="flex-1">
-                              <div className="flex items-center gap-2 mb-1">
-                                <span className={`text-xs font-medium px-2 py-1 rounded ${
-                                  result.type === 'project' ? 'bg-blue-100 text-blue-800' :
-                                  result.type === 'allocation' ? 'bg-green-100 text-green-800' :
-                                  result.type === 'expense' ? 'bg-orange-100 text-orange-800' :
-                                  result.type === 'finance' ? 'bg-purple-100 text-purple-800' :
-                                  'bg-gray-100 text-gray-800'
-                                }`}>
-                                  {result.type}
-                                </span>
-                                <span className="text-xs font-medium text-gray-900">{result.display_text}</span>
-                              </div>
-                              
-                              {result.description && (
-                                <p className="text-xs text-gray-600 mt-1 line-clamp-2">{result.description}</p>
-                              )}
-                              
-                              <div className="flex items-center gap-3 mt-2">
-                                <span className="text-xs text-gray-500">
-                                  {new Date(result.created_at).toLocaleDateString()}
-                                </span>
-                                <span className={`text-xs px-2 py-1 rounded ${
-                                  result.status === 'approved' ? 'bg-green-100 text-green-800' :
-                                  result.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
-                                  result.status === 'rejected' ? 'bg-red-100 text-red-800' :
-                                  'bg-gray-100 text-gray-800'
-                                }`}>
-                                  {result.status}
-                                </span>
-                                {result.amount && (
-                                  <span className="text-xs font-medium text-gray-900">
-                                    UGX {parseFloat(result.amount).toLocaleString()}
-                                  </span>
-                                )}
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
                 </div>
                 
                 <div className="relative">
@@ -386,13 +278,13 @@ const MainLayout = ({
                   </button>
                   
                   {showSearchFilter && (
-                    <div className="absolute right-0 mt-1 w-32 bg-white border border-gray-200 rounded-lg shadow-lg z-50">
+                    <div className="absolute right-0 mt-1 w-32 bg-white border border-secondary overflow-hidden rounded-lg shadow-lg z-50">
                       {getTypeOptions().map((option) => (
                         <button
                           key={option.value}
                           onClick={() => handleTypeChange(option.value)}
                           className={`w-full text-left px-3 py-2 text-xs hover:bg-gray-50 transition-colors ${
-                            searchType === option.value ? 'bg-primary/10 text-primary' : 'text-gray-900'
+                            searchType === option.value ? 'bg-secondary/10 text-secondary' : 'text-gray-900'
                           }`}
                         >
                           {option.label}

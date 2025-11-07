@@ -2,7 +2,19 @@
 
 import React, { useState, useEffect } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
-import { Search, Filter, ChevronDown } from 'lucide-react'
+import { 
+  Search, 
+  Filter, 
+  ChevronDown, 
+  Calendar, 
+  User, 
+  Folder, 
+  CreditCard, 
+  Building, 
+  FileText,
+  Wallet,
+  Users
+} from 'lucide-react'
 import { get } from '../utils/service.js'
 
 const SearchResults = () => {
@@ -95,14 +107,25 @@ const SearchResults = () => {
     navigate(path, { state: { highlight: result.id } })
   }
 
+  const getTypeIcon = (type) => {
+    switch (type) {
+      case 'project': return <Building className="h-3 w-3" />
+      case 'allocation': return <CreditCard className="h-3 w-3" />
+      case 'expense': return <FileText className="h-3 w-3" />
+      case 'finance': return <Wallet className="h-3 w-3" />
+      case 'user': return <Users className="h-3 w-3" />
+      default: return <Folder className="h-3 w-3" />
+    }
+  }
+
   const getTypeColor = (type) => {
     switch (type) {
-      case 'project': return 'bg-blue-100 text-blue-800'
-      case 'allocation': return 'bg-green-100 text-green-800'
-      case 'expense': return 'bg-orange-100 text-orange-800'
-      case 'finance': return 'bg-purple-100 text-purple-800'
-      case 'user': return 'bg-gray-100 text-gray-800'
-      default: return 'bg-gray-100 text-gray-800'
+      case 'project': return 'bg-blue-50 text-blue-700 border-blue-200'
+      case 'allocation': return 'bg-green-50 text-green-700 border-green-200'
+      case 'expense': return 'bg-orange-50 text-orange-700 border-orange-200'
+      case 'finance': return 'bg-purple-50 text-purple-700 border-purple-200'
+      case 'user': return 'bg-gray-50 text-gray-700 border-gray-200'
+      default: return 'bg-gray-50 text-gray-700 border-gray-200'
     }
   }
 
@@ -124,45 +147,81 @@ const SearchResults = () => {
     { value: 'finance', label: 'Finances' }
   ]
 
+  const SearchSkeleton = () => (
+    <div className="p-4 border-b border-gray-100 animate-pulse">
+      <div className="flex items-start justify-between">
+        <div className="flex-1">
+          <div className="flex items-center gap-2 mb-2">
+            <div className="w-16 h-4 bg-gray-200 rounded"></div>
+            <div className="w-48 h-4 bg-gray-200 rounded"></div>
+          </div>
+          <div className="w-64 h-3 bg-gray-200 rounded mb-3"></div>
+          <div className="flex items-center gap-3">
+            <div className="w-20 h-3 bg-gray-200 rounded"></div>
+            <div className="w-16 h-4 bg-gray-200 rounded"></div>
+            <div className="w-24 h-4 bg-gray-200 rounded"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+
   return (
-    <div className="min-h-screen bg-gray-50 p-6">
+    <div className="min-h-screen bg-gray-50 p-4">
       <div className="max-w-6xl mx-auto">
-        <div className="mb-8">
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">Search Results</h1>
+        {/* Header Section */}
+        <div className="mb-6">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h1 className="text-xs font-semibold text-secondary uppercase tracking-wide mb-1">Search Results</h1>
+              {searchQuery && (
+                <p className="text-xs text-gray-600">
+                  Showing results for "<span className="text-secondary">{searchQuery}</span>"
+                </p>
+              )}
+            </div>
+            {searchQuery && (
+              <span className="text-xs text-secondary bg-white px-2 py-1 rounded border border-gray-300">
+                {searchResults.length} {searchResults.length === 1 ? 'result' : 'results'}
+              </span>
+            )}
+          </div>
           
-          <div className="flex gap-4 mb-6">
+          {/* Search Bar */}
+          <div className="flex gap-3 mb-4">
             <div className="flex-1 relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-3 w-3 text-gray-400" />
               <input
                 type="text"
                 placeholder="Search projects, allocations, expenses, users..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 onKeyPress={handleSearchSubmit}
-                className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+                className="w-full pl-9 pr-4 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-secondary focus:border-transparent bg-white text-secondary"
               />
             </div>
             
             <div className="relative">
               <button
                 onClick={() => setShowTypeFilter(!showTypeFilter)}
-                className="flex items-center gap-2 px-4 py-3 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                className="flex items-center gap-2 px-3 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors text-xs bg-white text-secondary"
               >
-                <Filter className="h-4 w-4" />
+                <Filter className="h-3 w-3" />
                 <span>{typeOptions.find(opt => opt.value === searchType)?.label}</span>
-                <ChevronDown className="h-4 w-4" />
+                <ChevronDown className="h-3 w-3" />
               </button>
               
               {showTypeFilter && (
-                <div className="absolute right-0 mt-1 w-48 bg-white border border-gray-200 rounded-lg shadow-lg z-10">
+                <div className="absolute right-0 mt-1 w-36 bg-white border border-gray-200 rounded-lg shadow-lg z-10">
                   {typeOptions.map((option) => (
                     <button
                       key={option.value}
                       onClick={() => handleTypeChange(option.value)}
-                      className={`w-full text-left px-4 py-2 text-sm hover:bg-gray-50 transition-colors ${
-                        searchType === option.value ? 'bg-primary/10 text-primary' : 'text-gray-900'
+                      className={`w-full text-left px-3 py-2 text-xs hover:bg-gray-50 transition-colors flex items-center gap-2 ${
+                        searchType === option.value ? 'bg-primary/20 text-secondary' : 'text-secondary'
                       }`}
                     >
+                      {getTypeIcon(option.value)}
                       {option.label}
                     </button>
                   ))}
@@ -172,95 +231,91 @@ const SearchResults = () => {
           </div>
         </div>
 
+        {/* Results Section */}
         {loading ? (
-          <div className="flex justify-center items-center py-12">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+          <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+            <div className="divide-y divide-gray-100">
+              {Array.from({ length: 5 }).map((_, index) => (
+                <SearchSkeleton key={index} />
+              ))}
+            </div>
           </div>
         ) : searchQuery ? (
           <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
-            <div className="px-6 py-4 border-b border-gray-200 bg-gray-50">
-              <div className="flex justify-between items-center">
-                <h2 className="text-sm font-semibold text-gray-900">
-                  {searchResults.length} results for "{searchQuery}"
-                </h2>
-                <span className="text-xs text-gray-500 capitalize">
-                  {searchType === 'all' ? 'All Types' : searchType}
-                </span>
+            {searchResults.length === 0 ? (
+              <div className="p-8 text-center">
+                <Search className="h-8 w-8 text-gray-300 mx-auto mb-3" />
+                <h3 className="text-xs font-semibold text-secondary mb-1">No results found</h3>
+                <p className="text-xs text-gray-500">Try adjusting your search terms or filters</p>
               </div>
-            </div>
-
-            <div className="divide-y divide-gray-100">
-              {searchResults.length === 0 ? (
-                <div className="p-8 text-center">
-                  <Search className="h-12 w-12 text-gray-300 mx-auto mb-4" />
-                  <h3 className="text-lg font-medium text-gray-900 mb-2">No results found</h3>
-                  <p className="text-gray-500">Try adjusting your search terms or filters</p>
-                </div>
-              ) : (
-                searchResults.map((result) => (
+            ) : (
+              <div className="divide-y divide-gray-100">
+                {searchResults.map((result) => (
                   <div
                     key={`${result.type}-${result.id}`}
                     onClick={() => handleResultClick(result)}
-                    className="p-6 hover:bg-gray-50 cursor-pointer transition-colors"
+                    className="p-4 hover:bg-secondary/5 cursor-pointer transition-colors border-b border-gray-100 last:border-b-0 group"
                   >
                     <div className="flex items-start justify-between">
                       <div className="flex-1">
-                        <div className="flex items-center gap-3 mb-2">
-                          <span className={`text-xs font-medium px-3 py-1 rounded-full ${getTypeColor(result.type)}`}>
+                        {/* Header with type and title */}
+                        <div className="flex items-center gap-2 mb-2">
+                          <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full border text-xs font-medium ${getTypeColor(result.type)}`}>
+                            {getTypeIcon(result.type)}
                             {result.type}
                           </span>
-                          <h3 className="text-lg font-semibold text-gray-900">
+                          <h3 className="text-xs font-semibold text-secondary flex-1 group-hover:text-secondary transition-colors">
                             {result.display_text}
                           </h3>
                         </div>
                         
+                        {/* Description */}
                         {result.description && (
-                          <p className="text-gray-600 mb-3">{result.description}</p>
+                          <p className="text-xs text-gray-600 mb-3 line-clamp-2">{result.description}</p>
                         )}
                         
+                        {/* Metadata */}
                         <div className="flex items-center gap-4 flex-wrap">
-                          <span className="text-sm text-gray-500">
-                            {new Date(result.created_at).toLocaleDateString('en-US', {
-                              year: 'numeric',
-                              month: 'long',
-                              day: 'numeric'
-                            })}
-                          </span>
+                          <div className="flex items-center gap-1 text-xs text-gray-500">
+                            <Calendar className="h-3 w-3" />
+                            {new Date(result.created_at).toLocaleDateString()}
+                          </div>
                           
                           <span className={`text-xs font-medium px-2 py-1 rounded ${getStatusColor(result.status)}`}>
                             {result.status}
                           </span>
                           
                           {result.amount && (
-                            <span className="text-sm font-semibold text-gray-900">
+                            <div className="flex items-center gap-1 text-xs font-semibold text-secondary">
                               UGX {parseFloat(result.amount).toLocaleString()}
-                            </span>
+                            </div>
                           )}
                           
                           {result.code && result.code !== 'FINANCE' && (
-                            <span className="text-sm text-gray-500 bg-gray-100 px-2 py-1 rounded">
+                            <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded">
                               {result.code}
                             </span>
                           )}
                         </div>
                       </div>
                       
-                      <div className="text-right">
-                        <span className="text-xs text-gray-400 capitalize">
-                          {result.type}
+                      {/* View Details Button */}
+                      <div className="text-right ml-4">
+                        <span className="text-xs text-secondary font-medium group-hover:underline transition-all">
+                          View Details
                         </span>
                       </div>
                     </div>
                   </div>
-                ))
-              )}
-            </div>
+                ))}
+              </div>
+            )}
           </div>
         ) : (
-          <div className="bg-white rounded-lg border border-gray-200 p-12 text-center">
-            <Search className="h-16 w-16 text-gray-300 mx-auto mb-4" />
-            <h3 className="text-xl font-medium text-gray-900 mb-2">Search across the system</h3>
-            <p className="text-gray-500 max-w-md mx-auto">
+          <div className="bg-white rounded-lg border border-gray-200 p-8 text-center">
+            <Search className="h-12 w-12 text-gray-300 mx-auto mb-3" />
+            <h3 className="text-xs font-semibold text-secondary mb-1">Search Across the System</h3>
+            <p className="text-xs text-gray-500 max-w-md mx-auto">
               Enter keywords to search for projects, allocations, expenses, users, and financial records.
             </p>
           </div>
