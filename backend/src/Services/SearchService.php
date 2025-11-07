@@ -195,7 +195,7 @@ class SearchService
         $expenses = $this->searchExpenses($searchTerm, $userRole, $userId, 1, 5, 0);
         $allResults = array_merge($allResults, $expenses['data']);
         
-        if ($userRole === 'admin') {
+        if (in_array($userRole, ['admin', 'super_admin'])) {
             $finances = $this->searchFinances($searchTerm, $userRole, 1, 5, 0);
             $allResults = array_merge($allResults, $finances['data']);
             

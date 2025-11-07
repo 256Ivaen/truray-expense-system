@@ -718,9 +718,9 @@ export function DataTable({
             <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
               Project
             </th>
-            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-              User
-            </th>
+              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                User
+              </th>
             <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
               Amount
             </th>
@@ -829,7 +829,7 @@ export function DataTable({
             </td>
             {showActions && actions.length > 0 && (
               <td className="px-4 py-3 whitespace-nowrap text-xs relative">
-                <button
+                    <button
                   onClick={(e) => handleOpenDropdown(itemId, e)}
                   disabled={actionLoading}
                   className="p-1 hover:bg-gray-100 rounded transition-colors disabled:opacity-50"
@@ -839,7 +839,7 @@ export function DataTable({
                   ) : (
                     <MoreVertical className="h-4 w-4 text-gray-600" />
                   )}
-                </button>
+                    </button>
               </td>
             )}
           </tr>
@@ -876,7 +876,7 @@ export function DataTable({
             </td>
             {showActions && actions.length > 0 && (
               <td className="px-4 py-3 whitespace-nowrap text-xs relative">
-                <button
+                    <button
                   onClick={(e) => handleOpenDropdown(itemId, e)}
                   disabled={actionLoading}
                   className="p-1 hover:bg-gray-100 rounded transition-colors disabled:opacity-50"
@@ -886,7 +886,7 @@ export function DataTable({
                   ) : (
                     <MoreVertical className="h-4 w-4 text-gray-600" />
                   )}
-                </button>
+                    </button>
               </td>
             )}
           </tr>
@@ -926,17 +926,17 @@ export function DataTable({
             </td>
             {showActions && actions.length > 0 && (
               <td className="px-4 py-3 whitespace-nowrap text-xs relative">
-                <button
+                      <button
                   onClick={(e) => handleOpenDropdown(itemId, e)}
                   disabled={actionLoading}
                   className="p-1 hover:bg-gray-100 rounded transition-colors disabled:opacity-50"
-                >
+                      >
                   {actionLoading && openDropdownId === itemId ? (
                     <Loader2 className="h-4 w-4 animate-spin text-primary" />
                   ) : (
                     <MoreVertical className="h-4 w-4 text-gray-600" />
                   )}
-                </button>
+                    </button>
               </td>
             )}
           </tr>
@@ -984,7 +984,7 @@ export function DataTable({
             </td>
             {showActions && actions.length > 0 && (
               <td className="px-4 py-3 whitespace-nowrap text-xs relative">
-                <button
+                    <button
                   onClick={(e) => handleOpenDropdown(itemId, e)}
                   disabled={actionLoading}
                   className="p-1 hover:bg-gray-100 rounded transition-colors disabled:opacity-50"
@@ -994,7 +994,7 @@ export function DataTable({
                   ) : (
                     <MoreVertical className="h-4 w-4 text-gray-600" />
                   )}
-                </button>
+                    </button>
               </td>
             )}
           </tr>
@@ -1021,7 +1021,7 @@ export function DataTable({
             </td>
             {showActions && (isAdmin) && actions.length > 0 && (
               <td className="px-4 py-3 whitespace-nowrap text-xs relative">
-                <button
+                    <button
                   onClick={(e) => handleOpenDropdown(itemId, e)}
                   disabled={actionLoading}
                   className="p-1 hover:bg-gray-100 rounded transition-colors disabled:opacity-50"
@@ -1123,19 +1123,19 @@ export function DataTable({
                 >
                   <div className="flex flex-col items-center justify-center space-y-3">
                     <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center">
-                      <svg
-                        className="w-8 h-8 text-gray-400"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={1.5}
+                    <svg
+                      className="w-8 h-8 text-gray-400"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={1.5}
                           d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"
-                        />
-                      </svg>
+                      />
+                    </svg>
                     </div>
                     <div>
                       <p className="text-sm font-medium text-gray-900">No data found</p>
@@ -1155,52 +1155,52 @@ export function DataTable({
           <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
             {/* Results Info */}
             <div className="flex items-center gap-4">
-              <span className="text-xs text-gray-700">
+            <span className="text-xs text-gray-700">
                 Showing <span className="font-medium">{((pagination.current_page - 1) * pagination.per_page) + 1}</span> to{' '}
                 <span className="font-medium">
                   {Math.min(pagination.current_page * pagination.per_page, pagination.total)}
                 </span>{' '}
                 of <span className="font-medium">{pagination.total}</span> results
-              </span>
+            </span>
               
               {/* Per Page Selector */}
               {onPerPageChange && (
-                <select
+            <select
                   value={pagination.per_page}
                   onChange={(e) => onPerPageChange(Number(e.target.value))}
                   className="border border-secondary rounded-md px-3 py-1.5 text-xs focus:ring-2 focus:ring-primary focus:border-primary"
                   disabled={loading || actionLoading}
-                >
-                  <option value={5}>5 per page</option>
-                  <option value={10}>10 per page</option>
+            >
+              <option value={5}>5 per page</option>
+              <option value={10}>10 per page</option>
                   <option value={20}>20 per page</option>
-                  <option value={50}>50 per page</option>
-                </select>
+              <option value={50}>50 per page</option>
+            </select>
               )}
-            </div>
+          </div>
 
             {/* Pagination Controls */}
             {onPageChange && (
               <div className="flex items-center gap-1">
                 {/* First Page */}
-                <button
+            <button
                   onClick={() => onPageChange(1)}
                   disabled={!pagination.has_previous_page || loading || actionLoading}
                   className="p-2 rounded-md border border-secondary bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                   title="First page"
-                >
+            >
                   <ChevronsLeft className="h-4 w-4 text-gray-600" />
-                </button>
+            </button>
 
                 {/* Previous Page */}
-                <button
+            <button
                   onClick={() => onPageChange(pagination.current_page - 1)}
                   disabled={!pagination.has_previous_page || loading || actionLoading}
                   className="p-2 rounded-md border border-secondary bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                   title="Previous page"
-                >
+            >
                   <ChevronLeft className="h-4 w-4 text-gray-600" />
-                </button>
+            </button>
 
                 {/* Page Numbers */}
                 <div className="hidden sm:flex items-center gap-1">
@@ -1208,7 +1208,7 @@ export function DataTable({
                     page === '...' ? (
                       <span key={`ellipsis-${index}`} className="px-3 py-1.5 text-xs text-gray-500">
                         ...
-                      </span>
+            </span>
                     ) : (
                       <button
                         key={page}
@@ -1232,24 +1232,24 @@ export function DataTable({
                 </div>
 
                 {/* Next Page */}
-                <button
+            <button
                   onClick={() => onPageChange(pagination.current_page + 1)}
                   disabled={!pagination.has_next_page || loading || actionLoading}
                   className="p-2 rounded-md border border-secondary bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                   title="Next page"
-                >
+            >
                   <ChevronRight className="h-4 w-4 text-gray-600" />
-                </button>
+            </button>
 
                 {/* Last Page */}
-                <button
+            <button
                   onClick={() => onPageChange(pagination.total_pages)}
                   disabled={!pagination.has_next_page || loading || actionLoading}
                   className="p-2 rounded-md border border-secondary bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                   title="Last page"
-                >
+            >
                   <ChevronsRight className="h-4 w-4 text-gray-600" />
-                </button>
+            </button>
               </div>
             )}
           </div>

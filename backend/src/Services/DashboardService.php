@@ -15,7 +15,8 @@ class DashboardService
     
     public function getDashboardData($currentUser)
     {
-        if ($currentUser['role'] === 'admin') {
+        if (in_array($currentUser['role'], ['admin', 'super_admin'])) {
+        if (in_array($currentUser['role'], ['admin', 'super_admin'])) {
             return $this->getAdminDashboard();
         } else {
             return $this->getUserDashboard($currentUser['id']);

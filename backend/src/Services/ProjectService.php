@@ -26,7 +26,7 @@ class ProjectService
                     INNER JOIN project_users pu ON p.id = pu.project_id 
                     WHERE pu.user_id = ? AND p.deleted_at IS NULL";
         
-        if ($role === 'admin') {
+        if (in_array($role, ['admin', 'super_admin'])) {
             $countSql = "SELECT COUNT(*) as total FROM projects WHERE deleted_at IS NULL";
             $countResult = $this->db->queryOne($countSql);
             $total = $countResult['total'] ?? 0;
@@ -68,7 +68,7 @@ class ProjectService
         }
         
         // If user is admin, return project
-        if ($role === 'admin') {
+        if (in_array($role, ['admin', 'super_admin'])) {
             return $this->enhanceProjectWithBalance($project);
         }
         
@@ -174,7 +174,7 @@ class ProjectService
             }
             
             // Prevent assigning admin users to projects
-            if ($user['role'] === 'admin') {
+            if (in_array($user['role'], ['admin', 'super_admin'])) {
                 throw new \Exception('Cannot assign admin users to projects');
             }
             
@@ -350,7 +350,7 @@ class ProjectService
             }
             
             // Prevent assigning admin users to projects
-            if ($user['role'] === 'admin') {
+            if (in_array($user['role'], ['admin', 'super_admin'])) {
                 return ['success' => false, 'message' => 'Cannot assign admin users to projects'];
             }
             
