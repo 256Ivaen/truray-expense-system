@@ -65,14 +65,14 @@ const Sidebar = ({
       }
     ]
 
-    // Users section - Admin only
-    if (currentUserRole === 'admin') {
+    // Users section - Admin and Super Admin
+    if (currentUserRole === 'admin' || currentUserRole === 'super_admin') {
       baseNav.push({
         title: 'Users',
         path: '/users',
         section: 'users',
         icon: <FiUsers className="h-4 w-4" />,
-        roles: ['admin']
+        roles: ['admin','super_admin']
       })
     }
 
@@ -85,25 +85,25 @@ const Sidebar = ({
       roles: ['admin', 'user']
     })
 
-    // Finance section - Admin only
-    if (currentUserRole === 'admin') {
+    // Finance section - Admin and Super Admin
+    if (currentUserRole === 'admin' || currentUserRole === 'super_admin') {
       baseNav.push({
         title: 'Finance',
         path: '/finance',
         section: 'finance',
         icon: <MdOutlineAttachMoney className="h-4 w-4" />,
-        roles: ['admin']
+        roles: ['admin','super_admin']
       })
     }
 
-    // Allocations - Admin only; users should not see this
-    if (currentUserRole === 'admin') {
+    // Allocations - Admin and Super Admin; users should not see this
+    if (currentUserRole === 'admin' || currentUserRole === 'super_admin') {
       baseNav.push({
         title: 'Allocations',
         path: '/allocations',
         section: 'allocations',
         icon: <TbSubtask className="h-4 w-4" />,
-        roles: ['admin']
+        roles: ['admin','super_admin']
       })
     }
 

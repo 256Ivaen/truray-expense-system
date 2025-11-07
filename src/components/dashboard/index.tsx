@@ -333,7 +333,7 @@ function EnhancedDashboardContent({
 }: any) {
   const [dashboardData, setDashboardData] = useState<DashboardData>(null);
   const [dataLoading, setDataLoading] = useState(true);
-  const [userRole, setUserRole] = useState<'admin' | 'user'>('user');
+  const [userRole, setUserRole] = useState<'super_admin' | 'admin' | 'user'>('user');
   const [userName, setUserName] = useState<string>('User');
   const [hoveredSegment, setHoveredSegment] = useState<string | null>(null);
   const [selectedPeriod, setSelectedPeriod] = useState<'all' | 'week' | 'month' | 'year'>('all');
@@ -370,9 +370,28 @@ function EnhancedDashboardContent({
     onRefresh?.();
   };
 
+  const normalizeAmount = (value: unknown): number => {
+    if (typeof value === 'number' && Number.isFinite(value)) {
+      return value;
+    }
+    if (typeof value === 'string') {
+      const numeric = Number(value.replace(/[^0-9.-]+/g, ''));
+      return Number.isFinite(numeric) ? numeric : 0;
+    }
+    if (typeof value === 'bigint') {
+      return Number(value);
+    }
+    if (value === null || value === undefined) {
+      return 0;
+    }
+    const numeric = Number(value);
+    return Number.isFinite(numeric) ? numeric : 0;
+  };
+
   // UGX Currency Formatter - exactly like expenses page
-  const formatCurrency = (amount: number) => {
-    return `UGX ${amount.toLocaleString('en-US', {
+  const formatCurrency = (amount?: number | string | null) => {
+    const numericAmount = normalizeAmount(amount ?? 0);
+    return `UGX ${numericAmount.toLocaleString('en-US', {
       minimumFractionDigits: 0,
       maximumFractionDigits: 0
     })}`;
@@ -390,7 +409,7 @@ function EnhancedDashboardContent({
   };
 
   const isLoading = loading || dataLoading;
-  const isAdmin = userRole === 'admin';
+  const isAdmin = userRole === 'admin' || userRole === 'super_admin';
 
   // Calculate percentage changes based on monthly data
   const calculatePercentageChange = (type: 'deposits' | 'spent' | 'allocated' | 'projects') => {
@@ -479,20 +498,21 @@ function EnhancedDashboardContent({
     
     if (isAdmin) {
       const data = dashboardData as AdminDashboardData;
-      const Total_Deposits = data.stats.total_deposits;
-      const expense = data.stats.total_spent;
-      const Balance = data.stats.total_allocated - data.stats.total_spent;
+      const totalDeposits = normalizeAmount(data.stats?.total_deposits);
+      const expense = normalizeAmount(data.stats?.total_spent);
+      const allocated = normalizeAmount(data.stats?.total_allocated);
+      const balance = Math.max(allocated - expense, 0);
 
       return [
-        { value: Total_Deposits, color: "#10b981", label: "Total Deposits" },
+        { value: totalDeposits, color: "#10b981", label: "Total Deposits" },
         { value: expense, color: "#1e293b", label: "Expense" },
-        { value: Math.max(Balance, 0), color: "#22c55e", label: "Balance" },
+        { value: balance, color: "#22c55e", label: "Balance" },
       ];
     } else {
       const data = dashboardData as UserDashboardData;
-      const allocated = data.stats.total_allocated;
-      const spent = data.stats.total_spent;
-      const remaining = data.stats.remaining_balance;
+      const allocated = normalizeAmount(data.stats?.total_allocated);
+      const spent = normalizeAmount(data.stats?.total_spent);
+      const remaining = normalizeAmount(data.stats?.remaining_balance);
 
       return [
         { value: allocated, color: "#10b981", label: "Allocated" },
@@ -502,7 +522,7 @@ function EnhancedDashboardContent({
     }
   }, [dashboardData, isAdmin]);
 
-  const totalFinancialValue = financialData.reduce((sum, d) => sum + d.value, 0);
+  const totalFinancialValue = financialData.reduce((sum, d) => sum + normalizeAmount(d.value), 0);
 
   const activeSegment = financialData.find(
     (segment) => segment.label === hoveredSegment
@@ -510,9 +530,9 @@ function EnhancedDashboardContent({
   
   const displayValue = activeSegment?.value ?? totalFinancialValue;
   const displayLabel = activeSegment?.label ?? "";
-  const displayPercentage = activeSegment 
-    ? Math.round((activeSegment.value / totalFinancialValue) * 100)
-    : 100;
+  const displayPercentage = totalFinancialValue > 0
+    ? Math.round((normalizeAmount(activeSegment?.value ?? totalFinancialValue) / totalFinancialValue) * 100)
+    : 0;
 
   // Get percentage changes
   const depositsChange = calculatePercentageChange('deposits');
@@ -534,9 +554,9 @@ function EnhancedDashboardContent({
     if (!dashboardData) return 0;
     
     if (isAdmin) {
-      return (dashboardData as AdminDashboardData)?.stats.total_deposits || 0;
+      return normalizeAmount((dashboardData as AdminDashboardData)?.stats.total_deposits);
     } else {
-      return (dashboardData as UserDashboardData)?.stats.total_allocated || 0;
+      return normalizeAmount((dashboardData as UserDashboardData)?.stats.total_allocated);
     }
   };
 
@@ -600,13 +620,13 @@ function EnhancedDashboardContent({
               <p className="text-xs font-medium tracking-wider mb-2">
                 {isAdmin ? 'TOTAL DEPOSITS' : 'TOTAL ALLOCATED'}
               </p>
-              <p className="text-3xl sm:text-4xl tracking-wide font-semibold mb-4">
+              <div className="text-3xl sm:text-4xl tracking-wide font-semibold mb-4">
                 {isLoading ? (
-                  <div className="h-8 w-36 bg-gray-300 rounded-lg animate-pulse"></div>
+                  <span className="inline-block h-8 w-36 bg-gray-300 rounded-lg animate-pulse"></span>
                 ) : (
                   formatCurrency(getPeriodTotal())
                 )}
-              </p>
+              </div>
               <div className="flex justify-between text-xs">
                 <span>TruRay Expense System</span>
                 <span>{new Date().toLocaleDateString('en-US', { month: '2-digit', year: '2-digit' })}</span>
@@ -747,7 +767,7 @@ function EnhancedDashboardContent({
                         </p>
                       </div>
                       <div className="text-xs font-semibold text-gray-900">
-                        {formatCurrency(parseFloat(allocation.amount))}
+                        {formatCurrency(allocation.amount)}
                       </div>
                     </div>
                   ))
@@ -767,7 +787,7 @@ function EnhancedDashboardContent({
                         </p>
                       </div>
                       <div className="text-xs font-semibold text-gray-900">
-                        {formatCurrency(parseFloat(expense.amount))}
+                        {formatCurrency(expense.amount)}
                       </div>
                     </div>
                   ))

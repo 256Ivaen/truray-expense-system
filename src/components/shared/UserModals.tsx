@@ -9,7 +9,7 @@ interface User {
   first_name: string;
   last_name: string;
   phone?: string;
-  role: 'admin' | 'user';
+  role: 'super_admin' | 'admin' | 'user';
   status: 'active' | 'inactive' | 'suspended';
   created_at: string;
   updated_at: string;
@@ -21,7 +21,7 @@ interface CreateUserData {
   first_name: string;
   last_name: string;
   phone?: string;
-  role: 'admin' | 'user';
+  role: 'super_admin' | 'admin' | 'user';
 }
 
 interface UpdateUserData {
@@ -29,7 +29,7 @@ interface UpdateUserData {
   first_name?: string;
   last_name?: string;
   phone?: string;
-  role?: 'admin' | 'user';
+  role?: 'super_admin' | 'admin' | 'user';
   status?: 'active' | 'inactive' | 'suspended';
 }
 
@@ -155,8 +155,8 @@ export function CreateUserModal({ isOpen, onClose, onSubmit, loading = false }: 
             disabled={loading}
           >
             <option value="user">User</option>
-            
             <option value="admin">Admin</option>
+            <option value="super_admin">Super Admin</option>
           </select>
         </div>
 
@@ -293,8 +293,8 @@ export function EditUserModal({ isOpen, onClose, onSubmit, user, loading = false
               disabled={loading}
             >
               <option value="user">User</option>
-              
               <option value="admin">Admin</option>
+              <option value="super_admin">Super Admin</option>
             </select>
           </div>
           <div>

@@ -113,7 +113,7 @@ const ProjectDetailsPage = () => {
   };
 
   const currentUserRole = getCurrentUserRole();
-  const isAdmin = currentUserRole === "admin";
+  const isAdmin = currentUserRole === "admin" || currentUserRole === "super_admin";
   const isFinanceManager = false;
   const canManageUsers = isAdmin || isFinanceManager;
 

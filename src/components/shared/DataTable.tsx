@@ -26,7 +26,7 @@ interface User {
   first_name: string;
   last_name: string;
   phone?: string;
-  role: "admin" | "user";
+  role: "super_admin" | "admin" | "user";
   status: "active" | "inactive" | "suspended";
   created_at: string;
   updated_at: string;
@@ -248,7 +248,8 @@ export function DataTable({
   const userRole = currentUserRole || getCurrentUserRole();
   const userId = currentUserId || getCurrentUserId();
   
-  const isAdmin = userRole === 'admin';
+  const isAdmin = userRole === 'admin' || userRole === 'super_admin';
+  const isSuperAdmin = userRole === 'super_admin';
   const isFinanceManager = false;
   const isNormalUser = userRole === 'user';
 
@@ -539,7 +540,7 @@ export function DataTable({
     
     switch (type) {
       case "expenses":
-        return (isAdmin) && (item as Expense).status === 'pending';
+        return (isSuperAdmin) && (item as Expense).status === 'pending';
       default:
         return false;
     }
@@ -562,6 +563,8 @@ export function DataTable({
 
   const getRoleColor = (role: string) => {
     switch (role) {
+      case "super_admin":
+        return "bg-purple-100 text-purple-800";
       case "admin":
         return "bg-red-100 text-red-800";
       case "finance_manager":
@@ -752,7 +755,7 @@ export function DataTable({
             <th className="px-4 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">
               Date
             </th>
-            {showActions && (isAdmin || isFinanceManager) && (
+            {showActions && (isAdmin) && (
               <th className="px-4 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">
                 Actions
               </th>
@@ -1016,7 +1019,7 @@ export function DataTable({
             <td className="px-4 py-3 whitespace-nowrap text-xs text-gray-500">
               {formatDate(finance.created_at)}
             </td>
-            {showActions && (isAdmin || isFinanceManager) && actions.length > 0 && (
+            {showActions && (isAdmin) && actions.length > 0 && (
               <td className="px-4 py-3 whitespace-nowrap text-xs relative">
                 <button
                   onClick={(e) => handleOpenDropdown(itemId, e)}
@@ -1113,7 +1116,7 @@ export function DataTable({
                     type === "projects" ? (showActions ? 6 : 5) :
                     type === "expenses" ? (showActions ? 7 : 6) :
                     type === "allocations" ? (showActions ? 7 : 6) :
-                    type === "finances" ? (showActions && (isAdmin || isFinanceManager) ? 5 : 4) :
+                    type === "finances" ? (showActions && (isAdmin) ? 5 : 4) :
                     6
                   } 
                   className="px-4 py-12 text-center"

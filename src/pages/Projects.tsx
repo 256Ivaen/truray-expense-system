@@ -55,7 +55,7 @@ interface User {
   first_name: string;
   last_name: string;
   phone?: string;
-  role: 'admin' | 'user';
+  role: 'super_admin' | 'admin' | 'user';
 }
 
 interface CreateProjectData {
@@ -605,7 +605,7 @@ const ProjectsPage = () => {
 
   const currentUserRole = getCurrentUserRole();
   const currentUserId = getCurrentUserId();
-  const isAdmin = currentUserRole === 'admin';
+  const isAdmin = currentUserRole === 'admin' || currentUserRole === 'super_admin';
   const isFinanceManager = false;
   const canManageProjects = isAdmin || isFinanceManager;
 

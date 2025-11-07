@@ -74,7 +74,8 @@ const ReportsPage = () => {
     return 'user';
   };
 
-  const isAdmin = getCurrentUserRole() === 'admin';
+  const role = getCurrentUserRole();
+  const isAdmin = role === 'admin' || role === 'super_admin';
 
   useEffect(() => {
     if (isAdmin) {

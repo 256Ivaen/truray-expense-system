@@ -25,7 +25,7 @@ interface User {
   first_name: string;
   last_name: string;
   phone?: string;
-  role: 'admin' | 'user';
+  role: 'super_admin' | 'admin' | 'user';
   status: 'active' | 'inactive' | 'suspended';
   created_at: string;
   updated_at: string;
@@ -45,7 +45,7 @@ interface CreateUserData {
   first_name: string;
   last_name: string;
   phone?: string;
-  role: 'admin' | 'user';
+  role: 'super_admin' | 'admin' | 'user';
 }
 
 interface UpdateUserData {
@@ -53,7 +53,7 @@ interface UpdateUserData {
   first_name?: string;
   last_name?: string;
   phone?: string;
-  role?: 'admin' | 'user';
+  role?: 'super_admin' | 'admin' | 'user';
   status?: 'active' | 'inactive' | 'suspended';
 }
 
@@ -196,8 +196,8 @@ function CreateUserModal({ isOpen, onClose, onSubmit, loading = false }: CreateU
               disabled={loading}
             >
               <option value="user">User</option>
-              <option value="finance_manager">Finance Manager</option>
               <option value="admin">Admin</option>
+              <option value="super_admin">Super Admin</option>
             </select>
           </div>
 
@@ -351,8 +351,8 @@ function EditUserModal({ isOpen, onClose, onSubmit, user, loading = false }: Edi
                 disabled={loading}
               >
                 <option value="user">User</option>
-                <option value="finance_manager">Finance Manager</option>
                 <option value="admin">Admin</option>
+                <option value="super_admin">Super Admin</option>
               </select>
             </div>
             <div>
@@ -820,8 +820,8 @@ const UsersPage = () => {
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary text-xs"
               >
                 <option value="all">All Roles</option>
+                <option value="super_admin">Super Admin</option>
                 <option value="admin">Admin</option>
-                <option value="finance_manager">Finance Manager</option>
                 <option value="user">User</option>
               </select>
             </div>

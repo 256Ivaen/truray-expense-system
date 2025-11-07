@@ -15,8 +15,8 @@ export const useAuth = () => {
   useEffect(() => {
     const initializeAuth = () => {
       try {
-        const token = localStorage.getItem('jwt')
-        const userData = localStorage.getItem('user')
+        const token = localStorage.getItem('truray_jwt')
+        const userData = localStorage.getItem('truray_user')
         
         if (token && userData) {
           const parsedUser = JSON.parse(userData)
@@ -24,8 +24,9 @@ export const useAuth = () => {
         }
       } catch (error) {
         console.error('Error parsing user data:', error)
-        localStorage.removeItem('jwt')
-        localStorage.removeItem('user')
+        localStorage.removeItem('truray_jwt')
+        localStorage.removeItem('truray_user')
+        localStorage.removeItem('truray_isLoggedIn')
       } finally {
         setLoading(false)
       }
@@ -36,12 +37,21 @@ export const useAuth = () => {
 
   const login = (userData: User) => {
     setUser(userData)
-    setLoading(false)
+    try {
+      localStorage.setItem('truray_user', JSON.stringify(userData))
+      localStorage.setItem('truray_isLoggedIn', 'true')
+    } catch (error) {
+      console.error('Failed to persist user data:', error)
+      toast.error('Failed to persist session data locally')
+    } finally {
+      setLoading(false)
+    }
   }
 
   const logout = () => {
-    localStorage.removeItem('jwt')
-    localStorage.removeItem('user')
+    localStorage.removeItem('truray_jwt')
+    localStorage.removeItem('truray_user')
+    localStorage.removeItem('truray_isLoggedIn')
     setUser(null)
     // DON'T refresh the page - let React Router handle navigation
   }
@@ -49,6 +59,7 @@ export const useAuth = () => {
   const hasRole = (roles: string | string[]): boolean => {
     if (!user) return false
     const roleArray = Array.isArray(roles) ? roles : [roles]
+    if (user.role === 'super_admin') return true
     return roleArray.includes(user.role)
   }
 
@@ -58,7 +69,8 @@ export const useAuth = () => {
     login,
     logout,
     hasRole,
-    isAdmin: () => hasRole(['admin']),
+    isAdmin: () => hasRole(['admin', 'super_admin']),
+    isSuperAdmin: () => hasRole(['super_admin']),
     isAuthenticated: !!user
   }
 }
