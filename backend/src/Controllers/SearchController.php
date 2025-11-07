@@ -29,7 +29,7 @@ class SearchController
         $currentUser = AuthMiddleware::user();
         $userRole = $currentUser['role'] ?? 'user';
         
-        if ($type === 'users' && $userRole !== 'admin') {
+        if ($type === 'users' && !in_array($userRole, ['admin','super_admin'])) {
             return Response::error('Unauthorized to search users', 403);
         }
         

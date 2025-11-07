@@ -27,7 +27,12 @@ class RoleMiddleware
     
     public static function requireAdmin()
     {
-        return self::requireRole('admin');
+        return self::requireRole(['admin', 'super_admin']);
+    }
+    
+    public static function requireSuperAdmin()
+    {
+        return self::requireRole(['super_admin']);
     }
     
     public static function requireFinanceAccess()
@@ -39,7 +44,7 @@ class RoleMiddleware
     {
         $user = AuthMiddleware::user();
         
-        if (in_array($user['role'], ['admin'])) {
+        if (in_array($user['role'], ['admin', 'super_admin'])) {
             return true;
         }
         

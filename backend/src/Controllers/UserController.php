@@ -32,6 +32,13 @@ class UserController
         $page = isset($data['page']) ? max(1, (int)$data['page']) : 1;
         $perPage = isset($data['per_page']) ? max(1, (int)$data['per_page']) : 5;
         
+        // If requester is admin (not super admin), hide other admins and super admins
+        $currentUser = AuthMiddleware::user();
+        $requesterRole = $currentUser['role'] ?? 'user';
+        if ($requesterRole === 'admin') {
+            $filters['visible_to_admin'] = true;
+        }
+        
         $result = $this->userService->getAll($filters, $page, $perPage);
         
         return Response::paginated($result['data'], $result['total'], $result['page'], $result['per_page']);

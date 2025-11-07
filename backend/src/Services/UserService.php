@@ -34,10 +34,16 @@ class UserService
             $sql .= " AND status = ?";
             $params[] = $filters['status'];
         }
+
+        // If requester is an admin (not super_admin), hide other admins and super_admins
+        if (!empty($filters['visible_to_admin'])) {
+            $sql .= " AND role = 'user'";
+        }
         
         $countSql = "SELECT COUNT(*) as total FROM users WHERE deleted_at IS NULL" . 
                     (isset($filters['role']) ? " AND role = ?" : "") .
-                    (isset($filters['status']) ? " AND status = ?" : "");
+                    (isset($filters['status']) ? " AND status = ?" : "") .
+                    (!empty($filters['visible_to_admin']) ? " AND role = 'user'" : "");
         $countParams = array_filter([$filters['role'] ?? null, $filters['status'] ?? null], function($v) { return $v !== null; });
         $countResult = $this->db->queryOne($countSql, array_values($countParams));
         $total = $countResult['total'] ?? 0;

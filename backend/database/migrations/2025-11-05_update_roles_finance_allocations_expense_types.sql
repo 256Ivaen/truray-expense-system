@@ -5,7 +5,7 @@ SET role = 'user'
 WHERE role = 'finance_manager';
 
 ALTER TABLE users
-MODIFY COLUMN role ENUM('admin', 'user') NOT NULL DEFAULT 'user';
+MODIFY COLUMN role ENUM('super_admin','admin', 'user') NOT NULL DEFAULT 'user';
 
 CREATE TEMPORARY TABLE _dup_project_users_ids (id CHAR(36) PRIMARY KEY);
 
