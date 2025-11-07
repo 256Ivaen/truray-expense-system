@@ -37,11 +37,6 @@ const MainLayout = ({
     initials: 'U',
     firstName: ''
   })
-  const wsRef = useRef(null)
-  const reconnectTimeoutRef = useRef(null)
-  const isConnectingRef = useRef(false)
-  const reconnectAttemptsRef = useRef(0)
-  const maxReconnectAttempts = 10
 
   // Get user data from localStorage using service function
   useEffect(() => {
@@ -119,237 +114,15 @@ const MainLayout = ({
     }
   }
 
-  // Get WebSocket URL - optimized for Hostinger hosting
-  const getWebSocketUrl = () => {
-    // Extract hostname from BASE_URL
-    try {
-      const url = new URL(BASE_URL)
-      const host = url.hostname
-      
-      // For Hostinger/production, always use wss:// (secure WebSocket) when on HTTPS
-      const protocol = url.protocol === 'https:' ? 'wss:' : 'ws:'
-      
-      // Try port 8080 first (standard WebSocket port)
-      // If that doesn't work, Hostinger might require using the same port as HTTPS
-      // or a WebSocket endpoint path
-      const port = url.protocol === 'https:' ? '' : ':8080'
-      
-      // For secure connections on Hostinger, try same port first
-      // Some hosting providers require WebSocket on same port as HTTP(S)
-      if (url.protocol === 'https:') {
-        // Option 1: Try WebSocket on same domain with standard port
-        // Option 2: Try WebSocket on port 8080
-        // We'll use port 8080 as primary since that's what backend expects
-        return `wss://${host}:8080`
-      } else {
-        return `ws://${host}:8080`
-      }
-    } catch (error) {
-      // Fallback to using window location
-      const host = window.location.hostname
-      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
-      const port = window.location.protocol === 'https:' ? '' : ':8080'
-      
-      if (window.location.protocol === 'https:') {
-        return `wss://${host}:8080`
-      } else {
-        return `ws://${host}:8080`
-      }
-    }
-  }
-
-  // Connect to WebSocket with exponential backoff retry
-  const connectWebSocket = () => {
-    if (isConnectingRef.current || !getAuthToken()) {
-      return
-    }
-
-    // Don't attempt reconnect if we've exceeded max attempts
-    if (reconnectAttemptsRef.current >= maxReconnectAttempts) {
-      console.warn('Max WebSocket reconnect attempts reached. Falling back to polling.')
-      // Fall back to periodic API polling instead
-      startPolling()
-      return
-    }
-
-    isConnectingRef.current = true
-    const token = getAuthToken()
-    
-    if (!token) {
-      isConnectingRef.current = false
-      return
-    }
-
-    try {
-      const wsUrl = getWebSocketUrl()
-      console.log('Attempting to connect to WebSocket:', wsUrl)
-      const ws = new WebSocket(wsUrl)
-      
-      // Set connection timeout
-      const connectionTimeout = setTimeout(() => {
-        if (ws.readyState === WebSocket.CONNECTING) {
-          console.warn('WebSocket connection timeout')
-          ws.close()
-          handleReconnect()
-        }
-      }, 10000) // 10 second timeout
-      
-      ws.onopen = () => {
-        clearTimeout(connectionTimeout)
-        console.log('WebSocket connected successfully')
-        isConnectingRef.current = false
-        reconnectAttemptsRef.current = 0 // Reset on successful connection
-        
-        // Authenticate with token
-        try {
-          ws.send(JSON.stringify({
-            type: 'authenticate',
-            token: token
-          }))
-        } catch (error) {
-          console.error('Error sending authentication:', error)
-        }
-      }
-
-      ws.onmessage = (event) => {
-        try {
-          const message = JSON.parse(event.data)
-          
-          if (message.type === 'authenticated') {
-            console.log('WebSocket authenticated successfully')
-          } else if (message.type === 'notifications') {
-            // Initial notifications batch
-            const formattedNotifications = message.data.map(notif => ({
-              id: notif.id,
-              title: notif.title,
-              message: notif.message,
-              time: new Date(notif.created_at).toLocaleString(),
-              unread: !notif.is_read,
-              type: notif.type
-            }))
-            setNotifications(formattedNotifications)
-          } else if (message.type === 'notification') {
-            // New notification received
-            const newNotification = {
-              id: message.data.id,
-              title: message.data.title,
-              message: message.data.message,
-              time: new Date(message.data.created_at).toLocaleString(),
-              unread: !message.data.is_read,
-              type: message.data.type
-            }
-            setNotifications(prev => {
-              // Avoid duplicates
-              const exists = prev.find(n => n.id === newNotification.id)
-              if (exists) return prev
-              return [newNotification, ...prev]
-            })
-          } else if (message.type === 'error') {
-            console.error('WebSocket error message:', message.message)
-          }
-        } catch (error) {
-          console.error('Error parsing WebSocket message:', error)
-        }
-      }
-
-      ws.onerror = (error) => {
-        clearTimeout(connectionTimeout)
-        console.error('WebSocket error:', error)
-        isConnectingRef.current = false
-        // Don't reconnect immediately on error, let onclose handle it
-      }
-
-      ws.onclose = (event) => {
-        clearTimeout(connectionTimeout)
-        const wasConnected = reconnectAttemptsRef.current === 0
-        
-        if (wasConnected) {
-          console.log('WebSocket disconnected. Code:', event.code, 'Reason:', event.reason)
-        } else {
-          console.log('WebSocket connection failed. Attempt:', reconnectAttemptsRef.current + 1)
-        }
-        
-        isConnectingRef.current = false
-        wsRef.current = null
-        
-        // Only attempt reconnect if we still have auth token
-        if (getAuthToken() && reconnectAttemptsRef.current < maxReconnectAttempts) {
-          handleReconnect()
-        } else if (reconnectAttemptsRef.current >= maxReconnectAttempts) {
-          console.warn('WebSocket connection failed after max attempts. Using API polling fallback.')
-          startPolling()
-        }
-      }
-
-      wsRef.current = ws
-    } catch (error) {
-      console.error('Error creating WebSocket connection:', error)
-      isConnectingRef.current = false
-      handleReconnect()
-    }
-  }
-
-  // Handle reconnection with exponential backoff
-  const handleReconnect = () => {
-    reconnectAttemptsRef.current++
-    
-    // Exponential backoff: 3s, 6s, 12s, 24s, etc. (max 60s)
-    const delay = Math.min(3000 * Math.pow(2, reconnectAttemptsRef.current - 1), 60000)
-    
-    console.log(`Reconnecting WebSocket in ${delay / 1000} seconds (attempt ${reconnectAttemptsRef.current})`)
-    
-    reconnectTimeoutRef.current = setTimeout(() => {
-      connectWebSocket()
-    }, delay)
-  }
-
-  // Fallback polling when WebSocket fails
-  const pollingIntervalRef = useRef(null)
-  const startPolling = () => {
-    // Only start polling if not already polling
-    if (pollingIntervalRef.current) {
-      return
-    }
-    
-    console.log('Starting notification polling as WebSocket fallback')
-    
-    // Poll every 10 seconds for new notifications
-    pollingIntervalRef.current = setInterval(() => {
-      fetchNotifications()
-    }, 10000)
-  }
-
-  const stopPolling = () => {
-    if (pollingIntervalRef.current) {
-      clearInterval(pollingIntervalRef.current)
-      pollingIntervalRef.current = null
-    }
-  }
-
-  // Initialize WebSocket and fetch notifications
+  // Initialize notifications when component mounts
   useEffect(() => {
     const token = getAuthToken()
     if (!token) {
       return
     }
 
-    // Fetch initial notifications
+    // Fetch initial notifications only once
     fetchNotifications()
-
-    // Connect WebSocket
-    connectWebSocket()
-
-    // Cleanup on unmount
-    return () => {
-      if (reconnectTimeoutRef.current) {
-        clearTimeout(reconnectTimeoutRef.current)
-      }
-      if (wsRef.current) {
-        wsRef.current.close()
-        wsRef.current = null
-      }
-      stopPolling()
-    }
   }, [])
 
   const markNotificationAsRead = async (id) => {
@@ -443,7 +216,13 @@ const MainLayout = ({
               {/* Notifications */}
               <div className="relative notifications-container">
                 <button 
-                  onClick={() => setShowNotifications(!showNotifications)}
+                  onClick={() => {
+                    setShowNotifications(!showNotifications)
+                    // Optionally refresh notifications when opening the dropdown
+                    if (!showNotifications) {
+                      fetchNotifications()
+                    }
+                  }}
                   className="p-2 hover:bg-gray-100 rounded-lg relative transition-colors"
                 >
                   <Bell className="h-5 w-5 text-gray-600" />

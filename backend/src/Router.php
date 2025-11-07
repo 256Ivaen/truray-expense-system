@@ -11,6 +11,7 @@ use App\Controllers\ExpenseController;
 use App\Controllers\ReportController;
 use App\Controllers\DashboardController;
 use App\Controllers\NotificationController;
+use App\Controllers\SearchController;
 use App\Middleware\AuthMiddleware;
 use App\Middleware\RoleMiddleware;
 use App\Middleware\RateLimitMiddleware;
@@ -85,6 +86,8 @@ class Router
         $this->routes['GET']['/api/notifications/unread'] = [NotificationController::class, 'unread', true];
         $this->routes['POST']['/api/notifications/:id/read'] = [NotificationController::class, 'markAsRead', true];
         $this->routes['POST']['/api/notifications/read-all'] = [NotificationController::class, 'markAllAsRead', true];
+
+        $this->routes['GET']['/api/search'] = [SearchController::class, 'search', true];
     }
     
     public function dispatch($method, $uri, $data = [])
