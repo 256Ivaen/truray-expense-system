@@ -246,18 +246,34 @@ class ProjectService
                 throw new \Exception('Cannot assign admin users to projects');
             }
             
-            // Remove user from any existing project assignments first
-            $this->db->execute(
-                "DELETE FROM project_users WHERE user_id = ?",
-                [$userId]
+            // Check if user is already assigned to this specific project
+            $existingAssignment = $this->db->queryOne(
+                "SELECT id FROM project_users WHERE project_id = ? AND user_id = ?",
+                [$projectId, $userId]
             );
             
+            if ($existingAssignment) {
+                // User already assigned to this project, no need to reassign
+                return true;
+            }
+            
+            // Users can be assigned to multiple projects, so we don't remove existing assignments
             // Insert new assignment
             $id = Uuid::uuid4()->toString();
             $this->db->execute(
-                "INSERT INTO project_users (id, project_id, user_id, assigned_by) VALUES (?, ?, ?, ?)",
+                "INSERT INTO project_users (id, project_id, user_id, assigned_by, assigned_at) VALUES (?, ?, ?, ?, NOW())",
                 [$id, $projectId, $userId, $assignedBy]
             );
+            
+            // Verify the assignment was created
+            $verifyAssignment = $this->db->queryOne(
+                "SELECT id FROM project_users WHERE project_id = ? AND user_id = ?",
+                [$projectId, $userId]
+            );
+            
+            if (!$verifyAssignment) {
+                throw new \Exception('Failed to verify user assignment');
+            }
             
             // Get project and user details for notification
             $project = $this->projectModel->find($projectId);
@@ -426,13 +442,7 @@ class ProjectService
                 return ['success' => false, 'message' => 'Cannot assign admin users to projects'];
             }
             
-            // Remove user from any existing project assignments first (reassignment)
-            $this->db->execute(
-                "DELETE FROM project_users WHERE user_id = ?",
-                [$userId]
-            );
-            
-            // Check if user is already assigned to this project (shouldn't happen after removal, but just in case)
+            // Check if user is already assigned to this project
             $existing = $this->db->queryOne(
                 "SELECT id FROM project_users WHERE project_id = ? AND user_id = ?",
                 [$projectId, $userId]
@@ -442,9 +452,10 @@ class ProjectService
                 return ['success' => false, 'message' => 'User already assigned to this project'];
             }
             
+            // Users can be assigned to multiple projects, so we don't remove existing assignments
             $id = Uuid::uuid4()->toString();
             $this->db->execute(
-                "INSERT INTO project_users (id, project_id, user_id, assigned_by) VALUES (?, ?, ?, ?)",
+                "INSERT INTO project_users (id, project_id, user_id, assigned_by, assigned_at) VALUES (?, ?, ?, ?, NOW())",
                 [$id, $projectId, $userId, $assignedBy]
             );
             

@@ -799,78 +799,78 @@ function EnhancedDashboardContent({
           {/* Bottom Section */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Report Overview / Donut Chart */}
-            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-              <div className="flex items-center justify-between mb-6">
-                <h2 className="text-xs font-bold text-gray-900">Report Overview</h2>
-                <button className="text-gray-400 hover:text-gray-600">
-                  <MoreVertical className="w-4 h-4" />
-                </button>
-              </div>
-              {isLoading ? (
-                <div className="flex items-center justify-center py-12">
-                  <SkeletonBox className="w-48 h-48 rounded-full" />
-                </div>
-              ) : (
-                <div className="flex flex-col lg:flex-row items-center gap-8">
-                  <div className="relative">
-                    <DonutChart
-                      data={financialData}
-                      size={180}
-                      strokeWidth={20}
-                      animationDuration={1}
-                      animationDelayPerSegment={0.1}
-                      highlightOnHover={true}
-                      onSegmentHover={(segment) => setHoveredSegment(segment?.label || null)}
-                      centerContent={
-                        <AnimatePresence mode="wait">
-                          <motion.div
-                            key={displayLabel || 'default'}
-                            initial={{ opacity: 0, scale: 0.9 }}
-                            animate={{ opacity: 1, scale: 1 }}
-                            exit={{ opacity: 0, scale: 0.9 }}
-                            transition={{ duration: 0.2 }}
-                            className="flex flex-col items-center justify-center text-center"
-                          >
-                            {displayLabel && (
-                              <p className="text-xl font-bold text-gray-900">
-                                {displayPercentage}%
-                              </p>
-                            )}
-                          </motion.div>
-                        </AnimatePresence>
-                      }
-                    />
-                  </div>
-                  <div className="space-y-4 flex-1">
-                    {financialData.map((segment) => (
-                      <div 
-                        key={segment.label}
-                        className={cn(
-                          "flex items-center justify-between p-2 rounded-lg transition-colors cursor-pointer",
-                          hoveredSegment === segment.label && "bg-gray-50"
-                        )}
-                        onMouseEnter={() => setHoveredSegment(segment.label)}
-                        onMouseLeave={() => setHoveredSegment(null)}
-                      >
-                        <div className="flex items-center gap-3">
-                          <div 
-                            className="w-3 h-3 rounded-full"
-                            style={{ backgroundColor: segment.color }}
-                          />
-                          <span className="text-xs font-medium text-gray-700">{segment.label}</span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs font-bold text-gray-900">
-                            {formatCurrency(segment.value)}
-                          </span>
-                          <ArrowUp className="w-3 h-3 text-green-600" />
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
+            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
+  <div className="flex items-center justify-between mb-4">
+    <h2 className="text-xs font-semibold text-gray-700 uppercase tracking-wide">Overview</h2>
+    <button className="text-gray-400 hover:text-gray-600 transition-colors">
+      <MoreVertical className="w-4 h-4" />
+    </button>
+  </div>
+  
+  {isLoading ? (
+    <div className="flex items-center justify-center py-8">
+      <SkeletonBox className="w-32 h-32 rounded-full" />
+    </div>
+  ) : (
+    <div className="flex flex-col items-center justify-center gap-4">
+      {/* Centered Compact Chart */}
+      <div className="relative">
+        <DonutChart
+          data={financialData}
+          size={120}
+          strokeWidth={16}
+          animationDuration={1}
+          highlightOnHover={true}
+          onSegmentHover={(segment) => setHoveredSegment(segment?.label || null)}
+          centerContent={
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={displayLabel || 'default'}
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.9 }}
+                transition={{ duration: 0.2 }}
+                className="flex flex-col items-center justify-center"
+              >
+                <p className="text-sm font-bold text-gray-900">
+                  {displayPercentage}%
+                </p>
+              </motion.div>
+            </AnimatePresence>
+          }
+        />
+      </div>
+      
+      {/* Centered Compact Legend */}
+      <div className="w-full max-w-xs space-y-2">
+        {financialData.map((segment) => (
+          <div 
+            key={segment.label}
+            className={cn(
+              "flex items-center justify-between p-2 rounded-lg transition-all cursor-pointer group",
+              hoveredSegment === segment.label && "bg-blue-50 border border-blue-100"
+            )}
+            onMouseEnter={() => setHoveredSegment(segment.label)}
+            onMouseLeave={() => setHoveredSegment(null)}
+          >
+            <div className="flex items-center gap-2 min-w-0 flex-1">
+              <div 
+                className="w-2 h-2 rounded-full flex-shrink-0"
+                style={{ backgroundColor: segment.color }}
+              />
+              <span className="text-xs text-gray-600 truncate">{segment.label}</span>
             </div>
+            <div className="flex items-center gap-1 flex-shrink-0 ml-2">
+              <span className="text-xs font-semibold text-gray-900 whitespace-nowrap">
+                {formatCurrency(segment.value)}
+              </span>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  )}
+</div>
 
             {/* Expense Activity / Line Chart */}
             <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
