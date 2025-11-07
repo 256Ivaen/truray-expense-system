@@ -142,6 +142,11 @@ class ProjectService
                 }
             }
             
+            // Assign user if provided during project creation
+            if (!empty($data['assigned_user_id'])) {
+                $this->assignUserToProject($projectId, $data['assigned_user_id'], $data['created_by'] ?? null);
+            }
+            
             // Commit transaction
             $this->db->commit();
             
@@ -153,6 +158,63 @@ class ProjectService
             $this->db->rollback();
             error_log("Project creation failed: " . $e->getMessage());
             return ['success' => false, 'message' => 'Failed to create project: ' . $e->getMessage()];
+        }
+    }
+    
+    private function assignUserToProject($projectId, $userId, $assignedBy = null)
+    {
+        try {
+            $user = $this->db->queryOne(
+                "SELECT id, role FROM users WHERE id = ? AND deleted_at IS NULL",
+                [$userId]
+            );
+            
+            if (!$user) {
+                throw new \Exception('User not found');
+            }
+            
+            // Prevent assigning admin users to projects
+            if ($user['role'] === 'admin') {
+                throw new \Exception('Cannot assign admin users to projects');
+            }
+            
+            // Remove user from any existing project assignments first
+            $this->db->execute(
+                "DELETE FROM project_users WHERE user_id = ?",
+                [$userId]
+            );
+            
+            // Insert new assignment
+            $id = Uuid::uuid4()->toString();
+            $this->db->execute(
+                "INSERT INTO project_users (id, project_id, user_id, assigned_by) VALUES (?, ?, ?, ?)",
+                [$id, $projectId, $userId, $assignedBy]
+            );
+            
+            // Get project and user details for notification
+            $project = $this->projectModel->find($projectId);
+            $assignedUser = $this->db->queryOne(
+                "SELECT first_name, last_name FROM users WHERE id = ?",
+                [$userId]
+            );
+            
+            // Create notification for the assigned user
+            if ($project && $assignedUser) {
+                $this->notificationService->create(
+                    $userId,
+                    'project_assignment',
+                    'Assigned to Project',
+                    "You have been assigned to the project: {$project['name']}",
+                    'project',
+                    $projectId
+                );
+            }
+            
+            return true;
+            
+        } catch (\Exception $e) {
+            error_log("User assignment during project creation failed: " . $e->getMessage());
+            throw $e;
         }
     }
     
@@ -292,15 +354,13 @@ class ProjectService
                 return ['success' => false, 'message' => 'Cannot assign admin users to projects'];
             }
             
-            // Enforce single-project assignment per user
-            $alreadyAssigned = $this->db->queryOne(
-                "SELECT id FROM project_users WHERE user_id = ?",
+            // Remove user from any existing project assignments first (reassignment)
+            $this->db->execute(
+                "DELETE FROM project_users WHERE user_id = ?",
                 [$userId]
             );
-            if ($alreadyAssigned) {
-                return ['success' => false, 'message' => 'User is already assigned to a project'];
-            }
             
+            // Check if user is already assigned to this project (shouldn't happen after removal, but just in case)
             $existing = $this->db->queryOne(
                 "SELECT id FROM project_users WHERE project_id = ? AND user_id = ?",
                 [$projectId, $userId]
@@ -447,6 +507,13 @@ class ProjectService
             $project['expense_types'] = $this->getProjectExpenseTypes($project['id']);
         } catch (\Exception $e) {
             $project['expense_types'] = [];
+        }
+        
+        // Get users assigned to this project
+        try {
+            $project['users'] = $this->getProjectUsers($project['id']);
+        } catch (\Exception $e) {
+            $project['users'] = [];
         }
         
         return $project;

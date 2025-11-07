@@ -43,10 +43,6 @@ class ProjectController
             return Response::notFound('Project not found');
         }
         
-        // Get users assigned to the project
-        $users = $this->projectService->getProjectUsers($data['id']);
-        $project['users'] = $users;
-        
         return Response::success($project);
     }
     

@@ -10,7 +10,8 @@ import {
   X,
   CheckCircle,
   Clock,
-  Loader2
+  Loader2,
+  User
 } from "lucide-react";
 import { get, post, put, del } from "../utils/service";
 import { toast } from "sonner";
@@ -64,6 +65,7 @@ interface CreateProjectData {
   start_date?: string;
   end_date?: string;
   expense_types?: string[];
+  assigned_user_id?: string;
 }
 
 interface UpdateProjectData {
@@ -125,15 +127,17 @@ interface CreateProjectModalProps {
   onClose: () => void;
   onSubmit: (data: CreateProjectData) => void;
   loading?: boolean;
+  users?: User[];
 }
 
-function CreateProjectModal({ isOpen, onClose, onSubmit, loading = false }: CreateProjectModalProps) {
+function CreateProjectModal({ isOpen, onClose, onSubmit, loading = false, users = [] }: CreateProjectModalProps) {
   const [form, setForm] = useState<CreateProjectData>({
     project_code: "",
     name: "",
     description: "",
     start_date: "",
-    end_date: ""
+    end_date: "",
+    assigned_user_id: ""
   });
 
   const [startDate, setStartDate] = useState<Date | null>(null);
@@ -183,7 +187,8 @@ function CreateProjectModal({ isOpen, onClose, onSubmit, loading = false }: Crea
       name: "",
       description: "",
       start_date: "",
-      end_date: ""
+      end_date: "",
+      assigned_user_id: ""
     });
     setStartDate(null);
     setEndDate(null);
@@ -191,6 +196,8 @@ function CreateProjectModal({ isOpen, onClose, onSubmit, loading = false }: Crea
     setNewExpenseType("");
     onClose();
   };
+
+  const availableUsers = users.filter(user => user.role !== 'admin');
 
   return (
     <div 
@@ -253,6 +260,28 @@ function CreateProjectModal({ isOpen, onClose, onSubmit, loading = false }: Crea
               placeholder="PRJ001"
               disabled={loading}
             />
+          </div>
+
+          <div>
+            <label className="block text-xs font-medium text-gray-700 mb-1">
+              Assign User
+            </label>
+            <select
+              value={form.assigned_user_id}
+              onChange={(e) => setForm({ ...form, assigned_user_id: e.target.value })}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary text-xs"
+              disabled={loading}
+            >
+              <option value="">Select a user to assign (optional)</option>
+              {availableUsers.map((user) => (
+                <option key={user.id} value={user.id}>
+                  {user.first_name} {user.last_name} ({user.email})
+                </option>
+              ))}
+            </select>
+            <p className="text-[10px] text-gray-500 mt-1">
+              Note: This will replace any existing assignment for the selected user
+            </p>
           </div>
 
           <div className="pt-2">
@@ -653,9 +682,31 @@ const ProjectsPage = () => {
   const handleCreateProject = async (data: CreateProjectData) => {
     setActionLoading(true);
     try {
-      const response = await post('/projects', data);
+      // Extract assigned_user_id from the data
+      const { assigned_user_id, ...projectData } = data;
+      
+      // First create the project
+      const response = await post('/projects', projectData);
       if (response.success) {
-        toast.success('Project created successfully');
+        const projectId = response.data.id;
+        
+        // If a user was selected for assignment, assign them to the project
+        if (assigned_user_id) {
+          try {
+            await post(`/projects/${projectId}/assign-user`, {
+              user_id: assigned_user_id
+            });
+            toast.success('Project created successfully and user assigned');
+          } catch (assignError: any) {
+            // If assignment fails, still show success but with a warning
+            console.error('User assignment failed:', assignError);
+            toast.warning('Project created but user assignment failed: ' + 
+              (assignError.response?.data?.message || 'Unknown error'));
+          }
+        } else {
+          toast.success('Project created successfully');
+        }
+        
         setShowCreateModal(false);
         fetchProjects();
       } else {
@@ -902,6 +953,7 @@ const ProjectsPage = () => {
           onClose={closeModals}
           onSubmit={handleCreateProject}
           loading={actionLoading}
+          users={users}
         />
       )}
 
