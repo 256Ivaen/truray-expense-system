@@ -17,10 +17,10 @@ class SearchController
     
     public function search($data)
     {
-        $query = $data['q'] ?? '';
-        $type = $data['type'] ?? 'all'; 
-        $page = isset($data['page']) ? max(1, (int)$data['page']) : 1;
-        $perPage = isset($data['per_page']) ? max(1, (int)$data['per_page']) : 10;
+        $query = $_GET['q'] ?? '';
+        $type = $_GET['type'] ?? 'all';
+        $page = isset($_GET['page']) ? max(1, (int)$_GET['page']) : 1;
+        $perPage = isset($_GET['per_page']) ? max(1, (int)$_GET['per_page']) : 10;
         
         if (empty($query)) {
             return Response::error('Search query is required', 400);

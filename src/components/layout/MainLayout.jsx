@@ -9,7 +9,9 @@ import {
   User,
   Menu,
   LogOut,
-  Search
+  Search,
+  Filter,
+  ChevronDown
 } from 'lucide-react'
 import { getCurrentUser, logout, getAuthToken, get, post, BASE_URL } from '../../utils/service.js'
 
@@ -28,17 +30,21 @@ const MainLayout = ({
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const [showUserMenu, setShowUserMenu] = useState(false)
   const [showNotifications, setShowNotifications] = useState(false)
+  const [showSearchFilter, setShowSearchFilter] = useState(false)
   const [isMobile, setIsMobile] = useState(false)
   const [notifications, setNotifications] = useState([])
   const [searchQuery, setSearchQuery] = useState('')
+  const [searchResults, setSearchResults] = useState([])
+  const [showSearchResults, setShowSearchResults] = useState(false)
+  const [searchType, setSearchType] = useState('all')
   const [user, setUser] = useState({
     name: '',
     email: '',
     initials: 'U',
-    firstName: ''
+    firstName: '',
+    role: 'user'
   })
 
-  // Get user data from localStorage using service function
   useEffect(() => {
     const currentUser = getCurrentUser()
     if (currentUser) {
@@ -49,12 +55,12 @@ const MainLayout = ({
         name: userName,
         email: currentUser.email,
         initials: userInitials.toUpperCase(),
-        firstName: currentUser.first_name || 'User'
+        firstName: currentUser.first_name || 'User',
+        role: currentUser.role || 'user'
       })
     }
   }, [])
 
-  // Check for mobile screen size
   useEffect(() => {
     const checkMobile = () => {
       const mobile = window.innerWidth < 768
@@ -75,7 +81,6 @@ const MainLayout = ({
     setSidebarOpen(isOpen)
   }
 
-  // Close dropdowns when clicking outside
   useEffect(() => {
     const handleClickOutside = (e) => {
       if (!e.target.closest('.user-menu-container')) {
@@ -83,6 +88,10 @@ const MainLayout = ({
       }
       if (!e.target.closest('.notifications-container')) {
         setShowNotifications(false)
+      }
+      if (!e.target.closest('.search-container')) {
+        setShowSearchResults(false)
+        setShowSearchFilter(false)
       }
     }
 
@@ -94,7 +103,6 @@ const MainLayout = ({
     logout()
   }
 
-  // Fetch notifications from API
   const fetchNotifications = async () => {
     try {
       const response = await get('/notifications', { page: 1, per_page: 50 })
@@ -114,14 +122,12 @@ const MainLayout = ({
     }
   }
 
-  // Initialize notifications when component mounts
   useEffect(() => {
     const token = getAuthToken()
     if (!token) {
       return
     }
 
-    // Fetch initial notifications only once
     fetchNotifications()
   }, [])
 
@@ -135,7 +141,6 @@ const MainLayout = ({
       )
     } catch (error) {
       console.error('Error marking notification as read:', error)
-      // Still update UI optimistically
       setNotifications(prev => 
         prev.map(notif => 
           notif.id === id ? { ...notif, unread: false } : notif
@@ -144,11 +149,105 @@ const MainLayout = ({
     }
   }
 
+  const handleSearch = async (query, type = searchType) => {
+    if (!query.trim()) {
+      return []
+    }
+
+    try {
+      const response = await get('/search', { 
+        q: query,
+        type: type,
+        per_page: 20 
+      })
+      
+      if (response.success) {
+        return response.data
+      }
+      return []
+    } catch (error) {
+      console.error('Search error:', error)
+      return []
+    }
+  }
+
+  const handleSearchResultClick = (result) => {
+    setShowSearchResults(false)
+    setSearchQuery('')
+    
+    let section = ''
+    let params = {}
+    
+    switch (result.type) {
+      case 'project':
+        section = 'projects'
+        params = { highlight: result.id }
+        break
+      case 'allocation':
+        section = 'allocations'
+        params = { highlight: result.id }
+        break
+      case 'expense':
+        section = 'expenses'
+        params = { highlight: result.id }
+        break
+      case 'user':
+        section = 'users'
+        params = { highlight: result.id }
+        break
+      case 'finance':
+        section = 'finances'
+        params = { highlight: result.id }
+        break
+      default:
+        section = 'search'
+        params = { q: searchQuery }
+    }
+    
+    setActiveSection(section)
+    navigate(`/${section}`, { state: params })
+  }
+
+  const handleSearchSubmit = (e) => {
+    if (e.key === 'Enter' && searchQuery.trim()) {
+      setShowSearchResults(false)
+      setActiveSection('search')
+      navigate('/search', { state: { q: searchQuery, type: searchType } })
+    }
+  }
+
+  const handleTypeChange = (type) => {
+    setSearchType(type)
+    setShowSearchFilter(false)
+    if (searchQuery.trim()) {
+      handleSearch(searchQuery, type).then(results => {
+        setSearchResults(results)
+      })
+    }
+  }
+
+  const getTypeOptions = () => {
+    const baseOptions = [
+      { value: 'all', label: 'All' },
+      { value: 'projects', label: 'Projects' },
+      { value: 'allocations', label: 'Allocations' },
+      { value: 'expenses', label: 'Expenses' }
+    ]
+    
+    if (user.role === 'admin') {
+      baseOptions.push(
+        { value: 'users', label: 'Users' },
+        { value: 'finance', label: 'Finances' }
+      )
+    }
+    
+    return baseOptions
+  }
+
   const unreadCount = notifications.filter(n => n.unread).length
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Mobile Overlay */}
       <AnimatePresence>
         {sidebarOpen && isMobile && (
           <motion.div
@@ -164,7 +263,7 @@ const MainLayout = ({
       <Sidebar 
         isOpen={sidebarOpen} 
         toggleSidebar={toggleSidebar}
-        userRole="admin"
+        userRole={user.role}
         projects={projects}
         activeSection={activeSection}
         setActiveSection={setActiveSection}
@@ -174,12 +273,9 @@ const MainLayout = ({
       <div className={`transition-all duration-300 ${
         isMobile ? 'ml-0' : (sidebarOpen ? 'ml-64' : 'ml-16')
       }`}>
-        {/* Header */}
         <header className="bg-white border-b border-gray-200 px-4 md:px-6 py-4 sticky top-0 z-20">
           <div className="flex items-center justify-between gap-4">
-            {/* Left Section: Mobile Menu + Welcome Message */}
             <div className="flex items-center gap-4">
-              {/* Mobile Menu Button */}
               {isMobile && (
                 <button
                   onClick={() => setSidebarOpen(true)}
@@ -189,7 +285,6 @@ const MainLayout = ({
                 </button>
               )}
               
-              {/* Welcome Message */}
               <div className="hidden md:block">
                 <h2 className="text-sm font-semibold text-gray-900">
                   Hello, {user.firstName}
@@ -197,28 +292,123 @@ const MainLayout = ({
               </div>
             </div>
 
-            {/* Middle Section: Search Bar */}
-            <div className="flex-1">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                <input
-                  type="text"
-                  placeholder="Search..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
-                />
+            <div className="flex-1 search-container">
+              <div className="flex gap-2">
+                <div className="flex-1 relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                  <input
+                    type="text"
+                    placeholder="Search projects, allocations, expenses, users..."
+                    value={searchQuery}
+                    onChange={async (e) => {
+                      const query = e.target.value
+                      setSearchQuery(query)
+                      
+                      if (query.length > 2) {
+                        const results = await handleSearch(query)
+                        setSearchResults(results)
+                        setShowSearchResults(true)
+                      } else {
+                        setShowSearchResults(false)
+                        setSearchResults([])
+                      }
+                    }}
+                    onKeyPress={handleSearchSubmit}
+                    onFocus={() => {
+                      if (searchQuery.length > 2 && searchResults.length > 0) {
+                        setShowSearchResults(true)
+                      }
+                    }}
+                    className="w-full pl-10 pr-4 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+                  />
+                  
+                  {showSearchResults && searchResults.length > 0 && (
+                    <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-xl z-50 max-h-80 overflow-y-auto">
+                      {searchResults.map((result) => (
+                        <div
+                          key={`${result.type}-${result.id}`}
+                          className="p-3 border-b border-gray-100 hover:bg-gray-50 cursor-pointer transition-colors"
+                          onClick={() => handleSearchResultClick(result)}
+                        >
+                          <div className="flex justify-between items-start">
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2 mb-1">
+                                <span className={`text-xs font-medium px-2 py-1 rounded ${
+                                  result.type === 'project' ? 'bg-blue-100 text-blue-800' :
+                                  result.type === 'allocation' ? 'bg-green-100 text-green-800' :
+                                  result.type === 'expense' ? 'bg-orange-100 text-orange-800' :
+                                  result.type === 'finance' ? 'bg-purple-100 text-purple-800' :
+                                  'bg-gray-100 text-gray-800'
+                                }`}>
+                                  {result.type}
+                                </span>
+                                <span className="text-xs font-medium text-gray-900">{result.display_text}</span>
+                              </div>
+                              
+                              {result.description && (
+                                <p className="text-xs text-gray-600 mt-1 line-clamp-2">{result.description}</p>
+                              )}
+                              
+                              <div className="flex items-center gap-3 mt-2">
+                                <span className="text-xs text-gray-500">
+                                  {new Date(result.created_at).toLocaleDateString()}
+                                </span>
+                                <span className={`text-xs px-2 py-1 rounded ${
+                                  result.status === 'approved' ? 'bg-green-100 text-green-800' :
+                                  result.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
+                                  result.status === 'rejected' ? 'bg-red-100 text-red-800' :
+                                  'bg-gray-100 text-gray-800'
+                                }`}>
+                                  {result.status}
+                                </span>
+                                {result.amount && (
+                                  <span className="text-xs font-medium text-gray-900">
+                                    UGX {parseFloat(result.amount).toLocaleString()}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                
+                <div className="relative">
+                  <button
+                    onClick={() => setShowSearchFilter(!showSearchFilter)}
+                    className="flex items-center gap-2 px-3 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors text-xs"
+                  >
+                    <Filter className="h-3 w-3" />
+                    <span>{getTypeOptions().find(opt => opt.value === searchType)?.label}</span>
+                    <ChevronDown className="h-3 w-3" />
+                  </button>
+                  
+                  {showSearchFilter && (
+                    <div className="absolute right-0 mt-1 w-32 bg-white border border-gray-200 rounded-lg shadow-lg z-50">
+                      {getTypeOptions().map((option) => (
+                        <button
+                          key={option.value}
+                          onClick={() => handleTypeChange(option.value)}
+                          className={`w-full text-left px-3 py-2 text-xs hover:bg-gray-50 transition-colors ${
+                            searchType === option.value ? 'bg-primary/10 text-primary' : 'text-gray-900'
+                          }`}
+                        >
+                          {option.label}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
             
-            {/* Right Section: Notifications + Profile */}
             <div className="flex items-center gap-2 md:gap-3">
-              {/* Notifications */}
               <div className="relative notifications-container">
                 <button 
                   onClick={() => {
                     setShowNotifications(!showNotifications)
-                    // Optionally refresh notifications when opening the dropdown
                     if (!showNotifications) {
                       fetchNotifications()
                     }
@@ -281,7 +471,6 @@ const MainLayout = ({
                 </AnimatePresence>
               </div>
 
-              {/* User Menu */}
               <div className="relative user-menu-container">
                 <button 
                   onClick={() => setShowUserMenu(!showUserMenu)}

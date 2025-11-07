@@ -21,6 +21,7 @@ import SettingsPage from "./pages/Settings";
 import ProjectDetailsPage from "./pages/ProjectDetails.js";
 import ExpenseDetailsPage from "./pages/ExpenseDetails.js";
 import AllocationDetailsPage from "./pages/AllocationDetails.js";
+import SearchResults from "./pages/SearchResults.js";
 
 // Protected Route Component
 const ProtectedRoute = ({ children }) => {
@@ -227,6 +228,17 @@ function AppContent() {
               <ProtectedRoute>
                 <LayoutWrapper>
                   <SettingsPage />
+                </LayoutWrapper>
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/search"
+            element={
+              <ProtectedRoute>
+                <LayoutWrapper>
+                  <SearchResults />
                 </LayoutWrapper>
               </ProtectedRoute>
             }
