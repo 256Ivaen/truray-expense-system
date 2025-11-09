@@ -3,6 +3,7 @@
 namespace App\Controllers;
 
 use App\Services\ExpenseService;
+use App\Services\AllocationService;
 use App\Validators\ExpenseValidator;
 use App\Utils\Response;
 use App\Middleware\AuthMiddleware;
@@ -11,10 +12,12 @@ use App\Middleware\AuditMiddleware;
 class ExpenseController
 {
     private $expenseService;
+    private $allocationService;
     
     public function __construct()
     {
         $this->expenseService = new ExpenseService();
+        $this->allocationService = new AllocationService();
     }
     
     public function index($data)
@@ -40,7 +43,24 @@ class ExpenseController
         
         $result = $this->expenseService->getAll($filters, $page, $perPage);
         
-        return Response::paginated($result['data'], $result['total'], $result['page'], $result['per_page']);
+        // Get allocation summary for the main cards
+        $allocationSummary = $this->getAllocationSummary($filters);
+        $result['allocation_summary'] = $allocationSummary;
+        
+        // Add detailed summary for admin and super admin users
+        if (in_array($currentUser['role'], ['admin', 'super_admin'])) {
+            $expenseSummary = $this->expenseService->getExpenseSummary($filters);
+            $result['expense_summary'] = $expenseSummary;
+        }
+        
+        return Response::paginated(
+            $result['data'], 
+            $result['total'], 
+            $result['page'], 
+            $result['per_page'], 
+            $result['allocation_summary'],
+            $result['expense_summary'] ?? null
+        );
     }
     
     public function show($data)
@@ -193,11 +213,59 @@ class ExpenseController
             return Response::error('Project ID is required', 400);
         }
         
+        $currentUser = AuthMiddleware::user();
+        
         $page = isset($data['page']) ? max(1, (int)$data['page']) : 1;
         $perPage = isset($data['per_page']) ? max(1, (int)$data['per_page']) : 5;
         
-        $result = $this->expenseService->getByProject($data['id'], $page, $perPage);
+        $filters = ['project_id' => $data['id']];
         
-        return Response::paginated($result['data'], $result['total'], $result['page'], $result['per_page']);
+        // For regular users, only show their own expenses
+        if ($currentUser['role'] === 'user') {
+            $filters['user_id'] = $currentUser['id'];
+        }
+        
+        $result = $this->expenseService->getAll($filters, $page, $perPage);
+        
+        // Get allocation summary for the main cards
+        $allocationSummary = $this->getAllocationSummary($filters);
+        $result['allocation_summary'] = $allocationSummary;
+        
+        // Add detailed summary for admin and super admin users
+        if (in_array($currentUser['role'], ['admin', 'super_admin'])) {
+            $expenseSummary = $this->expenseService->getExpenseSummary($filters);
+            $result['expense_summary'] = $expenseSummary;
+        }
+        
+        return Response::paginated(
+            $result['data'], 
+            $result['total'], 
+            $result['page'], 
+            $result['per_page'], 
+            $result['allocation_summary'],
+            $result['expense_summary'] ?? null
+        );
+    }
+    
+    private function getAllocationSummary($filters = [])
+    {
+        // If project_id filter is set, get project-specific allocation data
+        if (isset($filters['project_id'])) {
+            $projectAllocation = $this->allocationService->getProjectAllocation($filters['project_id']);
+            
+            return [
+                'total_allocated' => $projectAllocation['total_allocated'] ?? '0.00',
+                'total_expenses' => $projectAllocation['total_spent'] ?? '0.00',
+                'allocation_balance' => $projectAllocation['remaining_balance'] ?? '0.00'
+            ];
+        }
+        
+        // If user_id filter is set (normal user), get their project allocations
+        if (isset($filters['user_id'])) {
+            return $this->expenseService->getUserAllocationSummary($filters['user_id']);
+        }
+        
+        // For admin viewing all expenses without project filter, get system-wide data
+        return $this->expenseService->getSystemAllocationSummary();
     }
 }

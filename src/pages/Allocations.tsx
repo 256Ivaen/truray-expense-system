@@ -14,7 +14,7 @@ import {
   Upload,
   Loader2,
 } from "lucide-react";
-import { get, post, put, del } from "../utils/service";
+import { get, post, put, del, upload } from "../utils/service";
 import { toast } from "sonner";
 import { DataTable } from "../components/shared/DataTable";
 import { DeleteModal } from "../components/shared/Modals";
@@ -53,15 +53,13 @@ interface User {
 
 interface CreateAllocationData {
   project_id: string;
-  user_id: string;
   amount: number;
   description?: string;
-  proof_image?: File;
+  proof_image?: string;
 }
 
 interface UpdateAllocationData {
   project_id?: string;
-  user_id?: string;
   amount?: number;
   description?: string;
   status?: string;
@@ -118,7 +116,6 @@ interface CreateAllocationModalProps {
   onClose: () => void;
   onSubmit: (data: CreateAllocationData) => void;
   projects: Project[];
-  users: User[];
   loading?: boolean;
 }
 
@@ -127,37 +124,87 @@ function CreateAllocationModal({
   onClose,
   onSubmit,
   projects,
-  users,
   loading = false,
 }: CreateAllocationModalProps) {
   const [form, setForm] = useState<CreateAllocationData>({
     project_id: "",
-    user_id: "",
     amount: 0,
     description: "",
-    proof_image: undefined,
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [uploadingImage, setUploadingImage] = useState(false);
+
+  const uploadImage = async (file: File): Promise<string> => {
+    const formData = new FormData();
+    formData.append('file', file);
+    
+    const response = await upload('/upload', formData);
+    
+    if (response.success) {
+      return response.message.url;
+    } else {
+      throw new Error(response.message || 'Failed to upload image');
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    onSubmit(form);
+
+    if (selectedFile) {
+      setUploadingImage(true);
+      
+      try {
+        const imageUrl = await uploadImage(selectedFile);
+        
+        const allocationData = {
+          project_id: form.project_id,
+          amount: form.amount,
+          description: form.description,
+          proof_image: imageUrl
+        };
+        
+        onSubmit(allocationData);
+      } catch (error: any) {
+        console.error('Error uploading image:', error);
+        toast.error(error.message || 'Failed to upload proof image');
+        setUploadingImage(false);
+      }
+    } else {
+      onSubmit(form);
+    }
   };
 
   const handleClose = () => {
     setForm({
       project_id: "",
-      user_id: "",
       amount: 0,
       description: "",
-      proof_image: undefined,
     });
+    setSelectedFile(null);
+    if (imagePreview) {
+      URL.revokeObjectURL(imagePreview);
+    }
+    setImagePreview(null);
+    setUploadingImage(false);
     onClose();
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      setForm({ ...form, proof_image: file });
+      setSelectedFile(file);
+      const previewUrl = URL.createObjectURL(file);
+      setImagePreview(previewUrl);
+    }
+  };
+
+  const removeImage = () => {
+    setSelectedFile(null);
+    if (imagePreview) {
+      URL.revokeObjectURL(imagePreview);
+      setImagePreview(null);
     }
   };
 
@@ -177,7 +224,7 @@ function CreateAllocationModal({
             Create New Allocation
           </h2>
           <button
-            onClick={onClose}
+            onClick={handleClose}
             className="text-gray-400 hover:text-gray-600 transition-colors"
           >
             <X className="h-5 w-5" />
@@ -193,32 +240,12 @@ function CreateAllocationModal({
               value={form.project_id}
               onChange={(e) => setForm({ ...form, project_id: e.target.value })}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary text-xs"
-              disabled={loading}
+              disabled={loading || uploadingImage}
             >
               <option value="">Select a project</option>
               {projects.map((project) => (
                 <option key={project.id} value={project.id}>
                   {project.project_code} - {project.name}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-xs font-medium text-gray-700 mb-1">
-              User *
-            </label>
-            <select
-              required
-              value={form.user_id}
-              onChange={(e) => setForm({ ...form, user_id: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary text-xs"
-              disabled={loading}
-            >
-              <option value="">Select a user</option>
-              {users.map((user) => (
-                <option key={user.id} value={user.id}>
-                  {user.first_name} {user.last_name} ({user.email})
                 </option>
               ))}
             </select>
@@ -242,7 +269,7 @@ function CreateAllocationModal({
               }
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary text-xs"
               placeholder="0.00"
-              disabled={loading}
+              disabled={loading || uploadingImage}
             />
           </div>
 
@@ -256,7 +283,7 @@ function CreateAllocationModal({
               rows={3}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary text-xs"
               placeholder="Allocation description..."
-              disabled={loading}
+              disabled={loading || uploadingImage}
             />
           </div>
 
@@ -264,45 +291,73 @@ function CreateAllocationModal({
             <label className="block text-xs font-medium text-gray-700 mb-1">
               Proof Image
             </label>
-            <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center hover:border-gray-400 transition-colors">
-              <input
-                type="file"
-                accept="image/*"
-                onChange={handleFileChange}
-                className="hidden"
-                id="proof-image"
-                disabled={loading}
-              />
-              <label htmlFor="proof-image" className="cursor-pointer block">
-                <Upload className="h-6 w-6 text-gray-400 mx-auto mb-2" />
-                <span className="text-xs text-gray-600 font-medium">
-                  {form.proof_image
-                    ? form.proof_image.name
-                    : "Click to upload proof"}
-                </span>
-                <p className="text-xs text-gray-500 mt-1">
-                  Upload proof of allocation (optional)
-                </p>
-              </label>
-            </div>
+            
+            {!selectedFile ? (
+              <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center hover:border-gray-400 transition-colors">
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={handleFileChange}
+                  className="hidden"
+                  id="proof-image"
+                  disabled={loading || uploadingImage}
+                />
+                <label htmlFor="proof-image" className="cursor-pointer block">
+                  <Upload className="h-6 w-6 text-gray-400 mx-auto mb-2" />
+                  <span className="text-xs text-gray-600 font-medium">
+                    Click to upload proof
+                  </span>
+                  <p className="text-xs text-gray-500 mt-1">
+                    Upload proof of allocation (optional)
+                  </p>
+                </label>
+              </div>
+            ) : (
+              <div className="border border-gray-300 rounded-lg p-4">
+                <div className="flex items-center justify-between mb-3">
+                  <span className="text-xs text-gray-600 font-medium">
+                    {selectedFile.name}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={removeImage}
+                    className="text-red-500 hover:text-red-700 text-xs font-medium"
+                    disabled={loading || uploadingImage}
+                  >
+                    Remove
+                  </button>
+                </div>
+                
+                {imagePreview && (
+                  <div className="mt-2">
+                    <p className="text-xs text-gray-500 mb-2">Preview:</p>
+                    <img 
+                      src={imagePreview} 
+                      alt="Proof preview" 
+                      className="w-full max-w-xs mx-auto rounded-lg border border-gray-200 max-h-48 object-contain"
+                    />
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
           <div className="flex gap-3 pt-4">
             <button
               type="button"
               onClick={handleClose}
-              disabled={loading}
+              disabled={loading || uploadingImage}
               className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors text-xs font-medium disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Cancel
             </button>
             <button
               type="submit"
-              disabled={loading}
+              disabled={loading || uploadingImage}
               className="flex-1 px-4 py-2 bg-primary text-secondary rounded-lg hover:bg-primary/90 transition-colors text-xs font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
             >
-              {loading && <Loader2 className="w-4 h-4 animate-spin" />}
-              {loading ? "Creating..." : "Create Allocation"}
+              {(loading || uploadingImage) && <Loader2 className="w-4 h-4 animate-spin" />}
+              {uploadingImage ? "Uploading..." : loading ? "Creating..." : "Create Allocation"}
             </button>
           </div>
         </form>
@@ -317,7 +372,6 @@ interface EditAllocationModalProps {
   onSubmit: (data: UpdateAllocationData) => void;
   allocation: Allocation | null;
   projects: Project[];
-  users: User[];
   loading?: boolean;
 }
 
@@ -327,12 +381,10 @@ function EditAllocationModal({
   onSubmit,
   allocation,
   projects,
-  users,
   loading = false,
 }: EditAllocationModalProps) {
   const [form, setForm] = useState<UpdateAllocationData>({
     project_id: "",
-    user_id: "",
     amount: 0,
     description: "",
     status: "pending",
@@ -342,7 +394,6 @@ function EditAllocationModal({
     if (allocation) {
       setForm({
         project_id: allocation.project_id,
-        user_id: allocation.user_id,
         amount: parseFloat(allocation.amount),
         description: allocation.description || "",
         status: allocation.status,
@@ -398,25 +449,6 @@ function EditAllocationModal({
               {projects.map((project) => (
                 <option key={project.id} value={project.id}>
                   {project.project_code} - {project.name}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-xs font-medium text-gray-700 mb-1">
-              User
-            </label>
-            <select
-              value={form.user_id}
-              onChange={(e) => setForm({ ...form, user_id: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary text-xs"
-              disabled={loading}
-            >
-              <option value="">Select a user</option>
-              {users.map((user) => (
-                <option key={user.id} value={user.id}>
-                  {user.first_name} {user.last_name} ({user.email})
                 </option>
               ))}
             </select>
@@ -499,7 +531,6 @@ const AllocationsPage = () => {
   const navigate = useNavigate();
   const [allocations, setAllocations] = useState<Allocation[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
-  const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
@@ -518,7 +549,6 @@ const AllocationsPage = () => {
   useEffect(() => {
     fetchAllocations();
     fetchProjects();
-    fetchUsers();
   }, []);
 
   const fetchAllocations = async () => {
@@ -549,32 +579,10 @@ const AllocationsPage = () => {
     }
   };
 
-  const fetchUsers = async () => {
-    try {
-      const response = await get("/users");
-      if (response.success) {
-        setUsers(response.data);
-      }
-    } catch (error) {
-      console.error("Error fetching users:", error);
-    }
-  };
-
   const handleCreateAllocation = async (data: CreateAllocationData) => {
     setActionLoading(true);
     try {
-      const formData = new FormData();
-      formData.append("project_id", data.project_id);
-      formData.append("user_id", data.user_id);
-      formData.append("amount", data.amount.toString());
-      if (data.description) formData.append("description", data.description);
-      if (data.proof_image) formData.append("proof_image", data.proof_image);
-
-      const response = await post("/allocations", formData, {
-        headers: {
-          "Content-Type": "multipart/form-data",
-        },
-      });
+      const response = await post("/allocations", data);
 
       if (response.success) {
         toast.success("Allocation created successfully");
@@ -843,7 +851,6 @@ const AllocationsPage = () => {
         onClose={closeModals}
         onSubmit={handleCreateAllocation}
         projects={projects}
-        users={users}
         loading={actionLoading}
       />
 
@@ -853,7 +860,6 @@ const AllocationsPage = () => {
         onSubmit={handleEditAllocation}
         allocation={selectedAllocation}
         projects={projects}
-        users={users}
         loading={actionLoading}
       />
 

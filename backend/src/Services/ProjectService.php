@@ -545,6 +545,129 @@ class ProjectService
         }
     }
     
+    public function updateExpenseTypes($projectId, $expenseTypes)
+    {
+        try {
+            if (!$this->projectExists($projectId)) {
+                return ['success' => false, 'message' => 'Project not found'];
+            }
+            
+            // Start transaction
+            $this->db->beginTransaction();
+            
+            // Remove existing expense types
+            $this->db->execute(
+                "DELETE FROM project_expense_types WHERE project_id = ?",
+                [$projectId]
+            );
+            
+            // Insert new expense types
+            foreach ($expenseTypes as $typeName) {
+                $typeName = trim((string)$typeName);
+                if ($typeName === '') continue;
+                
+                $this->db->execute(
+                    "INSERT INTO project_expense_types (id, project_id, name) VALUES (?, ?, ?)",
+                    [Uuid::uuid4()->toString(), $projectId, $typeName]
+                );
+            }
+            
+            // Commit transaction
+            $this->db->commit();
+            
+            $updatedTypes = $this->getProjectExpenseTypes($projectId);
+            return ['success' => true, 'data' => $updatedTypes];
+            
+        } catch (\Exception $e) {
+            // Rollback on error
+            $this->db->rollback();
+            error_log("Expense types update failed: " . $e->getMessage());
+            return ['success' => false, 'message' => 'Failed to update expense types: ' . $e->getMessage()];
+        }
+    }
+    
+    public function addExpenseType($projectId, $typeName)
+    {
+        try {
+            if (!$this->projectExists($projectId)) {
+                return ['success' => false, 'message' => 'Project not found'];
+            }
+            
+            $typeName = trim((string)$typeName);
+            if ($typeName === '') {
+                return ['success' => false, 'message' => 'Expense type name cannot be empty'];
+            }
+            
+            // Check if expense type already exists for this project
+            $existingType = $this->db->queryOne(
+                "SELECT id FROM project_expense_types WHERE project_id = ? AND name = ?",
+                [$projectId, $typeName]
+            );
+            
+            if ($existingType) {
+                return ['success' => false, 'message' => 'Expense type already exists for this project'];
+            }
+            
+            $id = Uuid::uuid4()->toString();
+            $this->db->execute(
+                "INSERT INTO project_expense_types (id, project_id, name) VALUES (?, ?, ?)",
+                [$id, $projectId, $typeName]
+            );
+            
+            $newType = $this->db->queryOne(
+                "SELECT id, name, created_at FROM project_expense_types WHERE id = ?",
+                [$id]
+            );
+            
+            return ['success' => true, 'data' => $newType];
+            
+        } catch (\Exception $e) {
+            error_log("Expense type addition failed: " . $e->getMessage());
+            return ['success' => false, 'message' => 'Failed to add expense type: ' . $e->getMessage()];
+        }
+    }
+    
+    public function deleteExpenseType($expenseTypeId, $projectId)
+    {
+        try {
+            // Verify the expense type exists and belongs to the project
+            $expenseType = $this->db->queryOne(
+                "SELECT id, name FROM project_expense_types WHERE id = ? AND project_id = ?",
+                [$expenseTypeId, $projectId]
+            );
+            
+            if (!$expenseType) {
+                return ['success' => false, 'message' => 'Expense type not found or does not belong to this project'];
+            }
+            
+            // Check if this expense type is being used in any expenses
+            $usedInExpenses = $this->db->queryOne(
+                "SELECT COUNT(*) as count FROM expenses WHERE project_id = ? AND category = ?",
+                [$projectId, $expenseType['name']]
+            );
+            
+            if ($usedInExpenses && $usedInExpenses['count'] > 0) {
+                return ['success' => false, 'message' => 'Cannot delete expense type that is being used in existing expenses'];
+            }
+            
+            // Delete the expense type
+            $this->db->execute(
+                "DELETE FROM project_expense_types WHERE id = ? AND project_id = ?",
+                [$expenseTypeId, $projectId]
+            );
+            
+            return [
+                'success' => true, 
+                'message' => 'Expense type deleted successfully',
+                'deleted_type' => $expenseType
+            ];
+            
+        } catch (\Exception $e) {
+            error_log("Expense type deletion failed: " . $e->getMessage());
+            return ['success' => false, 'message' => 'Failed to delete expense type: ' . $e->getMessage()];
+        }
+    }
+    
     // Helper method to check if project exists (without user restrictions)
     public function projectExists($id)
     {

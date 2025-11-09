@@ -12,6 +12,7 @@ use App\Controllers\ReportController;
 use App\Controllers\DashboardController;
 use App\Controllers\NotificationController;
 use App\Controllers\SearchController;
+use App\Controllers\FileUploadController;
 use App\Middleware\AuthMiddleware;
 use App\Middleware\RoleMiddleware;
 use App\Middleware\RateLimitMiddleware;
@@ -32,10 +33,15 @@ class Router
         $this->routes['POST']['/api/auth/register'] = [AuthController::class, 'register', false];
         $this->routes['POST']['/api/auth/forgot-password'] = [AuthController::class, 'forgotPassword', false];
         $this->routes['POST']['/api/auth/reset-password'] = [AuthController::class, 'resetPassword', false];
+        $this->routes['POST']['/api/auth/change-password'] = [AuthController::class, 'changePassword', true];
         
         $this->routes['POST']['/api/auth/logout'] = [AuthController::class, 'logout', true];
         $this->routes['POST']['/api/auth/refresh'] = [AuthController::class, 'refresh', true];
         $this->routes['GET']['/api/auth/me'] = [AuthController::class, 'me', true];
+        
+        // File Upload Routes
+        $this->routes['POST']['/api/upload'] = [FileUploadController::class, 'upload', true];
+        $this->routes['DELETE']['/api/upload'] = [FileUploadController::class, 'delete', true];
         
         $this->routes['GET']['/api/dashboard'] = [DashboardController::class, 'index', true];
         

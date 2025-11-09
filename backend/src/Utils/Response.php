@@ -23,6 +23,16 @@ class Response
             if (isset($data['data']) && isset($data['pagination'])) {
                 $response['data'] = $data['data'];
                 $response['pagination'] = $data['pagination'];
+                
+                // Include allocation summary if present
+                if (isset($data['allocation_summary'])) {
+                    $response['allocation_summary'] = $data['allocation_summary'];
+                }
+                
+                // Include expense summary if present
+                if (isset($data['expense_summary'])) {
+                    $response['expense_summary'] = $data['expense_summary'];
+                }
             } else {
                 $response['data'] = $data;
             }
@@ -31,7 +41,7 @@ class Response
         self::send($response, $statusCode);
     }
     
-    public static function paginated($data, $total, $page, $perPage, $message = 'Success')
+    public static function paginated($data, $total, $page, $perPage, $allocationSummary = null, $expenseSummary = null, $message = 'Success')
     {
         $totalPages = ceil($total / $perPage);
         
@@ -48,6 +58,16 @@ class Response
                 'has_previous_page' => $page > 1
             ]
         ];
+        
+        // Add allocation summary (for main cards - everyone sees this)
+        if ($allocationSummary !== null) {
+            $response['allocation_summary'] = $allocationSummary;
+        }
+        
+        // Add expense summary (only for admin/super admin)
+        if ($expenseSummary !== null) {
+            $response['expense_summary'] = $expenseSummary;
+        }
         
         self::send($response, 200);
     }

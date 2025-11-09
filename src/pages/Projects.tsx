@@ -11,7 +11,9 @@ import {
   CheckCircle,
   Clock,
   Loader2,
-  User
+  User,
+  Edit3,
+  Trash2
 } from "lucide-react";
 import { get, post, put, del } from "../utils/service";
 import { toast } from "sonner";
@@ -27,7 +29,7 @@ interface Project {
   description?: string;
   start_date?: string;
   end_date?: string;
-  status: 'planning' | 'active' | 'completed' | 'cancelled' | 'closed';
+  status: 'pending' | 'active' | 'completed' | 'cancelled' | 'closed';
   created_at: string;
   updated_at: string;
   created_by: string;
@@ -46,6 +48,11 @@ interface Project {
     last_name: string;
     role: string;
     assigned_at: string;
+  }>;
+  expense_types?: Array<{
+    id: string;
+    name: string;
+    created_at: string;
   }>;
 }
 
@@ -74,7 +81,8 @@ interface UpdateProjectData {
   description?: string;
   start_date?: string;
   end_date?: string;
-  status?: 'planning' | 'active' | 'completed' | 'cancelled' | 'closed';
+  status?: 'pending' | 'active' | 'completed' | 'cancelled' | 'closed';
+  expense_types?: string[];
 }
 
 const getCurrentUserRole = () => {
@@ -121,6 +129,254 @@ const SearchSkeleton = () => (
     </div>
   </div>
 );
+
+interface ExpenseTypesModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  project: Project | null;
+  loading?: boolean;
+  onUpdateExpenseTypes: (projectId: string, expenseTypes: string[]) => Promise<void>;
+  onAddExpenseType: (projectId: string, name: string) => Promise<void>;
+  onDeleteExpenseType: (projectId: string, expenseTypeId: string) => Promise<void>;
+}
+
+function ExpenseTypesModal({ 
+  isOpen, 
+  onClose, 
+  project, 
+  loading = false, 
+  onUpdateExpenseTypes,
+  onAddExpenseType,
+  onDeleteExpenseType
+}: ExpenseTypesModalProps) {
+  const [expenseTypes, setExpenseTypes] = useState<string[]>([]);
+  const [newExpenseType, setNewExpenseType] = useState<string>("");
+  const [editMode, setEditMode] = useState(false);
+
+  useEffect(() => {
+    if (project?.expense_types) {
+      setExpenseTypes(project.expense_types.map(et => et.name));
+    } else {
+      setExpenseTypes([]);
+    }
+  }, [project]);
+
+  const handleSave = async () => {
+    if (!project) return;
+    
+    try {
+      await onUpdateExpenseTypes(project.id, expenseTypes);
+      setEditMode(false);
+    } catch (error) {
+      // Error handling is done in parent
+    }
+  };
+
+  const handleAddExpenseType = async () => {
+    if (!project || !newExpenseType.trim()) return;
+    
+    try {
+      await onAddExpenseType(project.id, newExpenseType.trim());
+      setNewExpenseType("");
+      // Refresh will happen in parent
+    } catch (error) {
+      // Error handling is done in parent
+    }
+  };
+
+  const handleDeleteExpenseType = async (expenseTypeId: string) => {
+    if (!project) return;
+    
+    try {
+      await onDeleteExpenseType(project.id, expenseTypeId);
+      // Refresh will happen in parent
+    } catch (error) {
+      // Error handling is done in parent
+    }
+  };
+
+  const handleClose = () => {
+    setExpenseTypes(project?.expense_types?.map(et => et.name) || []);
+    setNewExpenseType("");
+    setEditMode(false);
+    onClose();
+  };
+
+  if (!project) return null;
+
+  return (
+    <div 
+      className={`fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm flex items-center justify-center p-4 z-50 ${isOpen ? 'block' : 'hidden'}`}
+      onClick={handleClose}
+    >
+      <div 
+        className="bg-white rounded-lg max-w-md w-full max-h-[90vh] overflow-y-auto"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between p-6 border-b border-gray-200">
+          <h2 className="text-lg font-semibold text-gray-900">
+            Manage Expense Types - {project.name}
+          </h2>
+          <button
+            onClick={handleClose}
+            className="text-gray-400 hover:text-gray-600 transition-colors"
+            disabled={loading}
+          >
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+        
+        <div className="p-6 space-y-4">
+          {/* Add New Expense Type */}
+          <div>
+            <label className="block text-xs font-medium text-gray-700 mb-2">
+              Add New Expense Type
+            </label>
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={newExpenseType}
+                onChange={(e) => setNewExpenseType(e.target.value)}
+                placeholder="e.g. Transport, Equipment, etc."
+                className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary text-xs"
+                disabled={loading}
+                onKeyPress={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    handleAddExpenseType();
+                  }
+                }}
+              />
+              <button
+                type="button"
+                onClick={handleAddExpenseType}
+                disabled={loading || !newExpenseType.trim()}
+                className="px-4 py-2 bg-primary text-secondary rounded-lg hover:bg-primary/90 transition-colors text-xs font-medium disabled:opacity-50 flex items-center gap-2"
+              >
+                {loading ? <Loader2 className="w-3 h-3 animate-spin" /> : <Plus className="w-3 h-3" />}
+                Add
+              </button>
+            </div>
+          </div>
+
+          {/* Current Expense Types */}
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <label className="block text-xs font-medium text-gray-700">
+                Current Expense Types
+              </label>
+              {!editMode ? (
+                <button
+                  type="button"
+                  onClick={() => setEditMode(true)}
+                  className="text-xs text-primary hover:text-primary/80 font-medium flex items-center gap-1"
+                >
+                  <Edit3 className="w-3 h-3" />
+                  Edit
+                </button>
+              ) : (
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setExpenseTypes(project.expense_types?.map(et => et.name) || []);
+                      setEditMode(false);
+                    }}
+                    className="text-xs text-gray-600 hover:text-gray-800 font-medium"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleSave}
+                    disabled={loading}
+                    className="text-xs text-primary hover:text-primary/80 font-medium flex items-center gap-1"
+                  >
+                    {loading ? <Loader2 className="w-3 h-3 animate-spin" /> : "Save"}
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {editMode ? (
+              <div className="space-y-2">
+                {expenseTypes.map((type, index) => (
+                  <div key={index} className="flex items-center gap-2">
+                    <input
+                      type="text"
+                      value={type}
+                      onChange={(e) => {
+                        const newTypes = [...expenseTypes];
+                        newTypes[index] = e.target.value;
+                        setExpenseTypes(newTypes);
+                      }}
+                      className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary text-xs"
+                      disabled={loading}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const newTypes = expenseTypes.filter((_, i) => i !== index);
+                        setExpenseTypes(newTypes);
+                      }}
+                      disabled={loading}
+                      className="p-2 text-red-600 hover:text-red-800 transition-colors"
+                    >
+                      <Trash2 className="w-3 h-3" />
+                    </button>
+                  </div>
+                ))}
+                <button
+                  type="button"
+                  onClick={() => setExpenseTypes([...expenseTypes, ""])}
+                  disabled={loading}
+                  className="w-full px-3 py-2 border border-dashed border-gray-300 rounded-lg text-gray-600 hover:text-gray-800 hover:border-gray-400 transition-colors text-xs flex items-center justify-center gap-1"
+                >
+                  <Plus className="w-3 h-3" />
+                  Add New Field
+                </button>
+              </div>
+            ) : (
+              <div className="flex flex-wrap gap-2">
+                {project.expense_types && project.expense_types.length > 0 ? (
+                  project.expense_types.map((expenseType) => (
+                    <span 
+                      key={expenseType.id} 
+                      className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-gray-100 text-gray-800 text-xs"
+                    >
+                      {expenseType.name}
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteExpenseType(expenseType.id)}
+                        disabled={loading}
+                        className="text-gray-500 hover:text-red-600 transition-colors"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    </span>
+                  ))
+                ) : (
+                  <p className="text-xs text-gray-500 italic">No expense types defined yet.</p>
+                )}
+              </div>
+            )}
+          </div>
+
+          <div className="pt-4 border-t border-gray-200">
+            <button
+              type="button"
+              onClick={handleClose}
+              disabled={loading}
+              className="w-full px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors text-xs font-medium disabled:opacity-50"
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 interface CreateProjectModalProps {
   isOpen: boolean;
@@ -386,11 +642,13 @@ function EditProjectModal({ isOpen, onClose, onSubmit, project, loading = false 
     description: "",
     start_date: "",
     end_date: "",
-    status: "planning"
+    status: "pending"
   });
 
   const [startDate, setStartDate] = useState<Date | null>(null);
   const [endDate, setEndDate] = useState<Date | null>(null);
+  const [expenseTypes, setExpenseTypes] = useState<string[]>([]);
+  const [newExpenseType, setNewExpenseType] = useState<string>("");
 
   const formatDateForInput = (date: Date | null): string => {
     if (!date) return '';
@@ -417,6 +675,13 @@ function EditProjectModal({ isOpen, onClose, onSubmit, project, loading = false 
       if (project.end_date) {
         setEndDate(new Date(project.end_date));
       }
+      
+      // Set expense types from project data
+      if (project.expense_types) {
+        setExpenseTypes(project.expense_types.map(et => et.name));
+      } else {
+        setExpenseTypes([]);
+      }
     }
   }, [project]);
 
@@ -441,7 +706,11 @@ function EditProjectModal({ isOpen, onClose, onSubmit, project, loading = false 
       return;
     }
     
-    onSubmit(form);
+    const payload = {
+      ...form,
+      expense_types: expenseTypes.filter(t => t.trim() !== "")
+    };
+    onSubmit(payload);
   };
 
   const handleClose = () => {
@@ -509,6 +778,56 @@ function EditProjectModal({ isOpen, onClose, onSubmit, project, loading = false 
             />
           </div>
 
+          {/* EXPENSE TYPES SECTION - ADDED TO EDIT MODAL */}
+          <div className="pt-2">
+            <label className="block text-xs font-medium text-gray-700 mb-2">
+              Expense Types
+            </label>
+            <div className="flex gap-2 mb-2">
+              <input
+                type="text"
+                value={newExpenseType}
+                onChange={(e) => setNewExpenseType(e.target.value)}
+                placeholder="e.g. Transport"
+                className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary text-xs"
+                disabled={loading}
+              />
+              <button
+                type="button"
+                onClick={() => {
+                  const name = newExpenseType.trim();
+                  if (!name) return;
+                  if (expenseTypes.includes(name)) return;
+                  setExpenseTypes([...expenseTypes, name]);
+                  setNewExpenseType("");
+                }}
+                disabled={loading || !newExpenseType.trim()}
+                className="px-3 py-2 bg-primary text-secondary rounded-lg hover:bg-primary/90 transition-colors text-xs font-medium disabled:opacity-50"
+              >
+                Add
+              </button>
+            </div>
+            {expenseTypes.length > 0 ? (
+              <div className="flex flex-wrap gap-2">
+                {expenseTypes.map((t, idx) => (
+                  <span key={idx} className="inline-flex items-center gap-2 px-2 py-1 rounded-full bg-gray-100 text-gray-800 text-[11px]">
+                    {t}
+                    <button
+                      type="button"
+                      onClick={() => setExpenseTypes(expenseTypes.filter(x => x !== t))}
+                      className="text-gray-500 hover:text-gray-700"
+                      disabled={loading}
+                    >
+                      ×
+                    </button>
+                  </span>
+                ))}
+              </div>
+            ) : (
+              <p className="text-[11px] text-gray-500">No expense types added yet.</p>
+            )}
+          </div>
+
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-medium text-gray-700 mb-1">
@@ -544,7 +863,7 @@ function EditProjectModal({ isOpen, onClose, onSubmit, project, loading = false 
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary text-xs"
               disabled={loading}
             >
-              <option value="planning">Planning</option>
+              <option value="pending">Pending</option>
               <option value="active">Active</option>
               <option value="completed">Completed</option>
               <option value="cancelled">Cancelled</option>
@@ -589,6 +908,7 @@ const ProjectsPage = () => {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [showExpenseTypesModal, setShowExpenseTypesModal] = useState(false);
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
 
   const currentUserRole = getCurrentUserRole();
@@ -752,8 +1072,74 @@ const ProjectsPage = () => {
     }
   };
 
+  const handleUpdateExpenseTypes = async (projectId: string, expenseTypes: string[]) => {
+    setActionLoading(true);
+    try {
+      const response = await put(`/projects/${projectId}/expense-types`, {
+        expense_types: expenseTypes
+      });
+      if (response.success) {
+        toast.success('Expense types updated successfully');
+        fetchProjects(); // Refresh projects to get updated expense types
+      } else {
+        toast.error(response.message || 'Failed to update expense types');
+      }
+    } catch (error: any) {
+      console.error('Error updating expense types:', error);
+      toast.error(error.response?.data?.message || 'Error updating expense types');
+      throw error;
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleAddExpenseType = async (projectId: string, name: string) => {
+    setActionLoading(true);
+    try {
+      const response = await post(`/projects/${projectId}/expense-types`, {
+        name: name
+      });
+      if (response.success) {
+        toast.success('Expense type added successfully');
+        fetchProjects(); // Refresh projects to get updated expense types
+      } else {
+        toast.error(response.message || 'Failed to add expense type');
+      }
+    } catch (error: any) {
+      console.error('Error adding expense type:', error);
+      toast.error(error.response?.data?.message || 'Error adding expense type');
+      throw error;
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleDeleteExpenseType = async (projectId: string, expenseTypeId: string) => {
+    setActionLoading(true);
+    try {
+      const response = await del(`/projects/${projectId}/expense-types/${expenseTypeId}`);
+      if (response.success) {
+        toast.success('Expense type deleted successfully');
+        fetchProjects(); // Refresh projects to get updated expense types
+      } else {
+        toast.error(response.message || 'Failed to delete expense type');
+      }
+    } catch (error: any) {
+      console.error('Error deleting expense type:', error);
+      toast.error(error.response?.data?.message || 'Error deleting expense type');
+      throw error;
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
   const handleViewProject = (project: Project) => {
     navigate(`/projects/${project.id}`);
+  };
+
+  const handleManageExpenseTypes = (project: Project) => {
+    setSelectedProject(project);
+    setShowExpenseTypesModal(true);
   };
 
   const openCreateModal = () => {
@@ -774,6 +1160,7 @@ const ProjectsPage = () => {
     setShowCreateModal(false);
     setShowEditModal(false);
     setShowDeleteModal(false);
+    setShowExpenseTypesModal(false);
     setSelectedProject(null);
   };
 
@@ -794,7 +1181,7 @@ const ProjectsPage = () => {
     total: displayProjects.length,
     active: displayProjects.filter(p => p.status === 'active').length,
     completed: displayProjects.filter(p => p.status === 'completed').length,
-    planning: displayProjects.filter(p => p.status === 'planning').length,
+    pending: displayProjects.filter(p => p.status === 'pending').length,
   };
 
   return (
@@ -852,9 +1239,9 @@ const ProjectsPage = () => {
             loading={loading}
           />
           <StatCard
-            title="Planning"
-            value={projectStats.planning}
-            subtitle="In planning phase"
+            title="Pending"
+            value={projectStats.pending}
+            subtitle="In pending phase"
             icon={Clock}
             loading={loading}
           />
@@ -889,7 +1276,7 @@ const ProjectsPage = () => {
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary text-xs"
                 >
                   <option value="all">All Status</option>
-                  <option value="planning">Planning</option>
+                  <option value="pending">Pending</option>
                   <option value="active">Active</option>
                   <option value="completed">Completed</option>
                   <option value="cancelled">Cancelled</option>
@@ -927,6 +1314,7 @@ const ProjectsPage = () => {
             onEdit={canManageProjects ? openEditModal : undefined}
             onDelete={canManageProjects ? openDeleteModal : undefined}
             onView={handleViewProject}
+            onAssign={canManageProjects ? handleManageExpenseTypes : undefined}
             showActions={true}
             currentUserRole={currentUserRole}
             currentUserId={currentUserId}
@@ -952,6 +1340,18 @@ const ProjectsPage = () => {
           onSubmit={handleEditProject}
           project={selectedProject}
           loading={actionLoading}
+        />
+      )}
+
+      {canManageProjects && (
+        <ExpenseTypesModal
+          isOpen={showExpenseTypesModal}
+          onClose={closeModals}
+          project={selectedProject}
+          loading={actionLoading}
+          onUpdateExpenseTypes={handleUpdateExpenseTypes}
+          onAddExpenseType={handleAddExpenseType}
+          onDeleteExpenseType={handleDeleteExpenseType}
         />
       )}
 

@@ -126,7 +126,6 @@ interface DataTableProps {
   actionLoading?: boolean;
 }
 
-// Get current user info from localStorage
 const getCurrentUserRole = () => {
   try {
     const userStr = localStorage.getItem('truray_user');
@@ -153,7 +152,6 @@ const getCurrentUserId = () => {
   return null;
 };
 
-// Actions Dropdown Component
 interface ActionsDropdownProps {
   isOpen: boolean;
   onClose: () => void;
@@ -186,12 +184,29 @@ function ActionsDropdown({ isOpen, onClose, actions, loading, position }: Action
     };
   }, [isOpen, onClose]);
 
+  useEffect(() => {
+    if (isOpen && dropdownRef.current) {
+      const dropdown = dropdownRef.current;
+      const rect = dropdown.getBoundingClientRect();
+      const viewportHeight = window.innerHeight;
+      const viewportWidth = window.innerWidth;
+      
+      if (rect.bottom > viewportHeight) {
+        dropdown.style.top = `${position.top - rect.height - 40}px`;
+      }
+      
+      if (rect.right > viewportWidth) {
+        dropdown.style.left = `${viewportWidth - rect.width - 16}px`;
+      }
+    }
+  }, [isOpen, position]);
+
   if (!isOpen) return null;
 
   return (
     <div
       ref={dropdownRef}
-      className="fixed z-[100] bg-white rounded-lg shadow-xl border border-secondary py-1 min-w-[160px]"
+      className="fixed z-[100] bg-white rounded-lg shadow-xl border border-secondary py-1 min-w-[160px] animate-scale-in"
       style={{
         top: `${position.top}px`,
         left: `${position.left}px`,
@@ -211,7 +226,9 @@ function ActionsDropdown({ isOpen, onClose, actions, loading, position }: Action
               onClose();
             }}
             className={`w-full px-4 py-2 text-left text-xs flex items-center gap-2 hover:bg-gray-50 transition-colors ${
-              action.color || 'text-gray-700'
+              action.label === 'Delete User' || action.label === 'Delete Project' || action.label === 'Delete Expense' || action.label === 'Delete Allocation' 
+                ? 'text-red-600' 
+                : 'text-secondary'
             }`}
           >
             {action.icon}
@@ -243,8 +260,7 @@ export function DataTable({
 }: DataTableProps) {
   const [openDropdownId, setOpenDropdownId] = useState<string | null>(null);
   const [dropdownPosition, setDropdownPosition] = useState({ top: 0, left: 0 });
-
-  // Get current user info if not provided
+  
   const userRole = currentUserRole || getCurrentUserRole();
   const userId = currentUserId || getCurrentUserId();
   
@@ -254,16 +270,13 @@ export function DataTable({
   const isNormalUser = userRole === 'user';
 
   const handleOpenDropdown = (itemId: string, event: React.MouseEvent<HTMLButtonElement>) => {
-    event.stopPropagation(); // Prevent event bubbling
+    event.stopPropagation();
     
     const button = event.currentTarget;
     const rect = button.getBoundingClientRect();
-    const tableContainer = button.closest('.overflow-x-auto');
-    const scrollLeft = tableContainer?.scrollLeft || 0;
     
-    // Calculate position relative to viewport
-    const left = rect.left + window.scrollX - 120 + scrollLeft;
-    const top = rect.bottom + window.scrollY + 4;
+    const left = rect.right - 160;
+    const top = rect.bottom + 4;
     
     setDropdownPosition({
       top: top,
@@ -276,7 +289,6 @@ export function DataTable({
     setOpenDropdownId(null);
   };
 
-  // Close dropdown when clicking outside or scrolling
   useEffect(() => {
     const handleScroll = () => {
       if (openDropdownId) {
@@ -290,7 +302,6 @@ export function DataTable({
     };
   }, [openDropdownId]);
 
-  // Generate page numbers for pagination
   const getPageNumbers = () => {
     if (!pagination) return [];
     
@@ -342,7 +353,6 @@ export function DataTable({
             label: 'View Details',
             icon: <Eye className="h-4 w-4" />,
             onClick: () => onView(user),
-            color: 'text-blue-600',
           });
         }
         if (canEdit(user) && onEdit) {
@@ -350,7 +360,6 @@ export function DataTable({
             label: 'Edit User',
             icon: <Edit3 className="h-4 w-4" />,
             onClick: () => onEdit(user),
-            color: 'text-primary',
           });
         }
         if (canAssign(user) && onAssign) {
@@ -358,7 +367,6 @@ export function DataTable({
             label: 'Assign Projects',
             icon: <Folder className="h-4 w-4" />,
             onClick: () => onAssign(user),
-            color: 'text-blue-600',
           });
         }
         if (canDelete(user) && onDelete) {
@@ -366,7 +374,6 @@ export function DataTable({
             label: 'Delete User',
             icon: <Trash2 className="h-4 w-4" />,
             onClick: () => onDelete(user),
-            color: 'text-red-600',
           });
         }
         break;
@@ -378,7 +385,6 @@ export function DataTable({
             label: 'View Details',
             icon: <Eye className="h-4 w-4" />,
             onClick: () => onView(project),
-            color: 'text-blue-600',
           });
         }
         if (canEdit(project) && onEdit) {
@@ -386,7 +392,6 @@ export function DataTable({
             label: 'Edit Project',
             icon: <Edit3 className="h-4 w-4" />,
             onClick: () => onEdit(project),
-            color: 'text-primary',
           });
         }
         if (canDelete(project) && onDelete) {
@@ -394,7 +399,6 @@ export function DataTable({
             label: 'Delete Project',
             icon: <Trash2 className="h-4 w-4" />,
             onClick: () => onDelete(project),
-            color: 'text-red-600',
           });
         }
         break;
@@ -406,7 +410,6 @@ export function DataTable({
             label: 'View Details',
             icon: <Eye className="h-4 w-4" />,
             onClick: () => onView(expense),
-            color: 'text-blue-600',
           });
         }
         if (canApproveReject(expense)) {
@@ -415,7 +418,6 @@ export function DataTable({
               label: 'Approve',
               icon: <Check className="h-4 w-4" />,
               onClick: () => onApprove(expense.id),
-              color: 'text-green-600',
             });
           }
           if (onReject) {
@@ -423,7 +425,6 @@ export function DataTable({
               label: 'Reject',
               icon: <X className="h-4 w-4" />,
               onClick: () => onReject(expense.id),
-              color: 'text-red-600',
             });
           }
         }
@@ -432,7 +433,6 @@ export function DataTable({
             label: 'Edit Expense',
             icon: <Edit3 className="h-4 w-4" />,
             onClick: () => onEdit(expense),
-            color: 'text-primary',
           });
         }
         if (canDelete(expense) && onDelete) {
@@ -440,7 +440,6 @@ export function DataTable({
             label: 'Delete Expense',
             icon: <Trash2 className="h-4 w-4" />,
             onClick: () => onDelete(expense),
-            color: 'text-red-600',
           });
         }
         break;
@@ -452,7 +451,6 @@ export function DataTable({
               label: 'View Details',
               icon: <Eye className="h-4 w-4" />,
               onClick: () => onView(allocation),
-              color: 'text-blue-600',
             });
           }
           if (canEdit(allocation) && onEdit) {
@@ -460,7 +458,6 @@ export function DataTable({
               label: 'Edit Allocation',
               icon: <Edit3 className="h-4 w-4" />,
               onClick: () => onEdit(allocation),
-              color: 'text-primary',
             });
           }
           if (canDelete(allocation) && onDelete) {
@@ -468,7 +465,6 @@ export function DataTable({
               label: 'Delete Allocation',
               icon: <Trash2 className="h-4 w-4" />,
               onClick: () => onDelete(allocation),
-              color: 'text-red-600',
             });
           }
           break;
@@ -479,7 +475,6 @@ export function DataTable({
             label: 'Edit Finance',
             icon: <Edit3 className="h-4 w-4" />,
             onClick: () => onEdit(finance),
-            color: 'text-primary',
           });
         }
         break;
@@ -488,7 +483,6 @@ export function DataTable({
     return actions;
   };
 
-  // Check if user can perform actions based on type and role
   const canEdit = (item: TableData): boolean => {
     if (!showActions) return false;
     
@@ -631,29 +625,28 @@ export function DataTable({
     });
   };
 
-  // Render different columns based on data type
   const renderTableHeaders = () => {
     switch (type) {
       case "users":
         return (
           <>
-            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            <th className="px-4 py-3 text-left text-xs font-medium text-white uppercase tracking-wider border-r border-white">
               User
             </th>
-            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            <th className="px-4 py-3 text-left text-xs font-medium text-white uppercase tracking-wider border-r border-white">
               Contact
             </th>
-            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            <th className="px-4 py-3 text-left text-xs font-medium text-white uppercase tracking-wider border-r border-white">
               Role
             </th>
-            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            <th className="px-4 py-3 text-left text-xs font-medium text-white uppercase tracking-wider border-r border-white">
               Status
             </th>
-            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            <th className="px-4 py-3 text-left text-xs font-medium text-white uppercase tracking-wider border-r border-white">
               Created
             </th>
             {showActions && (
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th className="px-4 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">
                 Actions
               </th>
             )}
@@ -662,23 +655,23 @@ export function DataTable({
       case "projects":
         return (
           <>
-            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            <th className="px-4 py-3 text-left text-xs font-medium text-white uppercase tracking-wider border-r border-white">
               Project Code
             </th>
-            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            <th className="px-4 py-3 text-left text-xs font-medium text-white uppercase tracking-wider border-r border-white">
               Name
             </th>
-            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            <th className="px-4 py-3 text-left text-xs font-medium text-white uppercase tracking-wider border-r border-white">
               Description
             </th>
-            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            <th className="px-4 py-3 text-left text-xs font-medium text-white uppercase tracking-wider border-r border-white">
               Status
             </th>
-            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            <th className="px-4 py-3 text-left text-xs font-medium text-white uppercase tracking-wider border-r border-white">
               Start Date
             </th>
             {showActions && (
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th className="px-4 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">
                 Actions
               </th>
             )}
@@ -687,26 +680,26 @@ export function DataTable({
       case "expenses":
         return (
           <>
-            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            <th className="px-4 py-3 text-left text-xs font-medium text-white uppercase tracking-wider border-r border-white">
               Description
             </th>
-            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            <th className="px-4 py-3 text-left text-xs font-medium text-white uppercase tracking-wider border-r border-white">
               Project
             </th>
-            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            <th className="px-4 py-3 text-left text-xs font-medium text-white uppercase tracking-wider border-r border-white">
               Amount
             </th>
-            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            <th className="px-4 py-3 text-left text-xs font-medium text-white uppercase tracking-wider border-r border-white">
               Category
             </th>
-            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            <th className="px-4 py-3 text-left text-xs font-medium text-white uppercase tracking-wider border-r border-white">
               Status
             </th>
-            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            <th className="px-4 py-3 text-left text-xs font-medium text-white uppercase tracking-wider border-r border-white">
               Date
             </th>
             {showActions && (
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th className="px-4 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">
                 Actions
               </th>
             )}
@@ -715,26 +708,26 @@ export function DataTable({
       case "allocations":
         return (
           <>
-            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            <th className="px-4 py-3 text-left text-xs font-medium text-white uppercase tracking-wider border-r border-white">
               Project
             </th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th className="px-4 py-3 text-left text-xs font-medium text-white uppercase tracking-wider border-r border-white">
                 User
               </th>
-            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            <th className="px-4 py-3 text-left text-xs font-medium text-white uppercase tracking-wider border-r border-white">
               Amount
             </th>
-            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            <th className="px-4 py-3 text-left text-xs font-medium text-white uppercase tracking-wider border-r border-white">
               Description
             </th>
-            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            <th className="px-4 py-3 text-left text-xs font-medium text-white uppercase tracking-wider border-r border-white">
               Status
             </th>
-            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            <th className="px-4 py-3 text-left text-xs font-medium text-white uppercase tracking-wider border-r border-white">
               Date
             </th>
             {showActions && (
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th className="px-4 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">
                 Actions
               </th>
             )}
@@ -743,16 +736,16 @@ export function DataTable({
       case "finances":
         return (
           <>
-            <th className="px-4 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">
+            <th className="px-4 py-3 text-left text-xs font-medium text-white uppercase tracking-wider border-r border-white">
               Description
             </th>
-            <th className="px-4 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">
+            <th className="px-4 py-3 text-left text-xs font-medium text-white uppercase tracking-wider border-r border-white">
               Project
             </th>
-            <th className="px-4 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">
+            <th className="px-4 py-3 text-left text-xs font-medium text-white uppercase tracking-wider border-r border-white">
               Amount
             </th>
-            <th className="px-4 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">
+            <th className="px-4 py-3 text-left text-xs font-medium text-white uppercase tracking-wider border-r border-white">
               Date
             </th>
             {showActions && (isAdmin) && (
@@ -777,9 +770,9 @@ export function DataTable({
         return (
           <tr
             key={user.id}
-            className="border-b border-secondary hover:bg-gray-50 transition-colors"
+            className="border-b border-gray-100 hover:bg-gray-50 transition-colors"
           >
-            <td className="px-4 py-3 whitespace-nowrap">
+            <td className="px-4 py-3 whitespace-nowrap border-r border-gray-100">
               <div className="flex items-center">
                 <div className="h-8 w-8 bg-primary/20 rounded-full flex items-center justify-center mr-3">
                   <span className="text-black font-medium text-xs">
@@ -795,7 +788,7 @@ export function DataTable({
                 </div>
               </div>
             </td>
-            <td className="px-4 py-3 whitespace-nowrap">
+            <td className="px-4 py-3 whitespace-nowrap border-r border-gray-100">
               {user.phone ? (
                 <div className="flex items-center text-xs text-gray-900">
                   <Phone className="h-3 w-3 mr-1" />
@@ -805,7 +798,7 @@ export function DataTable({
                 <span className="text-xs text-gray-400">-</span>
               )}
             </td>
-            <td className="px-4 py-3 whitespace-nowrap">
+            <td className="px-4 py-3 whitespace-nowrap border-r border-gray-100">
               <span
                 className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${getRoleColor(
                   user.role
@@ -814,7 +807,7 @@ export function DataTable({
                 {user.role.replace("_", " ")}
               </span>
             </td>
-            <td className="px-4 py-3 whitespace-nowrap">
+            <td className="px-4 py-3 whitespace-nowrap border-r border-gray-100">
               <div
                 className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(
                   user.status
@@ -824,7 +817,7 @@ export function DataTable({
                 <span className="ml-1">{user.status}</span>
               </div>
             </td>
-            <td className="px-4 py-3 whitespace-nowrap text-xs text-gray-500">
+            <td className="px-4 py-3 whitespace-nowrap text-xs text-gray-500 border-r border-gray-100">
               {formatDate(user.created_at)}
             </td>
             {showActions && actions.length > 0 && (
@@ -850,18 +843,18 @@ export function DataTable({
         return (
           <tr
             key={project.id}
-            className="border-b border-secondary hover:bg-gray-50 transition-colors"
+            className="border-b border-gray-100 hover:bg-gray-50 transition-colors"
           >
-            <td className="px-4 py-3 whitespace-nowrap text-xs font-medium text-gray-900">
+            <td className="px-4 py-3 whitespace-nowrap text-xs font-medium text-gray-900 border-r border-gray-100">
               {project.project_code}
             </td>
-            <td className="px-4 py-3 whitespace-nowrap text-xs text-gray-900">
+            <td className="px-4 py-3 whitespace-nowrap text-xs text-gray-900 border-r border-gray-100">
               {project.name}
             </td>
-            <td className="px-4 py-3 text-xs text-gray-500 max-w-xs truncate">
+            <td className="px-4 py-3 text-xs text-gray-500 max-w-xs truncate border-r border-gray-100">
               {project.description || "-"}
             </td>
-            <td className="px-4 py-3 whitespace-nowrap">
+            <td className="px-4 py-3 whitespace-nowrap border-r border-gray-100">
               <div
                 className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(
                   project.status
@@ -871,7 +864,7 @@ export function DataTable({
                 <span className="ml-1">{project.status}</span>
               </div>
             </td>
-            <td className="px-4 py-3 whitespace-nowrap text-xs text-gray-500">
+            <td className="px-4 py-3 whitespace-nowrap text-xs text-gray-500 border-r border-gray-100">
               {project.start_date ? formatDate(project.start_date) : "-"}
             </td>
             {showActions && actions.length > 0 && (
@@ -897,21 +890,21 @@ export function DataTable({
         return (
           <tr
             key={expense.id}
-            className="border-b border-secondary hover:bg-gray-50 transition-colors"
+            className="border-b border-gray-100 hover:bg-gray-50 transition-colors"
           >
-            <td className="px-4 py-3 text-xs text-gray-900 max-w-xs truncate">
+            <td className="px-4 py-3 text-xs text-gray-900 max-w-xs truncate border-r border-gray-100">
               {expense.description}
             </td>
-            <td className="px-4 py-3 whitespace-nowrap text-xs text-gray-500">
+            <td className="px-4 py-3 whitespace-nowrap text-xs text-gray-500 border-r border-gray-100">
               {expense.project_name || "-"}
             </td>
-            <td className="px-4 py-3 whitespace-nowrap text-xs font-medium text-gray-900">
+            <td className="px-4 py-3 whitespace-nowrap text-xs font-medium text-gray-900 border-r border-gray-100">
               {formatCurrency(expense.amount)}
             </td>
-            <td className="px-4 py-3 whitespace-nowrap text-xs text-gray-500">
+            <td className="px-4 py-3 whitespace-nowrap text-xs text-gray-500 border-r border-gray-100">
               {expense.category || "-"}
             </td>
-            <td className="px-4 py-3 whitespace-nowrap">
+            <td className="px-4 py-3 whitespace-nowrap border-r border-gray-100">
               <div
                 className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(
                   expense.status
@@ -921,7 +914,7 @@ export function DataTable({
                 <span className="ml-1">{expense.status}</span>
               </div>
             </td>
-            <td className="px-4 py-3 whitespace-nowrap text-xs text-gray-500">
+            <td className="px-4 py-3 whitespace-nowrap text-xs text-gray-500 border-r border-gray-100">
               {formatDate(expense.created_at)}
             </td>
             {showActions && actions.length > 0 && (
@@ -947,15 +940,15 @@ export function DataTable({
         return (
           <tr
             key={allocation.id}
-            className="border-b border-secondary hover:bg-gray-50 transition-colors"
+            className="border-b border-gray-100 hover:bg-gray-50 transition-colors"
           >
-            <td className="px-4 py-3 whitespace-nowrap text-xs text-gray-900">
+            <td className="px-4 py-3 whitespace-nowrap text-xs text-gray-900 border-r border-gray-100">
               <div className="flex flex-col">
                 <span className="font-medium">{allocation.project_code || "-"}</span>
                 <span className="text-gray-500">{allocation.project_name || "-"}</span>
               </div>
             </td>
-            <td className="px-4 py-3 whitespace-nowrap text-xs text-gray-900">
+            <td className="px-4 py-3 whitespace-nowrap text-xs text-gray-900 border-r border-gray-100">
               <div className="flex flex-col">
                 <span className="font-medium">
                   {allocation.first_name} {allocation.last_name}
@@ -963,13 +956,13 @@ export function DataTable({
                 <span className="text-gray-500">{allocation.email || "-"}</span>
               </div>
             </td>
-            <td className="px-4 py-3 whitespace-nowrap text-xs font-medium text-gray-900">
+            <td className="px-4 py-3 whitespace-nowrap text-xs font-medium text-gray-900 border-r border-gray-100">
               {formatCurrency(allocation.amount)}
             </td>
-            <td className="px-4 py-3 text-xs text-gray-500 max-w-xs truncate">
+            <td className="px-4 py-3 text-xs text-gray-500 max-w-xs truncate border-r border-gray-100">
               {allocation.description || "-"}
             </td>
-            <td className="px-4 py-3 whitespace-nowrap">
+            <td className="px-4 py-3 whitespace-nowrap border-r border-gray-100">
               <div
                 className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(
                   allocation.status
@@ -979,7 +972,7 @@ export function DataTable({
                 <span className="ml-1">{allocation.status}</span>
               </div>
             </td>
-            <td className="px-4 py-3 whitespace-nowrap text-xs text-gray-500">
+            <td className="px-4 py-3 whitespace-nowrap text-xs text-gray-500 border-r border-gray-100">
               {formatDate(allocation.allocated_at)}
             </td>
             {showActions && actions.length > 0 && (
@@ -1005,18 +998,18 @@ export function DataTable({
         return (
           <tr
             key={finance.id}
-            className="border-b border-secondary hover:bg-gray-50 transition-colors"
+            className="border-b border-gray-100 hover:bg-gray-50 transition-colors"
           >
-            <td className="px-4 py-3 text-xs text-gray-900">
+            <td className="px-4 py-3 text-xs text-gray-900 border-r border-gray-100">
               {finance.description || "Deposit"}
             </td>
-            <td className="px-4 py-3 whitespace-nowrap text-xs text-gray-500">
+            <td className="px-4 py-3 whitespace-nowrap text-xs text-gray-500 border-r border-gray-100">
               {finance.project_name || "-"}
             </td>
-            <td className="px-4 py-3 whitespace-nowrap text-xs font-medium text-gray-900">
+            <td className="px-4 py-3 whitespace-nowrap text-xs font-medium text-gray-900 border-r border-gray-100">
               {formatCurrency(finance.amount)}
             </td>
-            <td className="px-4 py-3 whitespace-nowrap text-xs text-gray-500">
+            <td className="px-4 py-3 whitespace-nowrap text-xs text-gray-500 border-r border-gray-100">
               {formatDate(finance.created_at)}
             </td>
             {showActions && (isAdmin) && actions.length > 0 && (
@@ -1054,16 +1047,16 @@ export function DataTable({
         case "allocations":
           return showActions ? 7 : 6;
         case "finances":
-          return showActions && (isAdmin || isFinanceManager) ? 5 : 4;
+          return showActions && (isAdmin) ? 5 : 4;
         default:
           return 6;
       }
     };
 
     return (
-      <tr className="border-b border-secondary">
+      <tr className="border-b border-gray-100">
         {Array.from({ length: getSkeletonCols() }).map((_, index) => (
-          <td key={index} className="px-4 py-3">
+          <td key={index} className="px-4 py-3 border-r border-gray-100">
             <div className="animate-pulse bg-gray-200 rounded h-4"></div>
           </td>
         ))}
@@ -1072,11 +1065,10 @@ export function DataTable({
   };
 
   return (
-    <div className="bg-white overflow-hidden">
-      {/* Global Loading Overlay */}
+    <div className="bg-white overflow-hidden border border-gray-100">
       {actionLoading && (
         <div className="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 flex flex-col items-center gap-3 shadow-xl">
+          <div className="bg-white rounded-lg p-6 flex flex-col items-center gap-3 shadow-xl border border-gray-100">
             <Loader2 className="h-8 w-8 animate-spin text-primary" />
             <p className="text-sm font-medium text-gray-900">Processing...</p>
             <p className="text-xs text-gray-500">Please wait</p>
@@ -1084,7 +1076,6 @@ export function DataTable({
         </div>
       )}
 
-      {/* Actions Dropdown */}
       {openDropdownId && (
         <ActionsDropdown
           isOpen={!!openDropdownId}
@@ -1095,13 +1086,12 @@ export function DataTable({
         />
       )}
 
-      {/* Table */}
       <div className="overflow-x-auto">
-        <table className="min-w-full divide-y divide-gray-200">
+        <table className="min-w-full divide-y divide-gray-100">
           <thead className="bg-secondary">
             <tr>{renderTableHeaders()}</tr>
           </thead>
-          <tbody className="bg-white divide-y divide-gray-200">
+          <tbody className="bg-white divide-y divide-gray-100">
             {loading ? (
               Array.from({ length: 5 }).map((_, index) => (
                 <SkeletonRow key={index} />
@@ -1122,7 +1112,7 @@ export function DataTable({
                   className="px-4 py-12 text-center"
                 >
                   <div className="flex flex-col items-center justify-center space-y-3">
-                    <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center">
+                    <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center border border-gray-100">
                     <svg
                       className="w-8 h-8 text-gray-400"
                       fill="none"
@@ -1149,11 +1139,9 @@ export function DataTable({
         </table>
       </div>
 
-      {/* Professional Pagination */}
       {pagination && pagination.total > 0 && (
-        <div className="bg-white px-4 py-4 border-t border-secondary">
+        <div className="bg-white px-4 py-4 border-t border-gray-100">
           <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-            {/* Results Info */}
             <div className="flex items-center gap-4">
             <span className="text-xs text-gray-700">
                 Showing <span className="font-medium">{((pagination.current_page - 1) * pagination.per_page) + 1}</span> to{' '}
@@ -1163,12 +1151,11 @@ export function DataTable({
                 of <span className="font-medium">{pagination.total}</span> results
             </span>
               
-              {/* Per Page Selector */}
               {onPerPageChange && (
             <select
                   value={pagination.per_page}
                   onChange={(e) => onPerPageChange(Number(e.target.value))}
-                  className="border border-secondary rounded-md px-3 py-1.5 text-xs focus:ring-2 focus:ring-primary focus:border-primary"
+                  className="border border-gray-100 rounded-md px-3 py-1.5 text-xs focus:ring-2 focus:ring-primary focus:border-primary"
                   disabled={loading || actionLoading}
             >
               <option value={5}>5 per page</option>
@@ -1179,30 +1166,26 @@ export function DataTable({
               )}
           </div>
 
-            {/* Pagination Controls */}
             {onPageChange && (
               <div className="flex items-center gap-1">
-                {/* First Page */}
             <button
                   onClick={() => onPageChange(1)}
                   disabled={!pagination.has_previous_page || loading || actionLoading}
-                  className="p-2 rounded-md border border-secondary bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  className="p-2 rounded-md border border-gray-100 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                   title="First page"
             >
                   <ChevronsLeft className="h-4 w-4 text-gray-600" />
             </button>
 
-                {/* Previous Page */}
             <button
                   onClick={() => onPageChange(pagination.current_page - 1)}
                   disabled={!pagination.has_previous_page || loading || actionLoading}
-                  className="p-2 rounded-md border border-secondary bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  className="p-2 rounded-md border border-gray-100 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                   title="Previous page"
             >
                   <ChevronLeft className="h-4 w-4 text-gray-600" />
             </button>
 
-                {/* Page Numbers */}
                 <div className="hidden sm:flex items-center gap-1">
                   {getPageNumbers().map((page, index) => (
                     page === '...' ? (
@@ -1217,7 +1200,7 @@ export function DataTable({
                         className={`min-w-[32px] px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
                           page === pagination.current_page
                             ? 'bg-primary text-black border border-primary'
-                            : 'border border-secondary bg-white hover:bg-gray-50 text-gray-700'
+                            : 'border border-gray-100 bg-white hover:bg-gray-50 text-gray-700'
                         } disabled:opacity-50 disabled:cursor-not-allowed`}
                       >
                         {page}
@@ -1226,26 +1209,23 @@ export function DataTable({
                   ))}
                 </div>
 
-                {/* Mobile Page Info */}
-                <div className="sm:hidden px-3 py-1.5 border border-secondary rounded-md bg-white text-xs font-medium">
+                <div className="sm:hidden px-3 py-1.5 border border-gray-100 rounded-md bg-white text-xs font-medium">
                   {pagination.current_page} / {pagination.total_pages}
                 </div>
 
-                {/* Next Page */}
             <button
                   onClick={() => onPageChange(pagination.current_page + 1)}
                   disabled={!pagination.has_next_page || loading || actionLoading}
-                  className="p-2 rounded-md border border-secondary bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  className="p-2 rounded-md border border-gray-100 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                   title="Next page"
             >
                   <ChevronRight className="h-4 w-4 text-gray-600" />
             </button>
 
-                {/* Last Page */}
             <button
                   onClick={() => onPageChange(pagination.total_pages)}
                   disabled={!pagination.has_next_page || loading || actionLoading}
-                  className="p-2 rounded-md border border-secondary bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  className="p-2 rounded-md border border-gray-100 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                   title="Last page"
             >
                   <ChevronsRight className="h-4 w-4 text-gray-600" />

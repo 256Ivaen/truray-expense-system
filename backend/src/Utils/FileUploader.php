@@ -1,5 +1,4 @@
 <?php
-
 namespace App\Utils;
 
 use Exception;
@@ -98,6 +97,6 @@ class FileUploader
     public function getUrl($filepath)
     {
         $appUrl = $_ENV['APP_URL'] ?? 'http://localhost';
-        return rtrim($appUrl, '/') . '/uploads/' . ltrim($filepath, '/');
+        return rtrim($appUrl, '/') . '/storage/uploads/' . ltrim($filepath, '/');
     }
 }

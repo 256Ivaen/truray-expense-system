@@ -178,4 +178,95 @@ class ProjectController
         
         return Response::error($result['message'], 400);
     }
+    
+    public function getExpenseTypes($data)
+    {
+        if (empty($data['id'])) {
+            return Response::error('Project ID is required', 400);
+        }
+        
+        $currentUser = AuthMiddleware::user();
+        
+        // Check if project exists and user has permission
+        $project = $this->projectService->getById($data['id'], $currentUser['id'], $currentUser['role']);
+        if (!$project) {
+            return Response::notFound('Project not found');
+        }
+        
+        $expenseTypes = $this->projectService->getProjectExpenseTypes($data['id']);
+        
+        return Response::success($expenseTypes);
+    }
+    
+    public function updateExpenseTypes($data)
+    {
+        if (empty($data['id']) || !isset($data['expense_types'])) {
+            return Response::error('Project ID and expense_types are required', 400);
+        }
+        
+        $currentUser = AuthMiddleware::user();
+        
+        // Check if project exists and user has permission
+        $project = $this->projectService->getById($data['id'], $currentUser['id'], $currentUser['role']);
+        if (!$project) {
+            return Response::notFound('Project not found');
+        }
+        
+        $result = $this->projectService->updateExpenseTypes($data['id'], $data['expense_types']);
+        
+        if ($result['success']) {
+            AuditMiddleware::logUpdate('project_expense_types', $data['id'], $project['expense_types'], $result['data']);
+            return Response::success($result['data'], 'Expense types updated successfully');
+        }
+        
+        return Response::error($result['message'], 400);
+    }
+    
+    public function addExpenseType($data)
+    {
+        if (empty($data['id']) || empty($data['name'])) {
+            return Response::error('Project ID and expense type name are required', 400);
+        }
+        
+        $currentUser = AuthMiddleware::user();
+        
+        // Check if project exists and user has permission
+        $project = $this->projectService->getById($data['id'], $currentUser['id'], $currentUser['role']);
+        if (!$project) {
+            return Response::notFound('Project not found');
+        }
+        
+        $result = $this->projectService->addExpenseType($data['id'], $data['name']);
+        
+        if ($result['success']) {
+            AuditMiddleware::logCreate('project_expense_types', $result['data']['id'], $result['data']);
+            return Response::success($result['data'], 'Expense type added successfully', 201);
+        }
+        
+        return Response::error($result['message'], 400);
+    }
+    
+    public function deleteExpenseType($data)
+    {
+        if (empty($data['id']) || empty($data['expense_type_id'])) {
+            return Response::error('Project ID and Expense Type ID are required', 400);
+        }
+        
+        $currentUser = AuthMiddleware::user();
+        
+        // Check if project exists and user has permission
+        $project = $this->projectService->getById($data['id'], $currentUser['id'], $currentUser['role']);
+        if (!$project) {
+            return Response::notFound('Project not found');
+        }
+        
+        $result = $this->projectService->deleteExpenseType($data['expense_type_id'], $data['id']);
+        
+        if ($result['success']) {
+            AuditMiddleware::logDelete('project_expense_types', $data['expense_type_id'], $result['deleted_type']);
+            return Response::success(null, $result['message']);
+        }
+        
+        return Response::error($result['message'], 400);
+    }
 }

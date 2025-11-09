@@ -8,13 +8,12 @@ import {
   Filter,
   Plus,
   Clock,
-  TrendingUp,
   X,
   Upload,
   Loader2,
 } from "lucide-react";
 import { MdOutlineAttachMoney } from "react-icons/md";
-import { get, post, put, del } from "../utils/service";
+import { get, post, put, del, upload } from "../utils/service";
 import { toast } from "sonner";
 import { DataTable } from "../components/shared/DataTable";
 import { DeleteModal } from "../components/shared/Modals";
@@ -57,7 +56,7 @@ interface CreateExpenseData {
   amount: number;
   description: string;
   category: string;
-  receipt_image?: File;
+  receipt_image?: string;
 }
 
 interface UpdateExpenseData {
@@ -66,6 +65,28 @@ interface UpdateExpenseData {
   description?: string;
   category?: string;
   status?: 'pending' | 'approved' | 'rejected';
+}
+
+interface ExpensesResponse {
+  success: boolean;
+  message: string;
+  data: Expense[];
+  pagination: any;
+  allocation_summary: {
+    total_allocated: string;
+    total_expenses: string;
+    allocation_balance: string;
+  };
+  expense_summary?: {
+    total_expenses: number;
+    total_approved: string;
+    total_pending: string;
+    total_rejected: string;
+    total_amount: string;
+    average_amount: string;
+    highest_expense: string;
+    lowest_expense: string;
+  };
 }
 
 const getCurrentUserRole = () => {
@@ -128,9 +149,11 @@ function CreateExpenseModal({ isOpen, onClose, onSubmit, projects, loading = fal
     amount: 0,
     description: "",
     category: "",
-    receipt_image: undefined
   });
 
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [uploadingImage, setUploadingImage] = useState(false);
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
 
   useEffect(() => {
@@ -145,13 +168,51 @@ function CreateExpenseModal({ isOpen, onClose, onSubmit, projects, loading = fal
     }
   }, [form.project_id, projects]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const uploadImage = async (file: File): Promise<string> => {
+    const formData = new FormData();
+    formData.append('file', file);
+    
+    const response = await upload('/upload', formData);
+    
+    if (response.success) {
+      return response.message.url;
+    } else {
+      throw new Error(response.message || 'Failed to upload image');
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
     if (!form.category) {
       toast.error('Please select an expense type');
       return;
     }
-    onSubmit(form);
+
+    if (!selectedFile) {
+      toast.error('Please upload a receipt image');
+      return;
+    }
+
+    setUploadingImage(true);
+    
+    try {
+      const imageUrl = await uploadImage(selectedFile);
+      
+      const expenseData = {
+        project_id: form.project_id,
+        amount: form.amount,
+        description: form.description,
+        category: form.category,
+        receipt_image: imageUrl
+      };
+      
+      onSubmit(expenseData);
+    } catch (error: any) {
+      console.error('Error uploading image:', error);
+      toast.error(error.message || 'Failed to upload receipt image');
+      setUploadingImage(false);
+    }
   };
 
   const handleClose = () => {
@@ -160,18 +221,37 @@ function CreateExpenseModal({ isOpen, onClose, onSubmit, projects, loading = fal
       amount: 0,
       description: "",
       category: "",
-      receipt_image: undefined
     });
+    setSelectedFile(null);
+    if (imagePreview) {
+      URL.revokeObjectURL(imagePreview);
+    }
+    setImagePreview(null);
     setSelectedProject(null);
+    setUploadingImage(false);
     onClose();
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      setForm({ ...form, receipt_image: file });
+      setSelectedFile(file);
+      const previewUrl = URL.createObjectURL(file);
+      setImagePreview(previewUrl);
     }
   };
+
+  const removeImage = () => {
+    setSelectedFile(null);
+    if (imagePreview) {
+      URL.revokeObjectURL(imagePreview);
+      setImagePreview(null);
+    }
+  };
+
+  const isSubmitDisabled = loading || uploadingImage || !selectedProject || 
+    (selectedProject.expense_types && selectedProject.expense_types.length > 0 && !form.category) || 
+    !selectedFile;
 
   return (
     <div 
@@ -185,7 +265,7 @@ function CreateExpenseModal({ isOpen, onClose, onSubmit, projects, loading = fal
         <div className="flex items-center justify-between p-6 border-b border-gray-200">
           <h2 className="text-lg font-semibold text-gray-900">Record New Expense</h2>
           <button
-            onClick={onClose}
+            onClick={handleClose}
             className="text-gray-400 hover:text-gray-600 transition-colors"
           >
             <X className="h-5 w-5" />
@@ -201,7 +281,7 @@ function CreateExpenseModal({ isOpen, onClose, onSubmit, projects, loading = fal
               value={form.project_id}
               onChange={(e) => setForm({ ...form, project_id: e.target.value })}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary text-xs"
-              disabled={loading}
+              disabled={loading || uploadingImage}
             >
               <option value="">Select a project</option>
               {projects.map(project => (
@@ -222,7 +302,7 @@ function CreateExpenseModal({ isOpen, onClose, onSubmit, projects, loading = fal
                 value={form.category}
                 onChange={(e) => setForm({ ...form, category: e.target.value })}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary text-xs"
-                disabled={loading}
+                disabled={loading || uploadingImage}
               >
                 <option value="">Select expense type</option>
                 {selectedProject.expense_types.map(type => (
@@ -255,7 +335,7 @@ function CreateExpenseModal({ isOpen, onClose, onSubmit, projects, loading = fal
               onChange={(e) => setForm({ ...form, amount: e.target.value === '' ? 0 : parseFloat(e.target.value) })}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary text-xs"
               placeholder="0.00"
-              disabled={loading}
+              disabled={loading || uploadingImage}
             />
           </div>
 
@@ -270,54 +350,84 @@ function CreateExpenseModal({ isOpen, onClose, onSubmit, projects, loading = fal
               rows={3}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary text-xs"
               placeholder="Expense description..."
-              disabled={loading}
+              disabled={loading || uploadingImage}
             />
           </div>
 
           <div>
             <label className="block text-xs font-medium text-gray-700 mb-1">
-              Receipt Image
+              Receipt Image *
             </label>
-            <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center hover:border-gray-400 transition-colors">
-              <input
-                type="file"
-                accept="image/*"
-                onChange={handleFileChange}
-                className="hidden"
-                id="receipt-image"
-                disabled={loading}
-              />
-              <label 
-                htmlFor="receipt-image" 
-                className="cursor-pointer block"
-              >
-                <Upload className="h-6 w-6 text-gray-400 mx-auto mb-2" />
-                <span className="text-xs text-gray-600 font-medium">
-                  {form.receipt_image ? form.receipt_image.name : 'Click to upload receipt'}
-                </span>
-                <p className="text-xs text-gray-500 mt-1">
-                  Upload receipt or proof of expense (optional)
-                </p>
-              </label>
-            </div>
+            
+            {!selectedFile ? (
+              <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center hover:border-gray-400 transition-colors">
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={handleFileChange}
+                  className="hidden"
+                  id="receipt-image"
+                  disabled={loading || uploadingImage}
+                />
+                <label 
+                  htmlFor="receipt-image" 
+                  className="cursor-pointer block"
+                >
+                  <Upload className="h-6 w-6 text-gray-400 mx-auto mb-2" />
+                  <span className="text-xs text-gray-600 font-medium">
+                    Click to upload receipt
+                  </span>
+                  <p className="text-xs text-gray-500 mt-1">
+                    Upload receipt or proof of expense (required)
+                  </p>
+                </label>
+              </div>
+            ) : (
+              <div className="border border-gray-300 rounded-lg p-4">
+                <div className="flex items-center justify-between mb-3">
+                  <span className="text-xs text-gray-600 font-medium">
+                    {selectedFile.name}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={removeImage}
+                    className="text-red-500 hover:text-red-700 text-xs font-medium"
+                    disabled={loading || uploadingImage}
+                  >
+                    Remove
+                  </button>
+                </div>
+                
+                {imagePreview && (
+                  <div className="mt-2">
+                    <p className="text-xs text-gray-500 mb-2">Preview:</p>
+                    <img 
+                      src={imagePreview} 
+                      alt="Receipt preview" 
+                      className="w-full max-w-xs mx-auto rounded-lg border border-gray-200 max-h-48 object-contain"
+                    />
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
           <div className="flex gap-3 pt-4">
             <button
               type="button"
               onClick={handleClose}
-              disabled={loading}
+              disabled={loading || uploadingImage}
               className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors text-xs font-medium disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Cancel
             </button>
             <button
               type="submit"
-              disabled={loading || !selectedProject || (selectedProject.expense_types && selectedProject.expense_types.length > 0 && !form.category)}
+              disabled={isSubmitDisabled}
               className="flex-1 px-4 py-2 bg-primary text-secondary rounded-lg hover:bg-primary/90 transition-colors text-xs font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
             >
-              {loading && <Loader2 className="w-4 h-4 animate-spin" />}
-              {loading ? "Recording..." : "Record Expense"}
+              {(loading || uploadingImage) && <Loader2 className="w-4 h-4 animate-spin" />}
+              {uploadingImage ? "Uploading..." : loading ? "Recording..." : "Record Expense"}
             </button>
           </div>
         </form>
@@ -520,6 +630,11 @@ const ExpensesPage = () => {
   const [showEditModal, setShowEditModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [selectedExpense, setSelectedExpense] = useState<Expense | null>(null);
+  const [allocationSummary, setAllocationSummary] = useState({
+    total_allocated: "0.00",
+    total_expenses: "0.00",
+    allocation_balance: "0.00"
+  });
 
   const currentUserRole = getCurrentUserRole();
   const currentUserId = getCurrentUserId();
@@ -532,9 +647,12 @@ const ExpensesPage = () => {
   const fetchExpenses = async () => {
     setLoading(true);
     try {
-      const response = await get('/expenses');
+      const response = await get('/expenses') as ExpensesResponse;
       if (response.success) {
         setExpenses(response.data);
+        if (response.allocation_summary) {
+          setAllocationSummary(response.allocation_summary);
+        }
       } else {
         toast.error('Failed to fetch expenses');
       }
@@ -576,18 +694,7 @@ const ExpensesPage = () => {
   const handleCreateExpense = async (data: CreateExpenseData) => {
     setActionLoading(true);
     try {
-      const formData = new FormData();
-      formData.append('project_id', data.project_id);
-      formData.append('amount', data.amount.toString());
-      formData.append('description', data.description);
-      formData.append('category', data.category);
-      if (data.receipt_image) formData.append('receipt_image', data.receipt_image);
-
-      const response = await post('/expenses', formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
-      });
+      const response = await post('/expenses', data);
       
       if (response.success) {
         toast.success('Expense recorded successfully');
@@ -721,18 +828,9 @@ const ExpensesPage = () => {
     return matchesSearch && matchesStatus && matchesProject;
   });
 
-  const expenseStats = {
-    totalExpenses: expenses.reduce((sum, expense) => sum + parseFloat(expense.amount), 0),
-    totalRecords: expenses.length,
-    pendingExpenses: expenses.filter(e => e.status === 'pending').length,
-    approvedExpenses: expenses.filter(e => e.status === 'approved').length,
-    averageExpense: expenses.length > 0 
-      ? expenses.reduce((sum, expense) => sum + parseFloat(expense.amount), 0) / expenses.length 
-      : 0
-  };
-
-  const formatCurrency = (amount: number) => {
-    return `UGX ${amount.toLocaleString('en-US', {
+  const formatCurrency = (amount: string) => {
+    const numAmount = parseFloat(amount);
+    return `UGX ${numAmount.toLocaleString('en-US', {
       minimumFractionDigits: 0,
       maximumFractionDigits: 0
     })}`;
@@ -780,23 +878,23 @@ const ExpensesPage = () => {
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           <StatCard
-            title="Total Expenses"
-            value={formatCurrency(expenseStats.totalExpenses)}
-            subtitle="All time total"
+            title="Total Allocated"
+            value={formatCurrency(allocationSummary.total_allocated)}
+            subtitle="Total budget allocated"
             icon={Receipt}
             loading={loading}
           />
           <StatCard
-            title="Pending"
-            value={expenseStats.pendingExpenses}
-            subtitle="Awaiting approval"
+            title="Total Expenses"
+            value={formatCurrency(allocationSummary.total_expenses)}
+            subtitle="Amount spent so far"
             icon={Clock}
             loading={loading}
           />
           <StatCard
-            title="Average Expense"
-            value={formatCurrency(expenseStats.averageExpense)}
-            subtitle="Per expense"
+            title="Balance"
+            value={formatCurrency(allocationSummary.allocation_balance)}
+            subtitle="Remaining allocation"
             icon={MdOutlineAttachMoney}
             loading={loading}
           />

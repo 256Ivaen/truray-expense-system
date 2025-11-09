@@ -9,18 +9,19 @@ import {
   TrendingUp,
   Wallet,
   UserPlus,
-  UserMinus,
-  Mail,
+  X,
   Loader2,
   Calendar,
   FileText,
   Clock,
   Tag,
+  Edit3,
 } from "lucide-react";
-import { get, post, del } from "../utils/service";
+import { get, post, del, put } from "../utils/service";
 import { toast } from "sonner";
 import { StatCard } from "../components/shared/StatCard";
 import { DataTable } from "../components/shared/DataTable";
+import { DeleteModal } from "../components/shared/Modals";
 
 interface Project {
   id: string;
@@ -29,7 +30,7 @@ interface Project {
   description?: string;
   start_date?: string;
   end_date?: string;
-  status: "planning" | "active" | "completed" | "cancelled" | "closed";
+  status: "pending" | "active" | "completed" | "cancelled" | "closed";
   created_at: string;
   updated_at: string;
   balance?: {
@@ -63,6 +64,16 @@ interface User {
   role: "admin" | "user";
 }
 
+interface UpdateProjectData {
+  project_code?: string;
+  name?: string;
+  description?: string;
+  start_date?: string;
+  end_date?: string;
+  status?: "pending" | "active" | "completed" | "cancelled" | "closed";
+  expense_types?: string[];
+}
+
 const SkeletonBox = ({ className }: { className?: string }) => (
   <div className={`animate-pulse bg-gray-200 rounded-lg ${className}`}></div>
 );
@@ -88,6 +99,241 @@ const CardSkeleton = () => (
   </div>
 );
 
+interface EditProjectModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  onSubmit: (data: UpdateProjectData) => void;
+  project: Project | null;
+  loading?: boolean;
+}
+
+function EditProjectModal({ isOpen, onClose, onSubmit, project, loading = false }: EditProjectModalProps) {
+  const [form, setForm] = useState<UpdateProjectData>({
+    project_code: "",
+    name: "",
+    description: "",
+    start_date: "",
+    end_date: "",
+    status: "pending"
+  });
+
+  const [expenseTypes, setExpenseTypes] = useState<string[]>([]);
+  const [newExpenseType, setNewExpenseType] = useState<string>("");
+
+  useEffect(() => {
+    if (project) {
+      setForm({
+        project_code: project.project_code,
+        name: project.name,
+        description: project.description || "",
+        start_date: project.start_date || "",
+        end_date: project.end_date || "",
+        status: project.status
+      });
+      
+      // Set expense types from project data
+      if (project.expense_types) {
+        setExpenseTypes(project.expense_types.map(et => et.name));
+      } else {
+        setExpenseTypes([]);
+      }
+    }
+  }, [project]);
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    const payload = {
+      ...form,
+      expense_types: expenseTypes.filter(t => t.trim() !== "")
+    };
+    onSubmit(payload);
+  };
+
+  const handleClose = () => {
+    onClose();
+  };
+
+  if (!project) return null;
+
+  return (
+    <div 
+      className={`fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm flex items-center justify-center p-4 z-50 ${isOpen ? 'block' : 'hidden'}`}
+      onClick={onClose}
+    >
+      <div 
+        className="bg-white rounded-lg max-w-md w-full max-h-[90vh] overflow-y-auto"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between p-6 border-b border-gray-200">
+          <h2 className="text-lg font-semibold text-gray-900">Edit Project</h2>
+          <button
+            onClick={onClose}
+            className="text-gray-400 hover:text-gray-600 transition-colors"
+          >
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+          <div>
+            <label className="block text-xs font-medium text-gray-700 mb-1">
+              Project Code
+            </label>
+            <input
+              type="text"
+              value={form.project_code}
+              className="w-full px-3 py-2 border border-gray-200 bg-gray-100 rounded-lg text-xs"
+              disabled
+              readOnly
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-medium text-gray-700 mb-1">
+              Project Name
+            </label>
+            <input
+              type="text"
+              required
+              value={form.name}
+              onChange={(e) => setForm({ ...form, name: e.target.value })}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary text-xs"
+              disabled={loading}
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-medium text-gray-700 mb-1">
+              Description
+            </label>
+            <textarea
+              value={form.description}
+              onChange={(e) => setForm({ ...form, description: e.target.value })}
+              rows={3}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary text-xs"
+              disabled={loading}
+            />
+          </div>
+
+          {/* EXPENSE TYPES SECTION */}
+          <div className="pt-2">
+            <label className="block text-xs font-medium text-gray-700 mb-2">
+              Expense Types
+            </label>
+            <div className="flex gap-2 mb-2">
+              <input
+                type="text"
+                value={newExpenseType}
+                onChange={(e) => setNewExpenseType(e.target.value)}
+                placeholder="e.g. Transport"
+                className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary text-xs"
+                disabled={loading}
+              />
+              <button
+                type="button"
+                onClick={() => {
+                  const name = newExpenseType.trim();
+                  if (!name) return;
+                  if (expenseTypes.includes(name)) return;
+                  setExpenseTypes([...expenseTypes, name]);
+                  setNewExpenseType("");
+                }}
+                disabled={loading || !newExpenseType.trim()}
+                className="px-3 py-2 bg-primary text-secondary rounded-lg hover:bg-primary/90 transition-colors text-xs font-medium disabled:opacity-50"
+              >
+                Add
+              </button>
+            </div>
+            {expenseTypes.length > 0 ? (
+              <div className="flex flex-wrap gap-2">
+                {expenseTypes.map((t, idx) => (
+                  <span key={idx} className="inline-flex items-center gap-2 px-2 py-1 rounded-full bg-gray-100 text-gray-800 text-[11px]">
+                    {t}
+                    <button
+                      type="button"
+                      onClick={() => setExpenseTypes(expenseTypes.filter(x => x !== t))}
+                      className="text-gray-500 hover:text-gray-700"
+                      disabled={loading}
+                    >
+                      ×
+                    </button>
+                  </span>
+                ))}
+              </div>
+            ) : (
+              <p className="text-[11px] text-gray-500">No expense types added yet.</p>
+            )}
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-medium text-gray-700 mb-1">
+                Start Date
+              </label>
+              <input
+                type="date"
+                value={form.start_date}
+                onChange={(e) => setForm({ ...form, start_date: e.target.value })}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary text-xs"
+                disabled={loading}
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-700 mb-1">
+                End Date
+              </label>
+              <input
+                type="date"
+                value={form.end_date}
+                onChange={(e) => setForm({ ...form, end_date: e.target.value })}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary text-xs"
+                disabled={loading}
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-medium text-gray-700 mb-1">
+              Status
+            </label>
+            <select
+              value={form.status}
+              onChange={(e) => setForm({ ...form, status: e.target.value as any })}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary text-xs"
+              disabled={loading}
+            >
+              <option value="pending">Pending</option>
+              <option value="active">Active</option>
+              <option value="completed">Completed</option>
+              <option value="cancelled">Cancelled</option>
+              <option value="closed">Closed</option>
+            </select>
+          </div>
+
+          <div className="flex gap-3 pt-4">
+            <button
+              type="button"
+              onClick={handleClose}
+              disabled={loading}
+              className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors text-xs font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={loading}
+              className="flex-1 px-4 py-2 bg-primary text-secondary rounded-lg hover:bg-primary/90 transition-colors text-xs font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+            >
+              {loading && <Loader2 className="w-4 h-4 animate-spin" />}
+              {loading ? "Updating..." : "Update Project"}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
 const ProjectDetailsPage = () => {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -98,6 +344,8 @@ const ProjectDetailsPage = () => {
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
   const [selectedUser, setSelectedUser] = useState("");
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
 
   const getCurrentUserRole = () => {
     try {
@@ -116,6 +364,7 @@ const ProjectDetailsPage = () => {
   const isAdmin = currentUserRole === "admin" || currentUserRole === "super_admin";
   const isFinanceManager = false;
   const canManageUsers = isAdmin || isFinanceManager;
+  const canEditProject = isAdmin || isFinanceManager;
 
   useEffect(() => {
     if (projectId) {
@@ -156,8 +405,38 @@ const ProjectDetailsPage = () => {
     }
   };
 
+  const handleEditProject = async (data: UpdateProjectData) => {
+    if (!project) return;
+    
+    setActionLoading(true);
+    try {
+      const response = await put(`/projects/${project.id}`, data);
+      if (response.success) {
+        toast.success('Project updated successfully');
+        setShowEditModal(false);
+        fetchProjectDetails();
+      } else {
+        toast.error(response.message || 'Failed to update project');
+      }
+    } catch (error: any) {
+      console.error('Error updating project:', error);
+      toast.error(error.response?.data?.message || 'Error updating project');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
   const handleAssignUser = async () => {
     if (!selectedUser || !project) return;
+
+    // Check if there's already a user assigned
+    const currentUser = project.users && project.users.length > 0 ? project.users[0] : null;
+    
+    if (currentUser) {
+      if (!confirm(`You are reassigning a new user to this project. This will remove ${currentUser.first_name} ${currentUser.last_name} from the project. Continue?`)) {
+        return;
+      }
+    }
 
     setActionLoading(true);
     try {
@@ -209,6 +488,8 @@ const ProjectDetailsPage = () => {
     return new Intl.NumberFormat("en-US", {
       style: "currency",
       currency: "UGX",
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0
     }).format(parseFloat(amount));
   };
 
@@ -226,7 +507,7 @@ const ProjectDetailsPage = () => {
         return "bg-green-100 text-green-800";
       case "completed":
         return "bg-blue-100 text-blue-800";
-      case "planning":
+      case "pending":
         return "bg-yellow-100 text-yellow-800";
       case "cancelled":
         return "bg-red-100 text-red-800";
@@ -265,6 +546,7 @@ const ProjectDetailsPage = () => {
 
       <div className="p-4 sm:p-6 lg:p-8">
         <div className="max-w-7xl mx-auto space-y-6">
+          {/* Header Section */}
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4 w-full">
               <button
@@ -277,37 +559,33 @@ const ProjectDetailsPage = () => {
                 <HeaderSkeleton />
               ) : project ? (
                 <div className="flex items-center justify-between w-full gap-4 px-3 py-2">
-                  <h1 className="text-xl font-bold text-gray-900 flex-1 min-w-0 truncate">
-                    {project.project_code} - {project.name}
-                  </h1>
+                  <div className="flex items-center gap-4 flex-1 min-w-0">
+                    <h1 className="text-xl font-bold text-gray-900 truncate">
+                      {project.project_code} - {project.name}
+                    </h1>
+                  </div>
 
                   <div className="flex items-center gap-2 flex-shrink-0">
-                    <span
-                      className={`inline-flex px-3 py-1 text-xs font-medium rounded-full capitalize ${getStatusColor(
-                        project.status
-                      )}`}
-                    >
-                      {project.status}
-                    </span>
-                    <span className="text-xs text-gray-500">
-                      Created {formatDate(project.created_at)}
-                    </span>
+                  {canEditProject && (
+                      <button
+                        onClick={() => setShowEditModal(true)}
+                        className="px-5 py-1.5  text-white text-xs bg-secondary flex gap-4 rounded-lg transition-colors"
+                        title="Edit Project"
+                      >
+                        Edit Project
+                        <Edit3 className="h-3 w-3" />
+                      </button>
+                    )}
                   </div>
                 </div>
               ) : null}
             </div>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          {/* Financial Cards - Only 3 cards like Finance page */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             {loading ? (
               <>
-                <StatCard
-                  title=""
-                  value=""
-                  subtitle=""
-                  icon={DollarSign}
-                  loading
-                />
                 <StatCard
                   title=""
                   value=""
@@ -315,7 +593,13 @@ const ProjectDetailsPage = () => {
                   icon={TrendingUp}
                   loading
                 />
-                <StatCard title="" value="" subtitle="" icon={Wallet} loading />
+                <StatCard
+                  title=""
+                  value=""
+                  subtitle=""
+                  icon={Wallet}
+                  loading
+                />
                 <StatCard
                   title=""
                   value=""
@@ -326,12 +610,6 @@ const ProjectDetailsPage = () => {
               </>
             ) : project?.balance ? (
               <>
-                <StatCard
-                  title="Total Deposits"
-                  value={formatCurrency(project.balance.total_deposits)}
-                  subtitle="Money deposited"
-                  icon={DollarSign}
-                />
                 <StatCard
                   title="Total Allocated"
                   value={formatCurrency(project.balance.total_allocated)}
@@ -345,15 +623,16 @@ const ProjectDetailsPage = () => {
                   icon={Wallet}
                 />
                 <StatCard
-                  title="Unallocated Balance"
-                  value={formatCurrency(project.balance.unallocated_balance)}
-                  subtitle="Available funds"
+                  title="Allocated Balance"
+                  value={formatCurrency(project.balance.allocated_balance)}
+                  subtitle="Remaining allocated funds"
                   icon={DollarSign}
                 />
               </>
             ) : null}
           </div>
 
+          {/* Project Information */}
           <div>
             <h2 className="text-lg font-bold text-gray-900 mb-4">
               Project Information
@@ -479,10 +758,10 @@ const ProjectDetailsPage = () => {
                   {project.expense_types && project.expense_types.length > 0 && (
                     <div className="bg-white rounded-xl border border-gray-200 p-6 sm:col-span-2 lg:col-span-3">
                       <div className="flex items-center gap-3 mb-3">
-                        <div className="h-10 w-10 bg-indigo-100 rounded-full flex items-center justify-center">
-                          <Tag className="h-5 w-5 text-indigo-600" />
+                        <div className="h-10 w-10 bg-primary/20 rounded-full flex items-center justify-center">
+                          <Tag className="h-5 w-5 text-secondary" />
                         </div>
-                        <h3 className="text-xs font-medium text-gray-700">
+                        <h3 className="text-xs font-medium text-secondary">
                           Expense Types ({project.expense_types.length})
                         </h3>
                       </div>
@@ -490,7 +769,7 @@ const ProjectDetailsPage = () => {
                         {project.expense_types.map((type) => (
                           <span
                             key={type.id}
-                            className="inline-flex px-3 py-1.5 text-xs font-medium rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200"
+                            className="inline-flex px-5 py-1 text-xs font-medium rounded-full bg-primary/20 text-secondary border border-secondary"
                           >
                             {type.name}
                           </span>
@@ -503,6 +782,7 @@ const ProjectDetailsPage = () => {
             </div>
           </div>
 
+          {/* Team Members Section */}
           <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
             <div className="px-6 py-4 border-b border-gray-200 bg-gray-50">
               <div className="flex items-center justify-between">
@@ -514,32 +794,43 @@ const ProjectDetailsPage = () => {
 
             {canManageUsers && !loading && (
               <div className="px-6 py-4 border-b border-gray-200 bg-gray-50">
-                <div className="flex gap-2">
-                  <select
-                    value={selectedUser}
-                    onChange={(e) => setSelectedUser(e.target.value)}
-                    className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary text-xs"
-                    disabled={actionLoading || availableUsers.length === 0}
-                  >
-                    <option value="">
-                      {availableUsers.length === 0
-                        ? "All users assigned"
-                        : "Select user to assign"}
-                    </option>
-                    {availableUsers.map((user) => (
-                      <option key={user.id} value={user.id}>
-                        {user.first_name} {user.last_name} ({user.email})
+                <div className="space-y-3">
+                  <div className="flex gap-2">
+                    <select
+                      value={selectedUser}
+                      onChange={(e) => setSelectedUser(e.target.value)}
+                      className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary text-xs"
+                      disabled={actionLoading || availableUsers.length === 0}
+                    >
+                      <option value="">
+                        {availableUsers.length === 0
+                          ? "All users assigned"
+                          : "Select user to assign"}
                       </option>
-                    ))}
-                  </select>
-                  <button
-                    onClick={handleAssignUser}
-                    disabled={!selectedUser || actionLoading}
-                    className="px-4 py-2 bg-primary text-black rounded-lg hover:bg-primary/90 transition-colors text-xs font-medium disabled:opacity-50 flex items-center gap-2"
-                  >
-                    <UserPlus className="h-4 w-4" />
-                    Assign User
-                  </button>
+                      {availableUsers.map((user) => (
+                        <option key={user.id} value={user.id}>
+                          {user.first_name} {user.last_name} ({user.email})
+                        </option>
+                      ))}
+                    </select>
+                    <button
+                      onClick={handleAssignUser}
+                      disabled={!selectedUser || actionLoading}
+                      className="px-4 py-2 bg-primary text-black rounded-lg hover:bg-primary/90 transition-colors text-xs font-medium disabled:opacity-50 flex items-center gap-2"
+                    >
+                      <UserPlus className="h-4 w-4" />
+                      {project?.users && project.users.length > 0 ? 'Reassign User' : 'Assign User'}
+                    </button>
+                  </div>
+                  
+                  {/* Warning message when reassigning */}
+                  {project?.users && project.users.length > 0 && (
+                    <div className="bg-secondary border border-secondary rounded-lg p-3">
+                      <p className="text-xs text-white">
+                        <strong>Note:</strong> Assigning a new user will remove the current user ({project.users[0].first_name} {project.users[0].last_name}) from this project.
+                      </p>
+                    </div>
+                  )}
                 </div>
               </div>
             )}
@@ -578,6 +869,17 @@ const ProjectDetailsPage = () => {
           </div>
         </div>
       </div>
+
+      {/* Edit Project Modal */}
+      {canEditProject && (
+        <EditProjectModal
+          isOpen={showEditModal}
+          onClose={() => setShowEditModal(false)}
+          onSubmit={handleEditProject}
+          project={project}
+          loading={actionLoading}
+        />
+      )}
     </div>
   );
 };

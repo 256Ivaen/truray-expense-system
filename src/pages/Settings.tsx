@@ -114,14 +114,7 @@ const SettingsPage = () => {
 
     setSaving(true);
     try {
-      const user = getCurrentUser();
-      if (!user) {
-        toast.error('User not found');
-        return;
-      }
-
-      // Note: Adjust this endpoint based on your backend API
-      const response = await post('/auth/reset-password', {
+      const response = await post('/auth/change-password', {
         current_password: passwordData.current_password,
         new_password: passwordData.new_password,
       });
@@ -201,7 +194,6 @@ const SettingsPage = () => {
                 {[
                   { id: 'profile', label: 'Profile', icon: User },
                   { id: 'security', label: 'Security', icon: Lock },
-                  // { id: 'notifications', label: 'Notifications', icon: Bell },
                   { id: 'system', label: 'System', icon: SettingsIcon },
                 ].map((tab) => (
                   <button
@@ -372,46 +364,6 @@ const SettingsPage = () => {
                 </form>
               )}
 
-              {/* Notifications Tab */}
-              {/* {activeTab === 'notifications' && (
-                <div className="space-y-6 max-w-7xl">
-                  <div>
-                    <h3 className="text-sm font-semibold text-gray-900 mb-4">Notification Preferences</h3>
-                    <div className="space-y-4">
-                      {Object.entries(notificationSettings).map(([key, value]) => (
-                        <div key={key} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
-                          <div>
-                            <label className="text-xs font-medium text-gray-900 capitalize">
-                              {key.replace(/_/g, ' ')}
-                            </label>
-                            <p className="text-xs text-gray-500 mt-1">
-                              Receive notifications when {key.replace(/_/g, ' ')} events occur
-                            </p>
-                          </div>
-                          <label className="relative inline-flex items-center cursor-pointer">
-                            <input
-                              type="checkbox"
-                              checked={value}
-                              onChange={(e) => setNotificationSettings({ ...notificationSettings, [key]: e.target.checked })}
-                              className="sr-only peer"
-                            />
-                            <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-primary rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
-                          </label>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                  <button
-                    onClick={handleNotificationUpdate}
-                    disabled={saving}
-                    className="flex items-center gap-2 px-4 py-2 bg-primary text-secondary rounded-lg hover:bg-primary/90 transition-colors text-xs font-medium disabled:opacity-50"
-                  >
-                    <Save className="w-4 h-4" />
-                    {saving ? 'Saving...' : 'Save Preferences'}
-                  </button>
-                </div>
-              )} */}
-
               {/* System Tab */}
               {activeTab === 'system' && (
                 <div className="space-y-6 max-w-7xl">
@@ -443,4 +395,3 @@ const SettingsPage = () => {
 };
 
 export default SettingsPage;
-
