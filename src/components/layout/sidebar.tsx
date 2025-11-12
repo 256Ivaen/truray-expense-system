@@ -15,6 +15,7 @@ import { GiMoneyStack } from "react-icons/gi";
 import { LuLayoutDashboard } from "react-icons/lu"
 import { TbSubtask } from "react-icons/tb";
 import { MdOutlineAttachMoney } from "react-icons/md";
+import { FaShieldAlt } from "react-icons/fa";
 import { logout, getCurrentUser } from '../../utils/service.js'
 import { assets } from "../../assets/assets";
 
@@ -124,6 +125,17 @@ const Sidebar = ({
         section: 'reports',
         icon: <TbReportAnalytics className="h-4 w-4" />,
         roles: ['admin', 'super_admin']
+      })
+    }
+
+    // System Audit section - Super Admin only
+    if (currentUserRole === 'super_admin') {
+      baseNav.push({
+        title: 'System Audit',
+        path: '/system-audit',
+        section: 'system-audit',
+        icon: <FaShieldAlt className="h-4 w-4" />,
+        roles: ['super_admin']
       })
     }
 

@@ -22,6 +22,7 @@ import ProjectDetailsPage from "./pages/ProjectDetails.js";
 import ExpenseDetailsPage from "./pages/ExpenseDetails.js";
 import AllocationDetailsPage from "./pages/AllocationDetails.js";
 import SearchResults from "./pages/SearchResults.js";
+import SystemAuditPage from "./pages/SystemAuditPage.js"; 
 
 // Protected Route Component
 const ProtectedRoute = ({ children }) => {
@@ -86,8 +87,6 @@ const UnderConstructionPage = ({ title }) => {
 const LayoutWrapper = ({ children, title = "Truray" }) => {
   return <MainLayout>{children}</MainLayout>;
 };
-
-// Placeholder components for each page
 
 function AppContent() {
   return (
@@ -216,6 +215,18 @@ function AppContent() {
               <ProtectedRoute>
                 <LayoutWrapper>
                   <ReportsPage />
+                </LayoutWrapper>
+              </ProtectedRoute>
+            }
+          />
+
+          {/* System Audit - Super Admin Only */}
+          <Route
+            path="/system-audit"
+            element={
+              <ProtectedRoute>
+                <LayoutWrapper>
+                  <SystemAuditPage />
                 </LayoutWrapper>
               </ProtectedRoute>
             }
