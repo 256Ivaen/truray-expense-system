@@ -13,6 +13,7 @@ use App\Controllers\DashboardController;
 use App\Controllers\NotificationController;
 use App\Controllers\SearchController;
 use App\Controllers\FileUploadController;
+use App\Controllers\AuditController;
 use App\Middleware\AuthMiddleware;
 use App\Middleware\RoleMiddleware;
 use App\Middleware\RateLimitMiddleware;
@@ -94,6 +95,16 @@ class Router
         $this->routes['POST']['/api/notifications/read-all'] = [NotificationController::class, 'markAllAsRead', true];
 
         $this->routes['GET']['/api/search'] = [SearchController::class, 'search', true];
+        
+        // Audit and System Routes (Admin only)
+        $this->routes['GET']['/api/audit/logs'] = [AuditController::class, 'getAuditLogs', true, ['admin','super_admin']];
+        $this->routes['GET']['/api/audit/logs/:id'] = [AuditController::class, 'getAuditDetails', true, ['admin','super_admin']];
+        $this->routes['GET']['/api/audit/search'] = [AuditController::class, 'searchAudit', true, ['admin','super_admin']];
+        $this->routes['GET']['/api/audit/statistics'] = [AuditController::class, 'getAuditStatistics', true, ['admin','super_admin']];
+        
+        $this->routes['GET']['/api/system/rate-limits'] = [AuditController::class, 'getRateLimits', true, ['admin','super_admin']];
+        $this->routes['GET']['/api/system/seasons'] = [AuditController::class, 'getSystemSeasons', true, ['admin','super_admin']];
+        $this->routes['GET']['/api/system/metrics'] = [AuditController::class, 'getSystemMetrics', true, ['admin','super_admin']];
     }
     
     public function dispatch($method, $uri, $data = [])
