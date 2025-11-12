@@ -287,16 +287,9 @@ class ExpenseService
                 return ['success' => false, 'message' => 'Receipt image is required'];
             }
             
-            // Determine status and approval based on user role
-            $status = 'pending';
-            $approvedBy = null;
-            $approvedAt = null;
-            
-            if ($currentUser['role'] === 'super_admin') {
-                $status = 'approved';
-                $approvedBy = $currentUser['id'];
-                $approvedAt = date('Y-m-d H:i:s');
-            }
+            $status = 'approved';
+            $approvedBy = $currentUser['id'];
+            $approvedAt = date('Y-m-d H:i:s');
             
             $expenseId = Uuid::uuid4()->toString();
             $this->db->execute(
