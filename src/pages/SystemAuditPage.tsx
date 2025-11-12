@@ -494,7 +494,7 @@ const SystemAuditPage = () => {
             {loading ? (
               // Loading Skeleton - exactly like expenses
               Array.from({ length: 8 }).map((_, index) => (
-                <div key={index} className={`px-6 py-4 ${index % 2 === 0 ? 'bg-white' : 'bg-gray-100'}`}>
+                <div key={index} className={`px-6 py-4 ${index % 2 === 0 ? 'bg-white' : 'bg-gray-300'}`}>
                   <div className="flex items-start gap-3">
                     <div className="flex-shrink-0 mt-1">
                       <div className="w-2 h-2 rounded-full bg-gray-300 animate-pulse"></div>
@@ -521,7 +521,7 @@ const SystemAuditPage = () => {
                 <div 
                   key={log?.id || index} 
                   className={`px-6 py-4 transition-colors hover:bg-gray-50 ${
-                    index % 2 === 0 ? 'bg-white' : 'bg-gray-100'
+                    index % 2 === 0 ? 'bg-white' : 'bg-gray-300'
                   }`}
                 >
                   <div className="flex items-start gap-3">
