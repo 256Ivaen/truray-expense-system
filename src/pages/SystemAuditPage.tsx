@@ -520,8 +520,8 @@ const SystemAuditPage = () => {
               auditLogs.map((log, index) => (
                 <div 
                   key={log?.id || index} 
-                  className={`px-6 py-4 transition-colors hover:bg-gray-50 ${
-                    index % 2 === 0 ? 'bg-white' : 'bg-gray-300'
+                  className={`px-6 py-4 transition-colors hover:bg-secondary/10 ${
+                    index % 2 === 0 ? 'bg-white' : 'bg-secondary/20'
                   }`}
                 >
                   <div className="flex items-start gap-3">
