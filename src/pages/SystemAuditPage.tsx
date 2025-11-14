@@ -477,7 +477,7 @@ const SystemAuditPage = () => {
           )}
         </div>
 
-        {/* Audit Logs List - EXACTLY like Recent Expenses in Dashboard */}
+        {/* Audit Logs List - Single Line Format */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
           {/* Header */}
           <div className="px-6 py-4 border-b border-gray-200">
@@ -492,21 +492,17 @@ const SystemAuditPage = () => {
           {/* Audit Logs List */}
           <div className="divide-y divide-gray-100">
             {loading ? (
-              // Loading Skeleton - exactly like expenses
+              // Loading Skeleton
               Array.from({ length: 8 }).map((_, index) => (
                 <div key={index} className={`px-6 py-4 ${index % 2 === 0 ? 'bg-white' : 'bg-gray-300'}`}>
-                  <div className="flex items-start gap-3">
-                    <div className="flex-shrink-0 mt-1">
-                      <div className="w-2 h-2 rounded-full bg-gray-300 animate-pulse"></div>
-                      {index < 7 && (
-                        <div className="w-0.5 h-8 bg-gray-300 mx-auto mt-1 animate-pulse"></div>
-                      )}
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-4">
+                      <div className="w-4 h-4 bg-gray-300 rounded animate-pulse"></div>
+                      <div className="h-4 bg-gray-300 rounded w-32 animate-pulse"></div>
+                      <div className="h-4 bg-gray-300 rounded w-48 animate-pulse"></div>
+                      <div className="h-4 bg-gray-300 rounded w-24 animate-pulse"></div>
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="h-4 bg-gray-300 rounded w-3/4 mb-2 animate-pulse"></div>
-                      <div className="h-3 bg-gray-300 rounded w-1/2 animate-pulse"></div>
-                    </div>
-                    <div className="h-4 bg-gray-300 rounded w-16 animate-pulse"></div>
+                    <div className="h-8 bg-gray-300 rounded w-16 animate-pulse"></div>
                   </div>
                 </div>
               ))
@@ -524,65 +520,38 @@ const SystemAuditPage = () => {
                     index % 2 === 0 ? 'bg-white' : 'bg-secondary/20'
                   }`}
                 >
-                  <div className="flex items-start gap-3">
-                    {/* Timeline indicator */}
-                    <div className="flex-shrink-0 mt-1">
-                      <div className="w-2 h-2 rounded-full bg-secondary"></div>
-                      {index < auditLogs.length - 1 && (
-                        <div className="w-0.5 h-12 bg-secondary mx-auto mt-1"></div>
+                  <div className="flex items-center justify-between">
+                    {/* Single line content */}
+                    <div className="flex items-center gap-4 flex-1">
+                      {/* Action Icon */}
+                      {getActionIcon(log?.action)}
+                      
+                      {/* User */}
+                      <span className="text-sm font-medium text-gray-900 min-w-[120px]">
+                        {getUserDisplayName(log)}
+                      </span>
+                      
+                      {/* Action Description */}
+                      <span className="text-sm text-gray-600 flex-1">
+                        {getRecordDescription(log)}
+                      </span>
+                      
+                      {/* IP Address */}
+                      {log?.ip_address && (
+                        <span className="text-sm text-gray-500 font-mono min-w-[120px]">
+                          {log.ip_address}
+                        </span>
                       )}
                     </div>
 
-                    {/* Content */}
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-3 mb-2">
-                        {getActionIcon(log?.action)}
-                        <span className="text-xs font-semibold text-gray-900 capitalize">
-                          {formatActionText(log?.action)}
-                        </span>
-                        <span className={`px-2 py-1 text-xs font-medium rounded-full border ${getActionColor(log?.action)}`}>
-                          {log?.table_name || 'System'}
-                        </span>
-                      </div>
-                      
-                      <div className="flex items-center gap-4 text-xs text-gray-500">
-                        <div className="flex items-center gap-1">
-                          <User className="w-3 h-3" />
-                          <span>{getUserDisplayName(log)}</span>
-                        </div>
-                        <div className="flex items-center gap-1">
-                          <Database className="w-3 h-3" />
-                          <span>{getRecordDescription(log)}</span>
-                        </div>
-                        {log?.ip_address && (
-                          <div className="flex items-center gap-1">
-                            <Globe className="w-3 h-3" />
-                            <span>{log.ip_address}</span>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Timestamp and Actions */}
-                    <div className="flex-shrink-0 text-right flex flex-col items-end gap-2">
-                      <div className="text-xs font-medium text-gray-900 whitespace-nowrap">
-                        {formatDate(log?.created_at)}
-                      </div>
-                      <div className="flex items-center gap-1 text-xs text-gray-500">
-                        <Clock className="w-3 h-3" />
-                        {log?.created_at ? new Date(log.created_at).toLocaleTimeString('en-US', {
-                          hour: '2-digit',
-                          minute: '2-digit'
-                        }) : 'Unknown time'}
-                      </div>
-                      <button
-                        onClick={() => handleViewDetails(log)}
-                        className="flex items-center gap-1 px-3 py-1 bg-secondary text-white rounded-lg hover:bg-secondary transition-colors text-xs"
-                      >
-                        <Eye className="w-3 h-3" />
-                        View
-                      </button>
-                    </div>
+                    {/* View Button */}
+                    <button
+                      onClick={() => handleViewDetails(log)}
+                      className="flex items-center gap-1 px-3 py-1 bg-secondary text-white rounded-lg hover:bg-secondary transition-colors text-xs ml-4"
+                    >
+                      <Eye className="w-3 h-3" />
+                      View
+                    </button>
                   </div>
                 </div>
               ))
